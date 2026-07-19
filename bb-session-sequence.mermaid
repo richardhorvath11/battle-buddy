@@ -1,0 +1,53 @@
+sequenceDiagram
+    autonumber
+    actor R as Responder
+    participant SH as cmux shell
+    participant O as Orchestrator
+    participant T as Triage agent
+    participant D as Deep investigator
+    participant OPS as Opsgenie MCP
+    participant CAT as GitHub MCP (catalog + runbooks)
+    participant ST as Sheets/Drive MCP (session store)
+    participant DI as Docs MCP (team diary)
+
+    R->>O: /page ALERT-123 (or /incident INC-1234)
+    O->>SH: create incident-named workspace + panes
+    O->>OPS: fetch alert context, flap history
+    O->>CAT: resolve alert to service (catalog), fetch runbooks fresh
+    O->>ST: fingerprint exact-match + keyword filter
+    ST-->>O: candidate past sessions
+    O->>T: spawn (fast model, read-only, budget <= 2 min)
+    T->>CAT: deploy window check (service + dependsOn)
+    T->>T: rank candidates in-context,<br/>mark each VALIDATED / INVALIDATED vs fresh evidence
+    T-->>O: structured verdict: known-issue match, cause candidates + confidence, severity, next step
+    O->>ST: persist triage verdict as checkpoint zero
+    O-->>R: briefing (evidence deep-linked)
+    O->>SH: navigate-pane to cited dashboards
+
+    alt Resolved at triage (known issue)
+        R->>O: confirm fix path / close
+    else Deep investigation (FR-5f: no signal / responder request / fix failed — orchestrator proposes, responder confirms)
+        O->>D: spawn deep investigator
+        Note over D: triage candidates enter ledger as<br/>provenance: triage — unvalidated;<br/>>=1 fresh hypothesis required
+        loop Hypothesis ledger (min 3 live hypotheses)
+            D->>D: gather evidence via read-only MCP tools<br/>(may fan out specialist subagents in parallel)
+            D->>ST: checkpoint ledger state
+            D-->>R: ledger update
+        end
+        opt Mutating action proposed
+            D-->>R: approve-to-run (blast radius + rollback path)
+            R->>D: approve / deny
+        end
+        D-->>O: root cause + resolution
+    end
+
+    R->>O: /close
+    O->>O: draft diary entry<br/>(configured template, else match diary's existing format)
+    O-->>R: review draft (causal fields flagged as proposals)
+    R->>O: approve / edit
+    O->>DI: write diary entry (write no. 1)
+    DI-->>O: entry URL
+    O->>ST: write tool trace + transcript to Drive
+    O->>ST: append session row: fingerprint, schema fields,<br/>diary URL, artifact links (write no. 2)
+    Note over O,ST: diary-first ordering; on diary failure the row<br/>still lands with diary_pending flag
+    O->>SH: close workspace (state restorable)

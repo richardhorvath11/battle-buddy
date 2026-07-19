@@ -1,0 +1,70 @@
+flowchart TB
+    subgraph HUMAN["Responder"]
+        R["On-call engineer"]
+    end
+
+    subgraph SHELL["Shell layer — cmux (macOS) via shell adapter"]
+        CHAT["Agent terminal pane"]
+        P1["Browser pane: Grafana"]
+        P2["Browser pane: Splunk"]
+        P3["Browser pane: Opsgenie"]
+    end
+
+    subgraph CC["Claude Code runtime — battle-buddy plugin"]
+        ORCH["Orchestrator session<br/>/page, /incident, doctor"]
+        TRI["Triage subagent<br/>fast model, read-only, budgeted"]
+        DEEP["Deep investigator<br/>hypothesis ledger"]
+        SPEC["Specialist subagents<br/>log-diver, deploy-analyst,<br/>dependency-checker"]
+        GUARD["Guardrails<br/>PreToolUse deny layer +<br/>approval gates"]
+    end
+
+    subgraph MCPL["MCP layer — bring-your-own, verified by capability manifest"]
+        MSHEET["Google Sheets MCP<br/>capability: storage"]
+        MDRIVE["Google Drive MCP<br/>capability: storage artifacts"]
+        MDOC["Google Docs MCP<br/>capability: diary"]
+        MOPS["Opsgenie MCP<br/>capability: alerting"]
+        MGH["GitHub MCP<br/>capability: code — optional"]
+        MOBS["Observability MCPs<br/>Grafana / Splunk — optional"]
+        MSRV["battle-buddy server MCP<br/>tier 1 — fast-follow"]
+    end
+
+    subgraph STORES["Data stores"]
+        SHEET[("Session store<br/>Google Sheet — tier 0<br/>fingerprint, schema columns")]
+        DRIVE[("Artifacts<br/>Drive files: tool traces,<br/>transcripts — links in rows")]
+        DIARY[("Team diary<br/>Google Doc — team's format")]
+        GIT[("Team git repo<br/>catalog-info.yaml + runbooks<br/>human-curated, fetched fresh")]
+        OPS[("Opsgenie<br/>alerts, schedules —<br/>system of record")]
+        PG[("Postgres + pgvector<br/>tier 1")]
+    end
+
+    R -->|launches /page or /incident| CHAT
+    CHAT <--> ORCH
+    ORCH -->|spawns at session start| TRI
+    ORCH -->|spawns on escalation| DEEP
+    DEEP -->|fans out parallel| SPEC
+    TRI --- GUARD
+    DEEP --- GUARD
+    SPEC --- GUARD
+
+    GUARD -->|read/append rows| MSHEET
+    GUARD -->|write artifacts| MDRIVE
+    GUARD -->|write diary entry| MDOC
+    GUARD -->|alert context| MOPS
+    GUARD -->|deploys, PRs, catalog| MGH
+    GUARD -->|metrics, logs| MOBS
+    GUARD -.->|tier 1 retrieval| MSRV
+
+    MSHEET <--> SHEET
+    MDRIVE <--> DRIVE
+    MDOC --> DIARY
+    MOPS <--> OPS
+    MGH <--> GIT
+    MSRV -.-> PG
+
+    ORCH -->|deep-link evidence:<br/>navigate-pane| P1
+    ORCH -.->|open-pane, notify| P2
+    ORCH -.-> P3
+    R -->|own SSO sessions| P1
+
+    SHEET -->|"recalled sessions =<br/>hypotheses, must be<br/>VALIDATED / INVALIDATED"| TRI
+    GIT -->|"runbooks + ownership +<br/>dependsOn, fresh at T-zero"| TRI

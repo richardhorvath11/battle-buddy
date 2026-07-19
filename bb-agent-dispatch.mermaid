@@ -1,0 +1,50 @@
+flowchart TB
+    R["Responder"] <-->|converses, steers, approves| ORCH
+
+    subgraph ORCHL["Orchestrator (main Claude Code session)"]
+        ORCH["Session lifecycle, briefing synthesis,<br/>shell driving, close + dual-write flow"]
+    end
+
+    subgraph FAST["Speed 1 — Triage (auto at session start; re-invoked on new alerts)"]
+        TRI["Triage subagent<br/>model: fast/cheap - budget: <=2 min, capped turns<br/>tools: read-only narrow set"]
+        TQ["Fixed questions:<br/>Known? (fingerprint + keyword recall)<br/>Real? (flap history)<br/>What changed? (deploy window)<br/>Who's affected? (metrics + dependsOn)"]
+        TV["Structured verdict<br/>candidates + confidence + severity<br/>recalled findings marked<br/>VALIDATED / INVALIDATED<br/>honest 'no strong signal' allowed"]
+        TRI --> TQ --> TV
+    end
+
+    subgraph SLOW["Speed 2 — Deep investigation (on escalation / promotion to incident)"]
+        DEEP["Deep investigator<br/>model: frontier - budget: open<br/>tools: wide; mutations approval-gated<br/>ledger checkpointed to store (pause/resume/handoff)"]
+        LED["Hypothesis ledger (owned by deep investigator)<br/>provenance tags: triage / recall / fresh<br/>min 3 live hypotheses, >=1 must be fresh<br/>(anchoring + tunnel-vision guard)<br/>all non-fresh marked VALIDATED / INVALIDATED<br/>checkpointed to store each update"]
+        DEEP --> LED
+    end
+
+    subgraph SPECS["Specialist fan-out (parallel, read-only, summaries return to ledger)"]
+        S1["log-diver"]
+        S2["deploy-analyst"]
+        S3["dependency-checker"]
+        AT["agent teams mode<br/>(future: cross-communicating,<br/>opt-in for incident severity<br/>once stable)"]
+    end
+
+    subgraph GUARDS["Guardrail stack (applies to every agent)"]
+        G1["1. PreToolUse deny layer<br/>blocks destructive patterns outright"]
+        G2["2. Read-only credential defaults<br/>viewer tokens, context-pinned cluster tools"]
+        G3["3. Approval gates<br/>human decides all mutations"]
+        G4["4. Injection hardening<br/>telemetry text = data, not instructions"]
+        G5["5. Transcript = audit log"]
+        G1 --> G2 --> G3 --> G4 --> G5
+    end
+
+    ORCH -->|"spawn (always, at start +<br/>on new alerts)"| TRI
+    ORCH -->|"spawn per FR-5f:<br/>(a) triage: no signal<br/>(b) responder request / incident<br/>(c) fix fails verification<br/>orchestrator proposes, responder confirms"| DEEP
+    LED -->|dispatch| S1
+    LED -->|dispatch| S2
+    LED -->|dispatch| S3
+    LED -.-> AT
+    S1 -->|findings return to ledger| LED
+    S2 --> LED
+    S3 --> LED
+    TV -->|"verdict -> checkpoint zero (persisted)<br/>candidates enter deep ledger as<br/>provenance: triage"| ORCH
+    LED -->|"ledger updates only<br/>(relay to responder;<br/>orchestrator ingests no raw findings)"| ORCH
+    FAST -.-|governed by| GUARDS
+    SLOW -.-|governed by| GUARDS
+    SPECS -.-|governed by| GUARDS
