@@ -1,0 +1,15 @@
+# Python
+__pycache__/
+*.py[cod]
+.pytest_cache/
+.venv/
+
+# Claude Code local state
+.claude/settings.local.json
+
+# macOS
+.DS_Store
+
+# Runtime droppings (session markers, local traces — design §2.1)
+.bb-session/
+*.local.jsonl
