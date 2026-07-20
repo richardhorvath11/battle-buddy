@@ -26,6 +26,7 @@ import hashlib
 import json
 import os
 import shutil
+import stat
 import sys
 from datetime import datetime, timezone
 
@@ -422,12 +423,16 @@ def notice_once(root, key):
         notices = counters.get("notices")
         if not isinstance(notices, dict):
             notices = {}
-        if notices.get(key):
-            return False
-        notices[key] = True
+        first = not notices.get(key)
+        if first:
+            notices[key] = True
         counters["notices"] = notices
-        _write_counters_fd(fd, counters)
-        return True
+        # Persist on a first notice — and also whenever recovery ran, so the
+        # "recovered" diagnostic never claims a repair the file doesn't have
+        # (an unwritten recovery would re-announce itself on every read).
+        if first or corrupt:
+            _write_counters_fd(fd, counters)
+        return first
 
 
 def read_roles(root):
@@ -511,23 +516,40 @@ def stage_transcript(root, transcript_path):
     staging = os.path.join(state_dir(root), STAGING_DIR_NAME)
     destination = os.path.join(staging, STAGED_TRANSCRIPT_NAME)
     source = str(transcript_path)
+    # Non-blocking readability probe before creating anything: a source we
+    # cannot read must not conjure .bb-session/ into a workspace that never
+    # had one ("created lazily by the first writer"), and the probe must
+    # never hang — O_NONBLOCK means a FIFO (or similar special file) opens
+    # immediately instead of blocking the hook until the runtime kills it,
+    # which would also swallow every warning computed before this point.
     try:
-        # Readability probe before creating anything: a source we cannot read
-        # must not conjure .bb-session/ into a workspace that never had one
-        # ("created lazily by the first writer" — this write has nothing to
-        # write).
-        with open(source, "rb"):
-            pass
+        fd = os.open(source, os.O_RDONLY | os.O_NONBLOCK)
+    except FileNotFoundError:
+        return None
     except OSError as exc:
-        if os.path.exists(source):
-            sys.stderr.write(
-                "bb-state: transcript source unreadable (%s)\n" % exc
-            )
+        sys.stderr.write("bb-state: transcript source unreadable (%s)\n" % exc)
         return None
     try:
-        os.makedirs(staging, exist_ok=True)
-        shutil.copyfile(source, destination)
+        if not stat.S_ISREG(os.fstat(fd).st_mode):
+            sys.stderr.write(
+                "bb-state: transcript source is not a regular file (%s); "
+                "not staged\n" % source
+            )
+            return None
+        # Copy from the probed fd itself — no re-open, no TOCTOU window
+        # between probe and copy.
+        with os.fdopen(fd, "rb") as src:
+            fd = -1  # ownership transferred to the file object
+            os.makedirs(staging, exist_ok=True)
+            with open(destination, "wb") as dst:
+                shutil.copyfileobj(src, dst)
     except OSError as exc:
         sys.stderr.write("bb-state: transcript staging failed (%s)\n" % exc)
         return None
+    finally:
+        if fd != -1:
+            try:
+                os.close(fd)
+            except OSError:
+                pass
     return destination

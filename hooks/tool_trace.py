@@ -244,11 +244,18 @@ def _post_tool_use(payload, root, cfg):
         # session id so a .bb-session/ surviving a skipped /close still gets
         # its notice in the next session.
         session = payload.get("session_id")
-        key = "tripwire_disabled:%s" % (
-            session if isinstance(session, str) else ""
-        )
+        if isinstance(session, str) and session:
+            key = "tripwire_disabled:%s" % session
+            suffix = ""
+        else:
+            # No session id ⇒ the dedup silently widens to the state-dir
+            # lifetime; say so rather than let the per-session guarantee
+            # degrade without a breadcrumb.
+            key = "tripwire_disabled:"
+            suffix = (" (no session id in payload; this notice dedups per"
+                      " state lifetime, not per session)")
         if _state.notice_once(root, key):
-            stderr = "tool_trace: %s\n" % TRIPWIRE_DISABLED_NOTICE
+            stderr = "tool_trace: %s%s\n" % (TRIPWIRE_DISABLED_NOTICE, suffix)
         return 0, stdout, stderr
 
     capabilities = cfg.capabilities_for(tool)
@@ -321,10 +328,13 @@ def main():
         sys.stderr.write("tool_trace fail-open: stdin unreadable (%s)\n" % exc)
         sys.exit(0)
     exit_code, stdout, stderr = run(stdin_text)
-    if stdout:
-        sys.stdout.write(stdout)
-    if stderr:
-        sys.stderr.write(stderr)
+    try:
+        if stdout:
+            sys.stdout.write(stdout)
+        if stderr:
+            sys.stderr.write(stderr)
+    except OSError:
+        pass  # broken pipe on a dying runtime — keep the intended exit code
     sys.exit(exit_code)
 
 

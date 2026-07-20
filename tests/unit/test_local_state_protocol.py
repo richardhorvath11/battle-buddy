@@ -672,3 +672,44 @@ def test_summary_of_non_dict_input_is_empty():
 def test_summary_of_non_command_input_is_sorted_compact_json():
     summary = _state.summarize_tool_input({"b": 2, "a": 1})
     assert summary == '{"a":1,"b":2}'
+
+
+# --- round-2 convergence additions ------------------------------------------
+
+
+def test_fifo_transcript_source_fails_fast_loudly_and_conjures_nothing(
+    tmp_path, capsys
+):
+    # The staging probe must never block: a FIFO source (no writer) would
+    # hang a blocking open() until the runtime kills the hook — losing every
+    # warning computed before it. The non-blocking probe rejects it
+    # immediately as a non-regular file.
+    fifo = tmp_path / "transcript.fifo"
+    os.mkfifo(str(fifo))
+    capsys.readouterr()
+    assert _state.stage_transcript(tmp_path, fifo) is None
+    assert "not a regular file" in capsys.readouterr().err
+    assert not (tmp_path / ".bb-session").exists()
+
+
+def test_notice_once_persists_its_corruption_recovery(tmp_path, capsys):
+    # The "recovered seq" diagnostic must not claim a repair the file doesn't
+    # have: even when the notice was already recorded (no new notice to
+    # write), a recovery that ran is written back — so it does not
+    # re-announce itself on every subsequent read.
+    state = tmp_path / ".bb-session"
+    state.mkdir()
+    counters_path = state / "counters.json"
+    counters_path.write_text(
+        json.dumps({"protocol": "bb.local.v1", "seq": "not-an-int",
+                    "turns": {}, "notices": {"k": True}}),
+        encoding="utf-8",
+    )
+    capsys.readouterr()
+    assert _state.notice_once(tmp_path, "k") is False  # already recorded
+    assert "corrupt" in capsys.readouterr().err
+    with open(str(counters_path), encoding="utf-8") as f:
+        repaired = json.load(f)
+    assert isinstance(repaired["seq"], int)  # recovery actually persisted
+    assert _state.notice_once(tmp_path, "k") is False
+    assert "corrupt" not in capsys.readouterr().err  # no re-announcement

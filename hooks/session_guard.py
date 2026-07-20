@@ -54,6 +54,22 @@ CONFIG_WARNING = (
     "deterministic defaults (design §2.1).\n"
 )
 
+BROKEN_CONFIG_WARNING = (
+    "battle-buddy: the workspace config (.claude/settings.json) exists but "
+    "could not be read — bindings and budgets fall back to deterministic "
+    "defaults. Fix the settings file (parse details are in the "
+    "session_guard config notice); re-running from another directory will "
+    "not help.\n"
+)
+
+STALE_MARKER_WARNING = (
+    "battle-buddy session guard: a previous session's marker%s is still "
+    "present — session row not persisted; run /close. A prior session in "
+    "this workspace ended without a confirmed close, so its record in "
+    "storage is missing or was never finalized. Run /close to persist and "
+    "clear it before starting new work.\n"
+)
+
 
 def _root_of(payload):
     root = payload.get("cwd")
@@ -68,15 +84,37 @@ def _warning_stdout(message):
     return json.dumps({"systemMessage": message.strip()})
 
 
+def _marker_label(root):
+    marker = _state.read_marker(root)
+    if marker and isinstance(marker.get("session_id"), str):
+        return " for session %s" % marker["session_id"]
+    return ""
+
+
 def _session_start(payload, root):
     cfg = _config.load_config(root)
-    stdout = ""
     stderr = ""
+    warnings = []
     for notice in cfg.notices:
         stderr += "session_guard config notice: %s\n" % notice
     if not cfg.config_present:
-        stderr += CONFIG_WARNING
-        stdout = _warning_stdout(CONFIG_WARNING)
+        # A broken settings file is not a missing block: prescribing
+        # "run from the workspace repo" for a parse error sends the
+        # responder to the wrong remedy.
+        warnings.append(
+            BROKEN_CONFIG_WARNING if cfg.settings_error else CONFIG_WARNING
+        )
+    # Stale-marker mirror of the SessionEnd check (D-11): a marker already
+    # present when a session STARTS means a prior session ended without a
+    # confirmed close — and SessionStart is a point where the runtime
+    # reliably renders warnings (SessionEnd rendering happens while the
+    # session is tearing down). Resuming a legitimately-open session must
+    # not nag, so "resume" is exempt.
+    if payload.get("source") != "resume" and _state.marker_present(root):
+        warnings.append(STALE_MARKER_WARNING % _marker_label(root))
+    stderr += "".join(warnings)
+    stdout = _warning_stdout("\n".join(w.strip() for w in warnings)) \
+        if warnings else ""
     return 0, stdout, stderr
 
 
@@ -84,11 +122,7 @@ def _session_end(payload, root):
     stdout = ""
     stderr = ""
     if _state.marker_present(root):
-        marker = _state.read_marker(root)
-        label = ""
-        if marker and isinstance(marker.get("session_id"), str):
-            label = " for session %s" % marker["session_id"]
-        warning = MARKER_WARNING % label
+        warning = MARKER_WARNING % _marker_label(root)
         stderr += warning
         stdout = _warning_stdout(warning)
     transcript = payload.get("transcript_path")
@@ -163,10 +197,13 @@ def main():
         sys.stderr.write("session_guard fail-open: stdin unreadable (%s)\n" % exc)
         sys.exit(0)
     exit_code, stdout, stderr = run(stdin_text)
-    if stdout:
-        sys.stdout.write(stdout)
-    if stderr:
-        sys.stderr.write(stderr)
+    try:
+        if stdout:
+            sys.stdout.write(stdout)
+        if stderr:
+            sys.stderr.write(stderr)
+    except OSError:
+        pass  # broken pipe on a dying runtime — keep the intended exit code
     sys.exit(exit_code)
 
 

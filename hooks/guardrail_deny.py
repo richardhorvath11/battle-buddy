@@ -310,10 +310,13 @@ def main():
         sys.stderr.write("guardrail_deny fail-open: stdin unreadable (%s)\n" % exc)
         sys.exit(0)
     exit_code, stdout, stderr = run(stdin_text)
-    if stdout:
-        sys.stdout.write(stdout)
-    if stderr:
-        sys.stderr.write(stderr)
+    try:
+        if stdout:
+            sys.stdout.write(stdout)
+        if stderr:
+            sys.stderr.write(stderr)
+    except OSError:
+        pass  # broken pipe on a dying runtime — keep the intended exit code
     sys.exit(exit_code)
 
 

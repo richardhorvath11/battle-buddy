@@ -196,15 +196,20 @@ def test_config_presence_warning(fixture_path, tmp_path):
         assert stdout == ""
 
 
-def test_malformed_config_surfaces_notice_and_warns(tmp_path):
+def test_malformed_config_surfaces_notice_and_names_the_real_cause(tmp_path):
+    # A settings file that EXISTS but cannot be parsed is not a missing
+    # block: the user-visible warning must name the broken file, not
+    # prescribe "run from the workspace repo" (which would not help).
     root = make_root(tmp_path)
     claude = root / ".claude"
     claude.mkdir()
     (claude / "settings.json").write_text("{not json", encoding="utf-8")
-    exit_code, _, stderr = run_start(root)
+    exit_code, stdout, stderr = run_start(root)
     assert exit_code == 0
     assert "config notice" in stderr  # fail-open visibility (R13)
-    assert "workspace repo" in stderr  # malformed ⇒ absent semantics
+    assert "could not be read" in stderr
+    assert "workspace repo" not in stderr  # the wrong remedy, not offered
+    assert "could not be read" in json.loads(stdout)["systemMessage"]
 
 
 # --- fail-open under fault injection (SC-007) -------------------------------
@@ -334,3 +339,69 @@ def test_tool_events_are_a_quiet_no_op(tmp_path):
     payload = {"hook_event_name": "PreToolUse", "tool_name": "Bash",
                "cwd": str(root)}
     assert session_guard.run(json.dumps(payload)) == (0, "", "")
+
+
+# --- round-2 convergence additions ------------------------------------------
+
+
+def run_start_with(root, source):
+    payload = {
+        "hook_event_name": "SessionStart",
+        "cwd": str(root),
+        "session_id": "us5-session",
+        "source": source,
+    }
+    return session_guard.run(json.dumps(payload))
+
+
+def test_stale_marker_at_session_start_warns(tmp_path):
+    # D-11 mirror: a marker already present when a session STARTS is the
+    # skipped-/close state, warned at a point where rendering is unambiguous.
+    root = make_root(tmp_path)
+    state = root / ".bb-session"
+    state.mkdir()
+    (state / "marker.json").write_text(
+        json.dumps({"protocol": "bb.local.v1",
+                    "session_id": "page-ALERT-9-2026-07-20"}),
+        encoding="utf-8",
+    )
+    exit_code, stdout, stderr = run_start_with(root, "startup")
+    assert exit_code == 0
+    assert "run /close" in stderr
+    message = json.loads(stdout)["systemMessage"]
+    assert "session row not persisted" in message
+    assert "page-ALERT-9-2026-07-20" in message
+
+
+def test_resume_with_open_marker_does_not_nag(tmp_path):
+    # Resuming a legitimately-open session is not the stale case — the
+    # false-nag exemption that kept the check off the Stop event applies.
+    root = make_root(tmp_path)
+    claude = root / ".claude"
+    claude.mkdir()
+    (claude / "settings.json").write_text(
+        json.dumps({"battleBuddy": {}}), encoding="utf-8"
+    )  # config present, so only the marker logic is under test
+    state = root / ".bb-session"
+    state.mkdir()
+    (state / "marker.json").write_text(
+        json.dumps({"protocol": "bb.local.v1", "session_id": "x"}),
+        encoding="utf-8",
+    )
+    exit_code, stdout, stderr = run_start_with(root, "resume")
+    assert exit_code == 0
+    assert "run /close" not in stderr
+    assert stdout == ""
+
+
+def test_session_start_without_marker_stays_quiet_on_markers(tmp_path):
+    root = make_root(tmp_path)
+    claude = root / ".claude"
+    claude.mkdir()
+    (claude / "settings.json").write_text(
+        json.dumps({"battleBuddy": {}}), encoding="utf-8"
+    )
+    exit_code, stdout, stderr = run_start_with(root, "startup")
+    assert exit_code == 0
+    assert stdout == ""
+    assert "run /close" not in stderr

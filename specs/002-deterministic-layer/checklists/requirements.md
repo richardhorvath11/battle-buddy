@@ -87,3 +87,13 @@
   (FR-013); (9) stdlib boundary — zero third-party imports across `hooks/` + `bin/`
   (`test_stdlib_boundary`, SC-006); (10) latency — R8 p95 < 100ms per hook entry over
   100 invocations (`test_hook_latency`, SC-002). Slice 2 complete.
+- Validation run 5 (2026-07-20, post-convergence re-validation): two converge review
+  rounds (line-level, silent-failure, test-coverage, whole-system-vs-governing-docs
+  reviewers; fix-or-defend per finding) landed as the two `converge round` commits.
+  All round-1 🔴/🟠 findings fixed and re-verified against file text by round 2; round
+  2 surfaced one regression (blocking staging probe — fixed with a non-blocking
+  fd-based probe) and the SessionEnd `systemMessage` rendering ambiguity — mitigated
+  by mirroring the stale-marker warning at SessionStart (`resume` exempt), recorded in
+  the protocol doc. `make verify` green after each round; suite grew from 432 to the
+  current unit-layer count with the convergence tests; unit layer re-run green on
+  Python 3.9.6 (D-1 floor).

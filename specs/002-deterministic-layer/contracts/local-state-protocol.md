@@ -56,8 +56,10 @@ append property on the normal path. Three line types share one monotonic `seq`:
   with no cross-visibility, so a call that is *both* guardrail-dangerous *and* past-cap
   can produce two `denied:*` lines (one per denying hook) — an accepted, bounded case;
   call-counting deduplicates denied lines sharing the same tool-call identity within one
-  PreToolUse batch. **Tool-call identity** (pinned by this slice's implementation):
-  denied lines carry the runtime's tool-call id as an optional `call_id` field whenever
+  PreToolUse batch. **Tool-call identity** (pinned by this slice's implementation;
+  `call_id` is an additive optional field on denied lines only — no version bump, no
+  consumer-parse change, same precedent as corruption recovery below): denied lines
+  carry the runtime's tool-call id as an optional `call_id` field whenever
   the hook payload provides one (`tool_use_id`); two `denied:*` lines with the same
   `call_id` are one call — exact, order-independent. When `call_id` is unavailable the
   fallback is identical `agent` + `tool` + `summary` on **adjacent** denied *call* lines
@@ -158,7 +160,7 @@ copy.
 |---|---|---|---|
 | PreToolUse | evaluate deny classes; on block: append `denied:guardrail:*` line | turn-cap check via counters; on deny: append `denied:turn_cap` line | — |
 | PostToolUse | — | append call line (outcome classified); tripwire evaluation | — |
-| SessionStart | — | — | config-presence warning (FR-015) |
+| SessionStart | — | — | config-presence warning (FR-015); stale-marker warning (marker present at start ⇒ a prior session skipped `/close`; exempt on `source: resume`) |
 | SessionEnd | — | — | marker check (warn if present); transcript staging |
 
 Session-guard note: v1 registers the marker check on **SessionEnd only** — it fires once
@@ -169,8 +171,13 @@ runtime offers a clean end-of-session blocking point (recorded as a research dec
 "Loud" is delivered on the runtime's user-visible channel: the FR-011 and FR-015
 warnings are emitted as a `systemMessage` JSON object on stdout (exit 0) *in addition
 to* stderr — an exit-0 hook's stderr alone is debug-log-only and would reach nobody.
-Fail-open/degraded diagnostics remain stderr-only (R13); only the two spec-required
-warnings use the user-visible surface.
+Fail-open/degraded diagnostics remain stderr-only (R13); only the spec-required
+warnings use the user-visible surface. Because `systemMessage` rendering *during
+session teardown* (SessionEnd) is not explicitly documented by the runtime, the marker
+check is mirrored at **SessionStart** (stale-marker warning, `resume` exempt): a marker
+already present when a session starts is the same skipped-`/close` state, warned at a
+point where rendering is unambiguous. The two checks together make D-11's detection
+robust to either surface failing.
 
 ## Config keys read by this layer (workspace `.claude/settings.json` → `battleBuddy`)
 
