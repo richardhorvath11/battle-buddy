@@ -41,10 +41,10 @@ import _state
 
 MARKER_WARNING = (
     "battle-buddy session guard: session row not persisted — run /close. "
-    "The session marker%s is still present, meaning no confirmed close "
-    "cleared it: the session record in storage is missing or was never "
-    "finalized. Reopen the workspace and run /close so the record is "
-    "written and artifacts are uploaded.\n"
+    "The session marker%s was not cleared by a confirmed close: the session "
+    "record in storage is missing or was never finalized. Reopen the "
+    "workspace and run /close so the record is written and artifacts are "
+    "uploaded.\n"
 )
 
 CONFIG_WARNING = (
@@ -63,11 +63,11 @@ BROKEN_CONFIG_WARNING = (
 )
 
 STALE_MARKER_WARNING = (
-    "battle-buddy session guard: a previous session's marker%s is still "
-    "present — session row not persisted; run /close. A prior session in "
-    "this workspace ended without a confirmed close, so its record in "
-    "storage is missing or was never finalized. Run /close to persist and "
-    "clear it before starting new work.\n"
+    "battle-buddy session guard: a previous session's marker%s was not "
+    "cleared by a confirmed close — session row not persisted; run /close. "
+    "A prior session in this workspace ended without closing, so its record "
+    "in storage is missing or was never finalized. Run /close to persist "
+    "and clear it before starting new work.\n"
 )
 
 
@@ -105,12 +105,17 @@ def _session_start(payload, root):
             BROKEN_CONFIG_WARNING if cfg.settings_error else CONFIG_WARNING
         )
     # Stale-marker mirror of the SessionEnd check (D-11): a marker already
-    # present when a session STARTS means a prior session ended without a
+    # present at a FRESH startup means a prior session ended without a
     # confirmed close — and SessionStart is a point where the runtime
     # reliably renders warnings (SessionEnd rendering happens while the
-    # session is tearing down). Resuming a legitimately-open session must
-    # not nag, so "resume" is exempt.
-    if payload.get("source") != "resume" and _state.marker_present(root):
+    # session is tearing down). Only `startup` warns: `resume`, `clear`, and
+    # `compact` all fire mid-session with the marker legitimately open
+    # (compaction has no preceding SessionEnd at all), and an unknown future
+    # source is likelier another mid-session event than a fresh start —
+    # false nags on the responder-visible channel are worse than deferring
+    # to the SessionEnd check.
+    if payload.get("source", "startup") == "startup" \
+            and _state.marker_present(root):
         warnings.append(STALE_MARKER_WARNING % _marker_label(root))
     stderr += "".join(warnings)
     stdout = _warning_stdout("\n".join(w.strip() for w in warnings)) \
@@ -202,6 +207,8 @@ def main():
             sys.stdout.write(stdout)
         if stderr:
             sys.stderr.write(stderr)
+        sys.stdout.flush()
+        sys.stderr.flush()
     except OSError:
         pass  # broken pipe on a dying runtime — keep the intended exit code
     sys.exit(exit_code)

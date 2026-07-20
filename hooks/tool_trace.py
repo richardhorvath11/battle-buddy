@@ -333,6 +333,8 @@ def main():
             sys.stdout.write(stdout)
         if stderr:
             sys.stderr.write(stderr)
+        sys.stdout.flush()
+        sys.stderr.flush()
     except OSError:
         pass  # broken pipe on a dying runtime — keep the intended exit code
     sys.exit(exit_code)

@@ -160,7 +160,7 @@ copy.
 |---|---|---|---|
 | PreToolUse | evaluate deny classes; on block: append `denied:guardrail:*` line | turn-cap check via counters; on deny: append `denied:turn_cap` line | — |
 | PostToolUse | — | append call line (outcome classified); tripwire evaluation | — |
-| SessionStart | — | — | config-presence warning (FR-015); stale-marker warning (marker present at start ⇒ a prior session skipped `/close`; exempt on `source: resume`) |
+| SessionStart | — | — | config-presence warning (FR-015; a settings file that exists but cannot be parsed gets a fix-the-file variant instead of the run-from-workspace-repo remedy); stale-marker warning on a **fresh `startup` only** — `resume`, `clear`, `compact`, and unknown sources are exempt (all fire mid-session with the marker legitimately open; compaction has no preceding SessionEnd) |
 | SessionEnd | — | — | marker check (warn if present); transcript staging |
 
 Session-guard note: v1 registers the marker check on **SessionEnd only** — it fires once
@@ -174,10 +174,12 @@ to* stderr — an exit-0 hook's stderr alone is debug-log-only and would reach n
 Fail-open/degraded diagnostics remain stderr-only (R13); only the spec-required
 warnings use the user-visible surface. Because `systemMessage` rendering *during
 session teardown* (SessionEnd) is not explicitly documented by the runtime, the marker
-check is mirrored at **SessionStart** (stale-marker warning, `resume` exempt): a marker
-already present when a session starts is the same skipped-`/close` state, warned at a
-point where rendering is unambiguous. The two checks together make D-11's detection
-robust to either surface failing.
+check is mirrored at **SessionStart** on a fresh `startup` only (see the event table:
+`resume`/`clear`/`compact` and unknown sources fire mid-session over a legitimately
+open marker — warning there would be the same false-nag failure that keeps this check
+off the Stop event): a marker already present at a fresh startup is the same
+skipped-`/close` state, warned at a point where rendering is unambiguous. The two
+checks together make D-11's detection robust to either surface failing.
 
 ## Config keys read by this layer (workspace `.claude/settings.json` → `battleBuddy`)
 

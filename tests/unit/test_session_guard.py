@@ -405,3 +405,66 @@ def test_session_start_without_marker_stays_quiet_on_markers(tmp_path):
     assert exit_code == 0
     assert stdout == ""
     assert "run /close" not in stderr
+
+
+# --- round-3 convergence additions: the SessionStart source matrix ----------
+
+
+def _root_with_marker_and_config(tmp_path):
+    root = make_root(tmp_path)
+    claude = root / ".claude"
+    claude.mkdir()
+    (claude / "settings.json").write_text(
+        json.dumps({"battleBuddy": {}}), encoding="utf-8"
+    )
+    state = root / ".bb-session"
+    state.mkdir()
+    (state / "marker.json").write_text(
+        json.dumps({"protocol": "bb.local.v1", "session_id": "x"}),
+        encoding="utf-8",
+    )
+    return root
+
+
+def test_compact_with_open_marker_does_not_nag(tmp_path):
+    # Auto-compaction fires SessionStart mid-session with NO preceding
+    # SessionEnd — the marker is legitimately open; a warning here would be
+    # the false-nag failure that keeps this check off the Stop event.
+    root = _root_with_marker_and_config(tmp_path)
+    exit_code, stdout, stderr = run_start_with(root, "compact")
+    assert exit_code == 0
+    assert stdout == ""
+    assert "run /close" not in stderr
+
+
+def test_clear_with_open_marker_does_not_nag_twice(tmp_path):
+    # /clear fires SessionEnd (which already warned) then SessionStart in
+    # the same workspace — the start side must not duplicate the warning.
+    root = _root_with_marker_and_config(tmp_path)
+    exit_code, stdout, stderr = run_start_with(root, "clear")
+    assert exit_code == 0
+    assert stdout == ""
+    assert "run /close" not in stderr
+
+
+def test_unknown_future_source_does_not_nag(tmp_path):
+    # An unknown source value is likelier a future mid-session event than a
+    # fresh start — false nags on the loud channel are worse than deferring
+    # to the SessionEnd check.
+    root = _root_with_marker_and_config(tmp_path)
+    exit_code, stdout, stderr = run_start_with(root, "some-future-source")
+    assert exit_code == 0
+    assert stdout == ""
+    assert "run /close" not in stderr
+
+
+def test_missing_source_field_is_treated_as_startup(tmp_path):
+    # Older/simple harnesses may omit source; a fresh start is the common
+    # case there, and the warning is truthful for it.
+    root = _root_with_marker_and_config(tmp_path)
+    payload = {"hook_event_name": "SessionStart", "cwd": str(root),
+               "session_id": "s"}
+    exit_code, stdout, stderr = session_guard.run(json.dumps(payload))
+    assert exit_code == 0
+    assert "run /close" in stderr
+    assert "session row not persisted" in json.loads(stdout)["systemMessage"]
