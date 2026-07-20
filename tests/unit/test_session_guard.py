@@ -81,8 +81,14 @@ def test_marker_states_warn_on_exactly_the_present_ones(fixture_path, tmp_path):
     if fixture["expected_warning"]:
         assert "session row not persisted" in stderr
         assert "run /close" in stderr  # the exact remedial instruction
+        # "Loudly" means the responder actually sees it: the warning also
+        # rides the runtime's user-visible systemMessage channel (exit-0
+        # stderr alone is debug-log-only).
+        message = json.loads(stdout)["systemMessage"]
+        assert "session row not persisted" in message
     else:
         assert "session row not persisted" not in stderr
+        assert stdout == ""
 
 
 def test_warning_names_the_session_when_the_marker_is_readable(tmp_path):
@@ -180,12 +186,14 @@ def test_config_presence_warning(fixture_path, tmp_path):
         (claude / "settings.json").write_text(
             json.dumps({"battleBuddy": {}}), encoding="utf-8"
         )
-    exit_code, _, stderr = run_start(root)
+    exit_code, stdout, stderr = run_start(root)
     assert exit_code == 0  # non-blocking (FR-015)
     if fixture["expected_warning"]:
         assert "workspace repo" in stderr
+        assert "workspace repo" in json.loads(stdout)["systemMessage"]
     else:
         assert "workspace repo" not in stderr
+        assert stdout == ""
 
 
 def test_malformed_config_surfaces_notice_and_warns(tmp_path):
@@ -255,3 +263,74 @@ def test_hook_is_registered_for_both_session_events():
     # SessionEnd only for the marker check — a Stop registration would nag a
     # legitimately-open session every turn (protocol doc's event-binding note).
     assert "Stop" not in hooks_json["hooks"]
+
+
+# --- round-1 convergence additions ------------------------------------------
+
+
+def test_unstattable_marker_state_warns_conservatively(tmp_path, capsys):
+    # The D-11 backstop must not fail silent in the no-warning direction: a
+    # state path that cannot be statted cannot rule out an uncleared marker,
+    # so the guard warns (Constitution II).
+    root = make_root(tmp_path)
+    (root / ".bb-session").write_text("a file where a dir should be",
+                                      encoding="utf-8")
+    transcript = tmp_path / "t.jsonl"
+    transcript.write_text("{}\n", encoding="utf-8")
+    capsys.readouterr()
+    exit_code, stdout, stderr = run_end(root, str(transcript))
+    assert exit_code == 0
+    assert "session row not persisted" in stderr
+    assert "session row not persisted" in json.loads(stdout)["systemMessage"]
+    assert "marker" in capsys.readouterr().err  # the bb-state cause diagnostic
+
+
+def test_warning_omits_label_for_non_string_session_id(tmp_path):
+    root = make_root(tmp_path)
+    state = root / ".bb-session"
+    state.mkdir()
+    (state / "marker.json").write_text(
+        json.dumps({"protocol": "bb.local.v1", "session_id": 42}),
+        encoding="utf-8",
+    )
+    transcript = tmp_path / "t.jsonl"
+    transcript.write_text("{}\n", encoding="utf-8")
+    _, _, stderr = run_end(root, str(transcript))
+    assert "session row not persisted" in stderr
+    assert "for session" not in stderr  # unusable id ⇒ no label, no crash
+
+
+def test_staging_destination_failure_is_not_blamed_on_the_source(
+    tmp_path, capsys
+):
+    # .bb-session as a file breaks the staging write; the source exists and
+    # is readable — the notice must not claim it is missing/unreadable, and
+    # the real cause lands on the bb-state diagnostic.
+    root = make_root(tmp_path)
+    (root / ".bb-session").write_text("a file where a dir should be",
+                                      encoding="utf-8")
+    source = tmp_path / "t.jsonl"
+    source.write_text("{}\n", encoding="utf-8")
+    capsys.readouterr()
+    _, _, stderr = run_end(root, str(source))
+    assert "staging failed" in stderr
+    assert "source exists" in stderr
+    assert "missing source" not in stderr
+    assert "staging failed" in capsys.readouterr().err  # underlying OSError
+
+
+def test_unrecognized_event_leaves_a_breadcrumb(tmp_path):
+    root = make_root(tmp_path)
+    payload = {"hook_event_name": "SomeFutureEvent", "cwd": str(root)}
+    exit_code, _, stderr = session_guard.run(json.dumps(payload))
+    assert exit_code == 0
+    assert "unrecognized hook_event_name" in stderr
+
+
+def test_tool_events_are_a_quiet_no_op(tmp_path):
+    # The shared fault corpus drives this hook with tool events; those are
+    # not session-scoped and produce neither warning nor breadcrumb.
+    root = make_root(tmp_path)
+    payload = {"hook_event_name": "PreToolUse", "tool_name": "Bash",
+               "cwd": str(root)}
+    assert session_guard.run(json.dumps(payload)) == (0, "", "")

@@ -41,11 +41,28 @@ def payload(event, root, **extra):
     return json.dumps(base)
 
 
+def _capped_pre(root):
+    # The expensive PreToolUse shape: a REGISTERED triage actor, so every
+    # invocation pays the role lookup and the flock-guarded counters read —
+    # the uncapped early return would otherwise never time them.
+    import _state
+
+    state = root / ".bb-session"
+    state.mkdir(exist_ok=True)
+    actor = _state.actor_key(str(root / "transcript.jsonl"))
+    (state / "agents.json").write_text(
+        json.dumps({"protocol": "bb.local.v1", "roles": {actor: "triage"}}),
+        encoding="utf-8",
+    )
+    return tool_trace.run, payload("PreToolUse", root)
+
+
 CASES = [
     ("guardrail_deny-pre", lambda root: (guardrail_deny.run,
                                          payload("PreToolUse", root))),
     ("tool_trace-pre", lambda root: (tool_trace.run,
                                      payload("PreToolUse", root))),
+    ("tool_trace-pre-capped", _capped_pre),
     ("tool_trace-post", lambda root: (tool_trace.run,
                                       payload("PostToolUse", root,
                                               tool_response="3 pods Running"))),

@@ -246,6 +246,11 @@ def _append_denied_line(payload, class_name):
         "summary": _state.summarize_tool_input(payload.get("tool_input")),
         "outcome": _state.OUTCOME_DENIED_GUARDRAIL_PREFIX + class_name,
     }
+    # The runtime's tool-call id, when provided, is the protocol's exact
+    # double-deny dedup key (both denying hooks stamp the same id).
+    call_id = payload.get("tool_use_id")
+    if isinstance(call_id, str) and call_id:
+        line["call_id"] = call_id
     # capability rides the line from the binding map when present (protocol
     # doc; multi-capability tools serialize as a sorted comma-joined value).
     # The audit line must not be hostage to config health, so a config blow-up
@@ -273,7 +278,9 @@ def run(stdin_text):
         payload = json.loads(stdin_text)
         if not isinstance(payload, dict):
             raise ValueError("hook payload is not a JSON object")
-    except ValueError as exc:
+    except (ValueError, RecursionError) as exc:
+        # RecursionError: a pathologically nested payload must fail open like
+        # any other unreadable one, not escape run() as a traceback.
         return 0, "", "guardrail_deny fail-open: unreadable payload (%s)\n" % exc
 
     try:

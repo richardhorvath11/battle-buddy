@@ -42,8 +42,9 @@ import _state
 # grows only with the operation contract, never ad hoc — research R5).
 UNTRUSTED_CAPABILITIES = frozenset(("alerting", "observability"))
 
-# Bound the text the classifier/tripwire scan so a pathological result cannot
-# blow the hook's latency budget (SC-002); signals live early in real results.
+# Bound the text the classifier/tripwire regexes scan — the superlinear risk
+# is the regex pass, not the (linear) flattening; signals live early in real
+# results (SC-002).
 _SCAN_LIMIT = 1048576
 
 TURN_CAP_MESSAGE = (
@@ -144,9 +145,13 @@ def _error_flagged(tool_response):
     return bool(tool_response.get("error"))
 
 
-def classify_outcome(tool_response):
-    """R4 ordered classifier: ok | error:auth | error:timeout | error:other."""
-    text = _response_text(tool_response)
+def classify_outcome(tool_response, text=None):
+    """R4 ordered classifier: ok | error:auth | error:timeout | error:other.
+
+    ``text`` lets the caller pass an already-flattened response so one
+    PostToolUse invocation flattens at most once."""
+    if text is None:
+        text = _response_text(tool_response)
     if any(p.search(text) for p in _AUTH):
         return _state.OUTCOME_ERROR_AUTH
     if any(p.search(text) for p in _TIMEOUT):
@@ -189,6 +194,14 @@ def _base_line(payload, tool, cfg):
     return line
 
 
+def _stamp_call_id(payload, line):
+    """Attach the runtime's tool-call id to a denied line when provided —
+    the protocol's exact double-deny dedup key."""
+    call_id = payload.get("tool_use_id")
+    if isinstance(call_id, str) and call_id:
+        line["call_id"] = call_id
+
+
 def _pre_tool_use(payload, root, cfg):
     """Turn-cap check: counters read vs config cap; deny past-cap triage calls."""
     actor = _state.actor_key(payload.get("transcript_path", ""))
@@ -199,32 +212,48 @@ def _pre_tool_use(payload, root, cfg):
         return 0, "", ""
     if _state.get_turns(root, actor) < cfg.turn_cap:
         return 0, "", ""
-    line = _base_line(payload, _tool_of(payload), cfg)
-    line["outcome"] = _state.OUTCOME_DENIED_TURN_CAP
-    _state.append_trace(root, line)
-    return 2, "", TURN_CAP_MESSAGE % cfg.turn_cap + "\n"
+    stderr = TURN_CAP_MESSAGE % cfg.turn_cap + "\n"
+    try:
+        line = _base_line(payload, _tool_of(payload), cfg)
+        line["outcome"] = _state.OUTCOME_DENIED_TURN_CAP
+        _stamp_call_id(payload, line)
+        _state.append_trace(root, line)
+    except Exception as exc:
+        # Bookkeeping failure never downgrades a deny (same rule as the
+        # guardrail hook) — the cap verdict stands, the failure is visible.
+        stderr += "tool_trace: denied-line append failed (%s)\n" % exc
+    return 2, "", stderr
 
 
 def _post_tool_use(payload, root, cfg):
     """Capture line + turn consumption + tripwire."""
     tool = _tool_of(payload)
+    response_text = _response_text(payload.get("tool_response"))
     line = _base_line(payload, tool, cfg)
-    line["outcome"] = classify_outcome(payload.get("tool_response"))
+    line["outcome"] = classify_outcome(payload.get("tool_response"),
+                                       text=response_text)
     _state.append_trace(root, line)
     _state.increment_turn(root, line["agent"])
 
     stdout = ""
     stderr = ""
-    if cfg.bindings is None:
-        # Degraded mode (FR-010): no binding map ⇒ tripwire disabled, one
-        # logged notice per session (deduped via the counters sidecar).
-        if _state.notice_once(root, "tripwire_disabled_notified"):
+    if not cfg.bindings:
+        # Degraded mode (FR-010): no binding map — or one with no usable
+        # entries, which classifies nothing just the same — ⇒ tripwire
+        # disabled, one logged notice per session. The dedup key carries the
+        # session id so a .bb-session/ surviving a skipped /close still gets
+        # its notice in the next session.
+        session = payload.get("session_id")
+        key = "tripwire_disabled:%s" % (
+            session if isinstance(session, str) else ""
+        )
+        if _state.notice_once(root, key):
             stderr = "tool_trace: %s\n" % TRIPWIRE_DISABLED_NOTICE
         return 0, stdout, stderr
 
     capabilities = cfg.capabilities_for(tool)
     if capabilities & UNTRUSTED_CAPABILITIES:
-        family = match_tripwire(_response_text(payload.get("tool_response")))
+        family = match_tripwire(response_text)
         if family:
             _state.append_trace(
                 root,
@@ -245,7 +274,13 @@ def _post_tool_use(payload, root, cfg):
 def _dispatch(payload):
     event = payload.get("hook_event_name")
     if event not in ("PreToolUse", "PostToolUse"):
-        return 0, "", ""
+        # Registration/runtime drift: this hook only registers for the two
+        # tool events, so an unrecognized event means a capture line is
+        # silently not being written somewhere — leave a breadcrumb (FR-004).
+        return 0, "", (
+            "tool_trace: ignoring unrecognized hook_event_name %r "
+            "(expected PreToolUse/PostToolUse)\n" % (event,)
+        )
     root = _root_of(payload)
     cfg = _config.load_config(root)
     if event == "PreToolUse":
@@ -269,7 +304,9 @@ def run(stdin_text):
         payload = json.loads(stdin_text)
         if not isinstance(payload, dict):
             raise ValueError("hook payload is not a JSON object")
-    except ValueError as exc:
+    except (ValueError, RecursionError) as exc:
+        # RecursionError: a pathologically nested payload must fail open like
+        # any other unreadable one, not escape run() as a traceback.
         return 0, "", "tool_trace fail-open: unreadable payload (%s)\n" % exc
     try:
         return _dispatch(payload)

@@ -56,10 +56,16 @@ append property on the normal path. Three line types share one monotonic `seq`:
   with no cross-visibility, so a call that is *both* guardrail-dangerous *and* past-cap
   can produce two `denied:*` lines (one per denying hook) — an accepted, bounded case;
   call-counting deduplicates denied lines sharing the same tool-call identity within one
-  PreToolUse batch. **Tool-call identity** (pinned by this slice's implementation; both
-  denying hooks derive `summary` through the same shared helper so the identity is
-  well-defined): identical `agent` + `tool` + `summary` on **adjacent** `denied:*` lines
-  — nothing else can interleave between the two denying hooks' appends for one call.
+  PreToolUse batch. **Tool-call identity** (pinned by this slice's implementation):
+  denied lines carry the runtime's tool-call id as an optional `call_id` field whenever
+  the hook payload provides one (`tool_use_id`); two `denied:*` lines with the same
+  `call_id` are one call — exact, order-independent. When `call_id` is unavailable the
+  fallback is identical `agent` + `tool` + `summary` on **adjacent** denied *call* lines
+  (event lines between them do not break adjacency; both denying hooks derive `summary`
+  through the same shared helper, so the identity is well-defined). The fallback is
+  best-effort, not exact: a parallel subagent's append can land between the two denied
+  appends (double-count) and an identical immediately-retried denied call merges
+  (under-count) — bounded miscounts, accepted only for `call_id`-less runtimes.
 - **Call lines** have no `event` field; **tripwire event lines** carry
   `event: "tripwire"` and consume their own seq. Consumers counting *calls* filter on
   the absence of `event` (SC-005's 100 calls ⇒ exactly 100 call lines).
@@ -110,9 +116,11 @@ append.
 **Once-only notices** (additive field, this slice; no version bump — no consumer-parse
 change, same precedent as corruption recovery above): the sidecar may carry a `notices`
 object of `{key: true}` entries recording session-scoped diagnostics already emitted
-once — e.g. `tripwire_disabled_notified`, backing the tripwire's
-one-disabled-notice-per-session rule. Consumers never parse it; a wrong-typed `notices`
-resets to `{}` and is **not** treated as corruption (it feeds no seq/turn guarantee).
+once — e.g. `tripwire_disabled:<session id>`, backing the tripwire's
+one-disabled-notice-per-session rule (the key embeds the runtime session id so a
+`.bb-session/` surviving a skipped close still yields one notice in each later
+session). Consumers never parse it; a wrong-typed `notices` resets to `{}` and is
+**not** treated as corruption (it feeds no seq/turn guarantee).
 
 ## agents.json — actor identity and roles
 
@@ -135,7 +143,14 @@ registration. **Fallback when an actor is unregistered: no turn cap applies (fai
 `transcript_path` at SessionEnd; slice 5's close flow uploads it, and uploads
 `trace.jsonl` under the design's artifact name **`tool-trace.jsonl`** (design §5.3 — the
 local and uploaded names differ; this mapping is part of the protocol). Missing
-transcript ⇒ logged notice, no failure.
+transcript ⇒ logged notice, no failure. **Known v1 limitation** (recorded, not silent):
+staging is unconditional at every SessionEnd and the staged name is single, so the copy
+reflects the *most recent* session to end in the workspace — under the design's
+one-session-per-workspace model that is the incident session, but an unrelated session
+ending in the same directory while a marker is open will overwrite the staged copy. The
+runtime's own transcript at `transcript_path` remains the authoritative source; slice
+5's close flow should treat the staged copy as a convenience snapshot, not the only
+copy.
 
 ## Hook event bindings (which component touches what, when)
 
@@ -151,6 +166,11 @@ at session termination and cannot block, satisfying FR-011 as a loud warning; a 
 registration would re-fire after every conversational turn of a live session (constant
 false nags for a legitimately-open marker). A blocking variant is deferred until the
 runtime offers a clean end-of-session blocking point (recorded as a research decision).
+"Loud" is delivered on the runtime's user-visible channel: the FR-011 and FR-015
+warnings are emitted as a `systemMessage` JSON object on stdout (exit 0) *in addition
+to* stderr — an exit-0 hook's stderr alone is debug-log-only and would reach nobody.
+Fail-open/degraded diagnostics remain stderr-only (R13); only the two spec-required
+warnings use the user-visible surface.
 
 ## Config keys read by this layer (workspace `.claude/settings.json` → `battleBuddy`)
 

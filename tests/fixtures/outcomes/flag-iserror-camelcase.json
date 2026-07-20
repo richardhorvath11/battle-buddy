@@ -1,0 +1,9 @@
+{
+  "name": "flag-iserror-camelcase",
+  "description": "camelCase isError flag with generic failure text",
+  "tool_response": {
+    "isError": true,
+    "content": "backend exploded while rendering"
+  },
+  "expected": "error:other"
+}

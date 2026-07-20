@@ -1,0 +1,6 @@
+{
+  "name": "auth-negative-numeric-401x",
+  "description": "401/403 embedded in longer digit runs must not match (word boundary on digits)",
+  "tool_response": "processed 4013 rows in batch 4031; checksum 84036",
+  "expected": "ok"
+}

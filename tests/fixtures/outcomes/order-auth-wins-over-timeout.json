@@ -1,0 +1,6 @@
+{
+  "name": "order-auth-wins-over-timeout",
+  "description": "both auth and timeout signals present - auth wins (R4 order; the deny hook's credential-scan context rides error:auth)",
+  "tool_response": "request timed out after 30s; retry returned 401 Unauthorized",
+  "expected": "error:auth"
+}

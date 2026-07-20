@@ -118,24 +118,37 @@ def summarize_tool_input(tool_input):
 def count_calls(lines):
     """Count tool calls in parsed trace lines, per the protocol's rules.
 
-    Event lines (``event`` present) are not calls. Denied lines sharing the
-    same tool-call identity (``agent``, ``tool``, ``summary``) on *adjacent*
-    lines are one call denied by two concurrent PreToolUse hooks (the
-    protocol's bounded double-deny case) and count once.
+    Event lines (``event`` present) are not calls and do not break the
+    adjacency of the call lines around them. Two ``denied:*`` lines for one
+    call (the protocol's bounded double-deny case) count once, keyed exactly
+    on ``call_id`` (the runtime's tool_use_id) when both lines carry one;
+    the ``call_id``-less fallback — identical ``agent``+``tool``+``summary``
+    on adjacent denied call lines — is best-effort and documented as such in
+    the protocol (an interleaved parallel append can double-count, an
+    identical immediate retry can under-count).
     """
     count = 0
+    seen_denied_call_ids = set()
     previous_denied_identity = None
     for line in lines:
         if not isinstance(line, dict) or "event" in line:
             continue
         outcome = line.get("outcome")
-        identity = (line.get("agent"), line.get("tool"), line.get("summary"))
-        if isinstance(outcome, str) and outcome.startswith("denied:"):
+        if not (isinstance(outcome, str) and outcome.startswith("denied:")):
+            previous_denied_identity = None
+            count += 1
+            continue
+        call_id = line.get("call_id")
+        if isinstance(call_id, str) and call_id:
+            previous_denied_identity = None
+            if call_id in seen_denied_call_ids:
+                continue
+            seen_denied_call_ids.add(call_id)
+        else:
+            identity = (line.get("agent"), line.get("tool"), line.get("summary"))
             if identity == previous_denied_identity:
                 continue
             previous_denied_identity = identity
-        else:
-            previous_denied_identity = None
         count += 1
     return count
 
@@ -341,12 +354,23 @@ def get_turns(root, actor):
         return 0
     try:
         fd = os.open(path, os.O_RDONLY)
-    except OSError:
+    except OSError as exc:
+        # Present-but-unreadable is a diagnosable failure that lifts the cap
+        # for this call — the silent sibling of the loud corrupt-parse branch
+        # below would hide it (FR-004 visibility).
+        sys.stderr.write(
+            "bb-state: counters.json unreadable at turn-cap read (%s); "
+            "returning 0 turns for this check\n" % exc
+        )
         return 0
     try:
         fcntl.flock(fd, fcntl.LOCK_SH)
         counters, corrupt = _read_counters_fd(fd)
-    except OSError:
+    except OSError as exc:
+        sys.stderr.write(
+            "bb-state: counters.json read failed at turn-cap read (%s); "
+            "returning 0 turns for this check\n" % exc
+        )
         return 0
     finally:
         try:
@@ -407,15 +431,33 @@ def notice_once(root, key):
 
 
 def read_roles(root):
-    """agents.json role map ``{actor_key: role}``; {} when absent/malformed."""
+    """agents.json role map ``{actor_key: role}``; {} when absent or broken.
+
+    Absent is the normal pre-registration state and stays silent. A file
+    that exists but cannot be read/parsed is a distinct, enforcement-relevant
+    failure — it silently lifts every turn cap — so it is loud (FR-004): the
+    fallback is still {} (fail open, R10), but never without a diagnostic.
+    """
     path = os.path.join(state_dir(root), AGENTS_NAME)
     try:
         with open(path, encoding="utf-8") as f:
             data = json.load(f)
-    except (OSError, ValueError):
+    except FileNotFoundError:
+        return {}
+    except (OSError, ValueError) as exc:
+        sys.stderr.write(
+            "bb-state: agents.json unreadable or malformed (%s); all actors "
+            "treated as unregistered — no turn cap applies\n" % exc
+        )
         return {}
     roles = data.get("roles") if isinstance(data, dict) else None
-    return roles if isinstance(roles, dict) else {}
+    if not isinstance(roles, dict):
+        sys.stderr.write(
+            "bb-state: agents.json has no usable roles map; all actors "
+            "treated as unregistered — no turn cap applies\n"
+        )
+        return {}
+    return roles
 
 
 def role_for(root, actor):
@@ -427,8 +469,24 @@ def role_for(root, actor):
 
 def marker_present(root):
     """The session-guard trigger: marker file present ⇒ not cleared (deletion
-    *is* the cleared state; no resting "closed" state exists on disk)."""
-    return os.path.exists(os.path.join(state_dir(root), MARKER_NAME))
+    *is* the cleared state; no resting "closed" state exists on disk).
+
+    Only a definite absence clears the trigger. An unstattable marker path
+    (permissions drift, state dir replaced by a file) cannot rule out an
+    uncleared marker, and a backstop must not fail silent in the no-warning
+    direction — treat it as present, loudly (Constitution II)."""
+    path = os.path.join(state_dir(root), MARKER_NAME)
+    try:
+        os.stat(path)
+    except FileNotFoundError:
+        return False
+    except OSError as exc:
+        sys.stderr.write(
+            "bb-state: marker state unreadable (%s); treating the marker as "
+            "present — cannot rule out an unpersisted session record\n" % exc
+        )
+        return True
+    return True
 
 
 def read_marker(root):
@@ -445,19 +503,31 @@ def read_marker(root):
 
 def stage_transcript(root, transcript_path):
     """Copy the runtime's transcript into staging/. Returns the staged path,
-    or None when the source is missing/unreadable (caller logs a notice —
-    never a session-ending failure)."""
+    or None on failure (caller logs a notice — never a session-ending
+    failure). Distinct failure modes stay distinguishable (FR-004): a missing
+    source is silent here (the caller's message covers it); an unreadable
+    source or a staging-side write failure emits the underlying error, so the
+    diagnostic points at the actual cause, not a guessed one."""
     staging = os.path.join(state_dir(root), STAGING_DIR_NAME)
     destination = os.path.join(staging, STAGED_TRANSCRIPT_NAME)
     source = str(transcript_path)
-    if not os.path.isfile(source):
-        # A missing source must not conjure .bb-session/ into a workspace that
-        # never had one ("created lazily by the first writer" — and this write
-        # has nothing to write).
+    try:
+        # Readability probe before creating anything: a source we cannot read
+        # must not conjure .bb-session/ into a workspace that never had one
+        # ("created lazily by the first writer" — this write has nothing to
+        # write).
+        with open(source, "rb"):
+            pass
+    except OSError as exc:
+        if os.path.exists(source):
+            sys.stderr.write(
+                "bb-state: transcript source unreadable (%s)\n" % exc
+            )
         return None
     try:
         os.makedirs(staging, exist_ok=True)
         shutil.copyfile(source, destination)
-    except OSError:
+    except OSError as exc:
+        sys.stderr.write("bb-state: transcript staging failed (%s)\n" % exc)
         return None
     return destination

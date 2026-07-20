@@ -8,6 +8,14 @@ One script, two event bindings (research R1), dispatching on
   session-scoped event firing in a directory without the workspace
   ``battleBuddy`` config block warns "run from the workspace repo" without
   blocking. Config-read notices surface here too (fail-open visibility, R13).
+
+The two spec-required warnings (FR-011's marker warning, FR-015's config
+warning) are addressed to the *responder*, and an exit-0 hook's stderr never
+reaches the responder in normal operation — so they additionally ride the
+runtime's documented user-visible channel, a ``systemMessage`` JSON object on
+stdout. Fail-open and degraded-mode *diagnostics* stay stderr-only per R13;
+the split is deliberate (spec warnings must be loud, diagnostics must be
+visible-in-debug).
 - **SessionEnd** — the D-11 deterministic backstop (FR-011): the session
   marker's *presence* is the trigger — a marker exists until a confirmed
   close deletes it (deletion is the cleared state), so both the
@@ -54,37 +62,60 @@ def _root_of(payload):
     return root
 
 
+def _warning_stdout(message):
+    """The runtime's user-visible channel: systemMessage JSON on stdout
+    (exit-0 stderr is debug-log-only — a warning there would reach nobody)."""
+    return json.dumps({"systemMessage": message.strip()})
+
+
 def _session_start(payload, root):
     cfg = _config.load_config(root)
+    stdout = ""
     stderr = ""
     for notice in cfg.notices:
         stderr += "session_guard config notice: %s\n" % notice
     if not cfg.config_present:
         stderr += CONFIG_WARNING
-    return 0, "", stderr
+        stdout = _warning_stdout(CONFIG_WARNING)
+    return 0, stdout, stderr
 
 
 def _session_end(payload, root):
+    stdout = ""
     stderr = ""
     if _state.marker_present(root):
         marker = _state.read_marker(root)
         label = ""
         if marker and isinstance(marker.get("session_id"), str):
             label = " for session %s" % marker["session_id"]
-        stderr += MARKER_WARNING % label
+        warning = MARKER_WARNING % label
+        stderr += warning
+        stdout = _warning_stdout(warning)
     transcript = payload.get("transcript_path")
     if isinstance(transcript, str) and transcript:
         if _state.stage_transcript(root, transcript) is None:
-            stderr += (
-                "session_guard notice: transcript staging failed "
-                "(missing/unreadable source: %s)\n" % transcript
-            )
+            # Distinguish the causes rather than guessing one: a truly
+            # missing source is named here; anything else (unreadable source,
+            # staging-side write failure) already put the underlying error on
+            # bb-state stderr — pointing at the wrong file is worse than
+            # pointing at the diagnostic.
+            if os.path.exists(transcript):
+                stderr += (
+                    "session_guard notice: transcript staging failed "
+                    "(source exists: %s; cause on the bb-state "
+                    "diagnostic)\n" % transcript
+                )
+            else:
+                stderr += (
+                    "session_guard notice: transcript staging failed "
+                    "(missing source: %s)\n" % transcript
+                )
     else:
         stderr += (
             "session_guard notice: no transcript_path in the hook payload; "
             "nothing staged\n"
         )
-    return 0, "", stderr
+    return 0, stdout, stderr
 
 
 def _dispatch(payload):
@@ -94,7 +125,15 @@ def _dispatch(payload):
         return _session_start(payload, root)
     if event == "SessionEnd":
         return _session_end(payload, root)
-    return 0, "", ""
+    if event in ("PreToolUse", "PostToolUse"):
+        # Shared fault-corpus payloads (and any mis-registration) hit this
+        # hook with tool events; a quiet no-op is correct — these are not
+        # session-scoped, nothing was skipped.
+        return 0, "", ""
+    return 0, "", (
+        "session_guard: ignoring unrecognized hook_event_name %r "
+        "(expected SessionStart/SessionEnd)\n" % (event,)
+    )
 
 
 def run(stdin_text):
@@ -107,7 +146,9 @@ def run(stdin_text):
         payload = json.loads(stdin_text)
         if not isinstance(payload, dict):
             raise ValueError("hook payload is not a JSON object")
-    except ValueError as exc:
+    except (ValueError, RecursionError) as exc:
+        # RecursionError: a pathologically nested payload must fail open like
+        # any other unreadable one, not escape run() as a traceback.
         return 0, "", "session_guard fail-open: unreadable payload (%s)\n" % exc
     try:
         return _dispatch(payload)
