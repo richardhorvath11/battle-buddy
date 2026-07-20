@@ -41,8 +41,10 @@ Spec-kit drives feature flow: `/speckit-specify` → `/speckit-plan` → `/speck
 **Before claiming a task done, before `git commit`, before `git push`: run `make verify`
 and fix what it surfaces.** Constitution Principle VIII makes this non-negotiable; code
 without its tests in the same change is incomplete. Bypasses require an inline,
-grep-visible reason variable (a PreToolUse push-gate enforcing this mechanically lands
-with the deterministic-layer slice).
+grep-visible reason variable (a PreToolUse push-gate enforcing this mechanically is a
+planned dev-workflow addition — deliberately separate from the deterministic-layer
+slice's *runtime* guardrails, which block outright with no bypass; see slice-2 spec
+Assumptions).
 
 ## Path tiers
 
