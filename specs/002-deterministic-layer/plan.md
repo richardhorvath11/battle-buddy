@@ -24,7 +24,7 @@ synced onto it and `make verify` runs its 97 tests green)
 Constraints, verified mechanically per SC-006); pytest dev-only
 
 **Storage**: `.bb-session/` local-state files per `contracts/local-state-protocol.md`
-(marker.json, trace.jsonl, staging/) — no external services
+(marker.json, trace.jsonl, counters.json, agents.json, staging/) — no external services
 
 **Testing**: slice-1 pytest harness; table-driven fixtures for all five components;
 two-corpus deny gate; fault-injection corpus for fail-open (SC-007); timing test (R8)

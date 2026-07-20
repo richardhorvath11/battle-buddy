@@ -29,6 +29,7 @@ functions — fail-open blast radius).
 
 **Decision**: All session-local state lives in `.bb-session/` at the workspace root
 (already gitignored since the harness commit): `marker.json`, `trace.jsonl`,
+`counters.json` (seq + per-actor turns, R11), `agents.json` (actor roles, R10), and
 `staging/transcript.md`. Formats, lifecycle, and versioning are pinned in
 `contracts/local-state-protocol.md` — the FR-013 artifact; every assertion in it gets a
 unit test (FR-013 acceptance).
@@ -84,7 +85,7 @@ every family ships with both fixture directions so precision regressions are cau
 `.claude/settings.json` → `battleBuddy` key. Keys consumed this slice:
 `battleBuddy.budgets.triageTurnCap` (int, default **15** when absent), and
 `battleBuddy.bindings` as an **operation-level map** — `capability.operation → tool name`
-per design §7.2/D-13 (e.g. `"storage.append_record": "mcp__sheets__add_row"`); a flat
+per design §7.2/D-13 (e.g. `"storage.append_record": "mcp__sheets__append_row"`); a flat
 capability→tool map could not represent one capability whose operations bind to
 different tools. Tool→capability classification is the reverse lookup with prefix parse
 (protocol doc pins the rule, incl. multi-capability tools). Bindings absent ⇒ tripwire

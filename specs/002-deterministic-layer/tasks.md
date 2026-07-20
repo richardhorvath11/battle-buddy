@@ -12,13 +12,13 @@
 
 ## Phase 1: Setup
 
-- [ ] T001 Create shipped-tree skeleton per plan.md: `hooks/` (empty `hooks.json`), `bin/`, fixture directories `tests/fixtures/{misbehaviors,benign,faults,outcomes,tripwire,markers,validate,fingerprint}/`
+- [ ] T001 Create shipped-tree skeleton per plan.md: `hooks/` (empty `hooks.json`), `bin/`, fixture directories `tests/fixtures/{misbehaviors,benign,faults,outcomes,tripwire,markers,sessions,validate,fingerprint}/`
 - [ ] T002 [P] Add `tests/unit/test_stdlib_boundary.py`: walks `hooks/` + `bin/`, asserts stdlib-only imports (SC-006; extends slice-1 packaging boundary); passes trivially on the empty skeleton and gates everything after
 
 ## Phase 2: Foundational (blocking all stories)
 
 - [ ] T003 Implement `hooks/_config.py` ConfigView per research R6 (turn cap default 15, bindings, config-presence; malformed ⇒ absent) + table-driven tests in `tests/unit/test_config_view.py` — every hook consumes this
-- [ ] T004 Implement `hooks/_state.py` — the local-state protocol helpers consumed by all three hooks: flock-guarded `counters.json` (atomic seq assignment, per-actor turn counts), trace append (append-only, appender never reads), 10-line tail read for consumers, marker read, actor-key derivation from transcript_path (R10), `agents.json` role lookup — matching `contracts/local-state-protocol.md` exactly; write `tests/unit/test_local_state_protocol.py` with one test per protocol-doc assertion (FR-013 acceptance), including the parallel-append concurrency case (multiprocessing writers → unique, gap-free, monotonic seq per R11)
+- [ ] T004 Implement `hooks/_state.py` — the local-state protocol helpers consumed by all three hooks: flock-guarded `counters.json` (atomic seq assignment; per-actor turn counts checked-at-Pre / incremented-at-Post per protocol finding-A resolution), trace append (append-only, appender never reads), 10-line tail read for consumers, marker read, actor-key derivation from transcript_path (R10), `agents.json` role lookup — matching `contracts/local-state-protocol.md` exactly. **First, a cheap runtime probe (fixture-recorded): confirm the hook payload's `transcript_path` is distinct per agent instance (subagent vs main); if not, R10's actor key needs a different signal — record the finding before building on it.** Write `tests/unit/test_local_state_protocol.py` with one test per protocol-doc assertion (FR-013 acceptance), including the parallel-append concurrency case (multiprocessing writers → unique, gap-free-absent-crash, monotonic seq per R11)
 - [ ] T005 [P] Author the fault corpus `tests/fixtures/faults/*.json` (malformed stdin, truncated JSON, unreadable state dir, seeded exception trigger) + shared fail-open runner `tests/helpers/failopen.py` asserting allow/proceed + visible diagnostics (SC-007) — reused by every hook's test file
 
 **Checkpoint**: protocol pinned and tested; config + state helpers green
@@ -98,7 +98,7 @@ Polish: T024 after all hooks; T025 after T001; T026 last
 
 ## Parallel Execution Examples
 
-- After T004: five story tracks fully parallel (US1–US5 touch disjoint files); fixture-authoring tasks (T008, T011, T014, T019, T022) are parallel to their implementations
+- After T004: five story tracks parallel — US1–US5 touch disjoint *implementation* files, with one shared exception: `hooks/hooks.json` registration (T006, T016, T021 each add their event bindings). Treat `hooks.json` edits as append-only registration blocks to avoid a merge point, or serialize just those three touches; everything else is genuinely disjoint. Fixture-authoring tasks (T008, T011, T014, T019, T022) run parallel to their implementations.
 - Max useful width: ~5 workers (one per story) + fixture authors
 
 ## Implementation Strategy

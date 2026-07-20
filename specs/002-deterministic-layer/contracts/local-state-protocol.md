@@ -42,12 +42,18 @@ and seq come from `counters.json`, below). Three line types share one monotonic 
 ```
 
 - **seq is a line sequence**, not a call count: assigned atomically at append time from
-  `counters.json` under an OS file lock; file order = seq order, gap-free by
-  construction. There is **no reservation step** — a call denied at PreToolUse gets its
+  `counters.json` under an OS file lock; file order = seq order, gap-free **absent a
+  process crash between counter-increment and append** (a crash can skip one value —
+  never duplicate, never reorder; see counters.json). There is **no reservation step** — a call denied at PreToolUse gets its
   line appended *by the denying hook* at denial time (`outcome: denied:guardrail:<class>`
   or `denied:turn_cap`); a completed call gets its line at PostToolUse with its outcome.
-  One line per tool call either way (spec FR-008); under parallel subagents, per-line
-  atomicity and uniqueness hold, and ordering is by append (completion/denial) time.
+  One line per tool call in the normal case (spec FR-008); under parallel subagents,
+  per-line atomicity and uniqueness hold, and ordering is by append (completion/denial)
+  time. **Double-deny bound**: Claude Code runs matching PreToolUse hooks concurrently
+  with no cross-visibility, so a call that is *both* guardrail-dangerous *and* past-cap
+  can produce two `denied:*` lines (one per denying hook) — an accepted, bounded case;
+  call-counting deduplicates denied lines sharing the same tool-call identity within one
+  PreToolUse batch.
 - **Call lines** have no `event` field; **tripwire event lines** carry
   `event: "tripwire"` and consume their own seq. Consumers counting *calls* filter on
   the absence of `event` (SC-005's 100 calls ⇒ exactly 100 call lines).
@@ -72,7 +78,11 @@ Sidecar for everything that must not require scanning the trace:
 
 Read-increment-write under `fcntl.flock` (POSIX — macOS/Linux, the supported runtime
 platforms); crash between increment and trace append can skip a seq value at most (never
-duplicate); the turn cap compares `turns[actor]` against config **before** incrementing.
+duplicate). **Turn accounting**: the cap is *checked* at PreToolUse (read `turns[actor]`
+vs config) but *incremented* at PostToolUse — so only calls that actually executed
+consume a turn, and a guardrail-blocked or cap-denied call (never reaching PostToolUse)
+consumes none. This makes turn-consumption independent of the concurrent guardrail hook
+(finding A): no coordination between the two PreToolUse hooks is required.
 
 ## agents.json — actor identity and roles
 
