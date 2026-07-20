@@ -40,3 +40,11 @@
 - Consumed-surface boundaries (slices 6–9) are bounded explicitly in FR-013 and
   Assumptions; this spec pins orchestration commitments only.
 - Items validated against spec.md as written on 2026-07-20; all pass.
+- Re-validated 2026-07-20 after converge-review round 1 (two-lens review; all findings
+  fixed, none defended): added the close-time shell-workspace close (design §4 diagram
+  step 33); pinned join-path marker semantics and the transcript-at-close timing
+  conflict (both flagged for protocol reconciliation); fixed the vacuous SC-002 probe
+  oracle (stamp-unchanged + no doctor report); existing-marker handling added to
+  FR-001; checkpoint-zero rides the open append; SC-006 restated structurally;
+  dashboards added to the catalog fetch; PRD citation list completed. All items
+  re-checked against the updated file and pass.
