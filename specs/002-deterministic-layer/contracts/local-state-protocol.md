@@ -29,8 +29,11 @@ state exists on disk). Session-guard trigger (spec FR-011): **file present at Se
 
 ## trace.jsonl
 
-Append-only; never rewritten; **the appender never reads it** (spec edge case — counts
-and seq come from `counters.json`, below). Three line types share one monotonic `seq`:
+Append-only; never rewritten; **the appender never reads it on the normal path** (spec
+edge case — counts and seq come from `counters.json`, below). *One exception:* the cold
+`counters.json`-corruption recovery path (see counters.json) does a single bounded tail
+read to re-seed `seq`; this preserves the never-duplicate invariant and keeps the O(1)
+append property on the normal path. Three line types share one monotonic `seq`:
 
 ```json
 {"protocol":"bb.local.v1","seq":12,"agent":"agent-3f2a","tool":"mcp__sheets__append_row",
@@ -58,7 +61,10 @@ and seq come from `counters.json`, below). Three line types share one monotonic 
   `event: "tripwire"` and consume their own seq. Consumers counting *calls* filter on
   the absence of `event` (SC-005's 100 calls ⇒ exactly 100 call lines).
 - `agent`: the actor key (see agents.json). `capability`: from the binding map when
-  present, else omitted.
+  present, else omitted. A tool serving ops of **several** capabilities serializes as a
+  **sorted, comma-joined** string (e.g. `"alerting,observability"`); consumers split on
+  `,` to recover the set. (The guardrail deny hook already emits this on `denied:*` lines
+  when a binding map is configured.)
 - `outcome` ∈ `ok | error:auth | error:timeout | error:other | denied:guardrail:<class> |
   denied:turn_cap`. Mapping to spec FR-008 vocabulary: spec "success" ≡ `ok`, spec
   "auth_error" ≡ `error:auth`; the `denied:*` values extend the spec's enumeration via
@@ -83,6 +89,20 @@ vs config) but *incremented* at PostToolUse — so only calls that actually exec
 consume a turn, and a guardrail-blocked or cap-denied call (never reaching PostToolUse)
 consumes none. This makes turn-consumption independent of the concurrent guardrail hook
 (finding A): no coordination between the two PreToolUse hooks is required.
+
+**Corruption recovery** (this slice's implementation; no version bump — no format or
+consumer-parse change, only a hardening of the never-duplicate guarantee): a
+`counters.json` that is unparseable, non-object, or a non-empty object lacking `seq` is
+treated as corrupt. The next writer re-seeds `seq` from the **maximum valid seq in the
+bounded trace tail** (the one sanctioned appender read — see trace.jsonl) rather than
+resetting to 0, so a corrupt counter can never cause a duplicate seq. Per-actor `turns`
+that survive in the file are preserved; turns lost to corruption reset to 0 — meaning a
+corrupt counter grants the triage actor a fresh turn window, an accepted degradation
+(the cap is a budget bound, not a security layer). Every corruption recovery, and any
+`fsync` failure that could later manifest as a duplicate, is written to hook `stderr`
+(FR-004 visibility), never silent. The counter write is write-then-truncate,
+partial-write-safe, and `fsync`-ed so the increment is durable before the dependent trace
+append.
 
 ## agents.json — actor identity and roles
 

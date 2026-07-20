@@ -178,6 +178,11 @@ not style, per the design's Development Workflow duty):
    2-label domain (`example.com`) stays literal — collapsing every 2-label token would
    over-normalize common words-with-dots and shrink the fingerprint's discriminating power.
    IPv4 is matched separately and always collapses.
+4. **"IPs" in v1 means IPv4 only**: an IPv6 literal (colon-separated) is *not* collapsed —
+   it stays literal, so a repeat alert carrying a volatile IPv6 address would not
+   fingerprint identically. Recorded as a known v1 limitation rather than a silent gap;
+   adding IPv6 later is fingerprint-behavioral and so forces a version bump. v1 accepts
+   this because IPv6 addresses are rare in the alert-type text this normalizes.
 
 The golden corpus (`tests/fixtures/fingerprint/golden.json`) pins each of these as an
 executable rule (`bb.fp.v1`); the design §5.2 rules-home file

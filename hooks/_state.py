@@ -115,6 +115,12 @@ def _read_counters_fd(fd):
         # Empty file at first-create is normal, not corruption.
         corrupt = bool(raw.strip())
         data = {}
+    else:
+        # A non-empty counters file that parses but has no seq is not a state
+        # any writer produces — treat as corrupt so seq recovers from the tail
+        # rather than silently resetting to 0.
+        if bool(raw.strip()) and "seq" not in data:
+            corrupt = True
     data.setdefault("protocol", PROTOCOL)
     if not isinstance(data.get("seq"), int) or isinstance(data.get("seq"), bool):
         if data.get("seq") is not None:
@@ -128,13 +134,16 @@ def _read_counters_fd(fd):
 
 
 def _max_trace_seq(root):
-    """Highest seq already in the trace file (0 if none). Used only on the
-    cold counters-recovery path — never on the hot append path, so the
-    appender-never-reads rule holds for normal operation."""
+    """Highest seq anywhere in the bounded trace tail (0 if none). Used only on
+    the cold counters-recovery path — never on the hot append path. Scans the
+    whole window (not just the last line) and takes the max, so a torn trailing
+    line — the natural co-symptom of the crash that corrupted the counter —
+    cannot under-recover seq to 0 and reintroduce duplicates."""
     highest = 0
-    for line in tail_trace(root, n=1):
+    lines, _ = tail_trace_status(root, n=None)
+    for line in lines:
         seq = line.get("seq")
-        if isinstance(seq, int) and not isinstance(seq, bool):
+        if isinstance(seq, int) and not isinstance(seq, bool) and seq > highest:
             highest = seq
     return highest
 
@@ -151,8 +160,14 @@ def _write_counters_fd(fd, data):
     os.ftruncate(fd, written)  # write-then-truncate: never exposes an empty file
     try:
         os.fsync(fd)  # counter durable before the trace append that depends on it
-    except OSError:
-        pass
+    except OSError as exc:
+        # Fail-open (a hook must not die on fsync), but visible: a lost fsync
+        # can leave stale-but-valid counters behind the trace after a crash,
+        # which would duplicate seqs with no corruption breadcrumb (FR-004).
+        sys.stderr.write(
+            "bb-state: counters fsync failed (%s); a crash may now duplicate "
+            "seq values\n" % exc
+        )
 
 
 def _recover_seq(root, counters):
@@ -162,8 +177,7 @@ def _recover_seq(root, counters):
     counters["seq"] = recovered
     return (
         "counters.json was corrupt; recovered seq from trace tail (>=%d). "
-        "Per-actor turn counts could not be recovered and reset to 0."
-        % recovered
+        "Surviving per-actor turn counts (if any) were preserved." % recovered
     )
 
 
@@ -192,24 +206,49 @@ def append_trace(root, fields):
 
 def tail_trace(root, n=AUTH_CONTEXT_WINDOW):
     """Last ``n`` parsed trace lines (bounded read; [] when no trace exists)."""
+    lines, _ = tail_trace_status(root, n=n)
+    return lines
+
+
+def tail_trace_status(root, n=AUTH_CONTEXT_WINDOW):
+    """Return ``(lines, trustworthy)`` for the bounded trace tail.
+
+    ``trustworthy`` is False when the trace is absent, unreadable, or any
+    non-empty line in the considered window failed to parse — a consumer that
+    must not be fooled by a torn line (the credential-scan auth window) treats
+    an untrustworthy window as uncertain and acts conservatively. ``n=None``
+    considers every line in the 64 KiB window (recovery scan)."""
     path = os.path.join(state_dir(root), TRACE_NAME)
     try:
         with open(path, "rb") as f:
             f.seek(0, os.SEEK_END)
             size = f.tell()
-            f.seek(max(0, size - _TAIL_READ_BYTES))
+            start = max(0, size - _TAIL_READ_BYTES)
+            f.seek(start)
             raw = f.read()
     except OSError:
-        return []
+        return [], False
+    texts = raw.decode("utf-8", errors="replace").splitlines()
+    if start > 0 and texts:
+        # The seek can land mid-line; the leading fragment is a boundary
+        # artifact, not corruption — drop it before judging trustworthiness.
+        texts = texts[1:]
+    window = texts if n is None else texts[-n:]
     lines = []
-    for text in raw.decode("utf-8", errors="replace").splitlines()[-n:]:
+    trustworthy = True
+    for text in window:
+        if not text.strip():
+            continue
         try:
             parsed = json.loads(text)
         except ValueError:
+            trustworthy = False
             continue
         if isinstance(parsed, dict):
             lines.append(parsed)
-    return lines
+        else:
+            trustworthy = False
+    return lines, trustworthy
 
 
 def get_turns(root, actor):
@@ -227,7 +266,7 @@ def get_turns(root, actor):
         return 0
     try:
         fcntl.flock(fd, fcntl.LOCK_SH)
-        counters, _ = _read_counters_fd(fd)
+        counters, corrupt = _read_counters_fd(fd)
     except OSError:
         return 0
     finally:
@@ -236,6 +275,13 @@ def get_turns(root, actor):
             os.close(fd)
         except OSError:
             pass
+    if corrupt:
+        # Fail-open (read 0 → cap effectively lifted for this check), but not
+        # silent: the next writer recovers seq; surface it here too (FR-004).
+        sys.stderr.write(
+            "bb-state: counters.json corrupt at turn-cap read; treating turns "
+            "as 0 (cap check degraded)\n"
+        )
     turns = counters["turns"].get(actor)
     if isinstance(turns, bool) or not isinstance(turns, int):
         return 0

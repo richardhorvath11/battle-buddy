@@ -1,0 +1,12 @@
+{
+  "name": "commit-message-quoting-cmdsub-echo",
+  "note": "a quoted $() in a -m value is kept raw (executes), but echo of a harmless string matches no deny class",
+  "hook_payload": {
+    "hook_event_name": "PreToolUse",
+    "tool_name": "Bash",
+    "tool_input": {
+      "command": "git commit -m \"$(echo done)\""
+    }
+  },
+  "expected": "allow"
+}

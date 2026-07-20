@@ -11,11 +11,15 @@ Matching model (spec US1 AS-2's corpus-membership rule, made mechanical):
 - Only command-shaped input fields are scanned (``command``, ``script``,
   ``sql``, …) — prose/data fields (commit messages, excerpts) are never
   evaluated.
-- Quoted substrings and URLs are masked before matching, so a dangerous
-  pattern appearing only as data (a quoted string, a URL) does not match…
-- …unless the unquoted residue contains an execution sink (``sh -c``,
-  ``eval``, ``psql -c``, …): then the raw text is scanned too, because the
-  quoted content *is* the executed action.
+- Patterns match the *scrubbed* command, in which only genuinely inert data
+  positions are masked (``_scrub``): URLs, message-flag values (``-m``…), and
+  grep-family search patterns. Everything else — including quoted flags and
+  quoted paths, which are still the executed action — is scanned raw and
+  over-matches. Masking quotes syntactically was the old, wrong model; it let
+  a quoted flag/path slip the gate.
+- A data span carrying command substitution (``$(…)``, backticks, ``${…}``,
+  process substitution ``<(…)``/``>(…)``) is never masked — that content
+  executes wherever it appears.
 Over-match beyond the benign corpus is acceptable collateral (Constitution
 III); the corpus is the decided boundary and narrowing happens by growing it.
 
@@ -57,10 +61,15 @@ COMMAND_FIELDS = ("command", "cmd", "script", "code", "sql", "query", "statement
 # A span carrying command substitution (`$(…)`, backticks, `${…}`) is *never*
 # masked — that content executes regardless of position.
 _URL = re.compile(r"\bhttps?://\S+")
-_CMDSUB = re.compile(r"\$\(|`|\$\{")
+# Command substitution / process substitution execute wherever they appear —
+# a span carrying any of these is never treated as inert data.
+_CMDSUB = re.compile(r"\$\(|`|\$\{|<\(|>\(")
 # Message-flag value: keep the flag, mask the argument (quoted or a bare run).
+# Only genuine message flags — NOT `-C`, which is a directory/ref operand in
+# tar/make/git/scp/ssh (an executed position), so masking its value re-opened
+# an under-match (`scp -C ~/.ssh/id_rsa …`, `tar -C ~/.ssh …`).
 _MESSAGE_FLAG_VALUE = re.compile(
-    r"(?P<flag>(?:^|(?<=\s))(?:-m|--message|--reason|-C))(?P<sep>=|\s+)"
+    r"(?P<flag>(?:^|(?<=\s))(?:-m|--message|--reason))(?P<sep>=|\s+)"
     r"(?P<val>'[^']*'|\"[^\"]*\"|\S+)"
 )
 # Grep-family search pattern: the first quoted token after a search command.
@@ -187,13 +196,15 @@ def _scrub(text):
 
 
 def _auth_error_in_window(root):
-    """True: auth error in the 10-line window. False: window clean & readable.
-    None: no trace context (absent) — degraded, pattern-only mode."""
-    tail = _state.tail_trace(root)
-    if not tail:
+    """True: auth error in the 10-line window. False: window present, clean,
+    and fully parseable. None: no trace, unreadable, or any torn line in the
+    window — the context is uncertain, so callers block conservatively rather
+    than trust a window a corrupt line may have hidden the auth error from."""
+    lines, trustworthy = _state.tail_trace_status(root)
+    if not trustworthy:
         return None
     return any(
-        line.get("outcome") == _state.OUTCOME_ERROR_AUTH for line in tail
+        line.get("outcome") == _state.OUTCOME_ERROR_AUTH for line in lines
     )
 
 
@@ -249,13 +260,20 @@ def _append_denied_line(payload, class_name, texts):
         "outcome": _state.OUTCOME_DENIED_GUARDRAIL_PREFIX + class_name,
     }
     # capability rides the line from the binding map when present (protocol
-    # doc); a lone matching capability is unambiguous, several are joined.
-    cfg = _config.load_config(root)
-    capabilities = cfg.capabilities_for(tool)
-    if capabilities:
-        line["capability"] = ",".join(sorted(capabilities))
+    # doc; multi-capability tools serialize as a sorted comma-joined value).
+    # The audit line must not be hostage to config health, so a config blow-up
+    # degrades to an omitted capability + a notice, never a lost line.
+    notices = []
+    try:
+        cfg = _config.load_config(root)
+        capabilities = cfg.capabilities_for(tool)
+        if capabilities:
+            line["capability"] = ",".join(sorted(capabilities))
+        notices = cfg.notices
+    except Exception as exc:
+        notices = ["capability lookup skipped (%s)" % exc]
     _state.append_trace(root, line)
-    return cfg.notices
+    return notices
 
 
 def run(stdin_text):

@@ -1,0 +1,12 @@
+{
+  "name": "git-commit-C-reuse-message",
+  "note": "git commit -C <ref> reuses another commit's message; the ref is not a message-flag value we mask, and a commit ref can never carry a deny pattern \u2014 must still pass",
+  "hook_payload": {
+    "hook_event_name": "PreToolUse",
+    "tool_name": "Bash",
+    "tool_input": {
+      "command": "git commit -C HEAD@{1}"
+    }
+  },
+  "expected": "allow"
+}

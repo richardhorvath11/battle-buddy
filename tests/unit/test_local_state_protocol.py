@@ -283,6 +283,78 @@ def test_corrupt_counters_recover_seq_from_trace_tail_never_duplicating(
     assert len(all_seqs) == len(set(all_seqs))  # no duplicates anywhere
 
 
+def test_recovery_scans_past_a_torn_trailing_line(tmp_path, capsys):
+    # R2-A: a torn LAST trace line (co-symptom of the crash that corrupts
+    # counters) must not under-recover seq to 0. The recovery scans the whole
+    # window and takes the max valid seq, so the next append never duplicates.
+    for _ in range(6):
+        _state.append_trace(tmp_path, {"agent": "a", "tool": "Bash",
+                                       "summary": "x", "outcome": "ok"})
+    trace_path = tmp_path / ".bb-session" / "trace.jsonl"
+    with open(str(trace_path), "ab") as f:
+        f.write(b'{"seq":7,"outcome":"error:au\n')  # garbled trailing line
+    (tmp_path / ".bb-session" / "counters.json").write_text("{corrupt", encoding="utf-8")
+    capsys.readouterr()
+    line = _state.append_trace(tmp_path, {"agent": "a", "tool": "Bash",
+                                          "summary": "y", "outcome": "ok"})
+    assert line["seq"] == 7  # recovered from the last INTACT line (6), not 0
+    assert "corrupt" in capsys.readouterr().err
+    seqs = []
+    for text in (trace_path).read_text(encoding="utf-8").splitlines():
+        try:
+            seqs.append(json.loads(text)["seq"])
+        except ValueError:
+            pass  # the deliberately-garbled line
+    assert len(seqs) == len(set(seqs))  # no duplicate seq among intact lines
+
+
+def test_counters_valid_json_missing_seq_is_corrupt(tmp_path, capsys):
+    # R2-C: a parseable counters file with no seq is not a writer state; it
+    # must recover from the tail, not silently reset to 1.
+    for _ in range(3):
+        _state.append_trace(tmp_path, {"agent": "a", "tool": "Bash",
+                                       "summary": "x", "outcome": "ok"})
+    (tmp_path / ".bb-session" / "counters.json").write_text(
+        json.dumps({"protocol": "bb.local.v1", "turns": {}}), encoding="utf-8"
+    )
+    capsys.readouterr()
+    line = _state.append_trace(tmp_path, {"agent": "a", "tool": "Bash",
+                                          "summary": "y", "outcome": "ok"})
+    assert line["seq"] == 4
+    assert "corrupt" in capsys.readouterr().err
+
+
+def test_seq_only_corruption_preserves_surviving_turns(tmp_path, capsys):
+    # Protocol corruption-recovery: turns that survive in the file are kept;
+    # only seq recovers (R2-note — the diagnostic must not overstate the loss).
+    _state.increment_turn(tmp_path, "agent-a")
+    _state.increment_turn(tmp_path, "agent-a")
+    (tmp_path / ".bb-session" / "counters.json").write_text(
+        json.dumps({"protocol": "bb.local.v1", "seq": "corrupt-not-an-int",
+                    "turns": {"agent-a": 2}}),
+        encoding="utf-8",
+    )
+    capsys.readouterr()
+    _state.append_trace(tmp_path, {"agent": "agent-a", "tool": "Bash",
+                                   "summary": "x", "outcome": "ok"})
+    assert "corrupt" in capsys.readouterr().err
+    assert _state.get_turns(tmp_path, "agent-a") == 2  # turns preserved
+
+
+def test_tail_trace_status_reports_torn_window(tmp_path):
+    _state.append_trace(tmp_path, {"agent": "a", "tool": "Bash",
+                                   "summary": "x", "outcome": "ok"})
+    lines, trustworthy = _state.tail_trace_status(tmp_path)
+    assert trustworthy and len(lines) == 1
+    with open(str(tmp_path / ".bb-session" / "trace.jsonl"), "ab") as f:
+        f.write(b"{torn line\n")
+    lines, trustworthy = _state.tail_trace_status(tmp_path)
+    assert trustworthy is False
+    # absent trace → not trustworthy (uncertain), empty lines
+    lines, trustworthy = _state.tail_trace_status(tmp_path / "elsewhere")
+    assert trustworthy is False and lines == []
+
+
 def test_crash_window_seq_skip_is_bounded_never_duplicated(tmp_path):
     # TA7: a crash between counter-increment and trace append can skip a seq
     # value at most (counters ahead of the trace) — never duplicate. Simulate

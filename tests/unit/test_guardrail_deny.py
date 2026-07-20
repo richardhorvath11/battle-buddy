@@ -154,6 +154,19 @@ def test_quoted_credential_path_still_matches(tmp_path):
     assert exit_code == 2 and "credential_scan" in stderr
 
 
+def test_torn_auth_line_in_window_blocks_not_silently_allows(tmp_path):
+    # R2-B: a corrupt line in the window must NOT let a credential read through
+    # on a falsely-"clean" window. An untrustworthy window is treated as
+    # uncertain → conservative block, never a silent allow.
+    _state.append_trace(tmp_path, {"agent": "a", "tool": "Bash",
+                                   "summary": "x", "outcome": "ok"})
+    with open(str(tmp_path / ".bb-session" / "trace.jsonl"), "ab") as f:
+        f.write(b'{"seq":2,"outcome":"error:au' + b"\n")  # torn mid-line
+    exit_code, _, stderr = run_creds(tmp_path, tmp_path)
+    assert exit_code == 2
+    assert "no trace context" in stderr
+
+
 def test_unreadable_state_blocks_conservatively_not_silently(tmp_path):
     # SF4: an unreadable state dir yields no auth context; the credential class
     # blocks conservatively (over-match direction) rather than allowing on an
@@ -190,6 +203,29 @@ def test_denied_line_carries_capability_from_bindings(tmp_path):
         for l in (root / ".bb-session" / "trace.jsonl").read_text().splitlines()
     ]
     assert lines[-1]["capability"] == "observability"
+
+
+def test_denied_line_serializes_multi_capability_sorted_comma_joined(tmp_path):
+    # Protocol: a tool serving several capabilities serializes as a sorted
+    # comma-joined string (WS2-4).
+    root = tmp_path / "workspace"
+    root.mkdir()
+    claude = root / ".claude"
+    claude.mkdir()
+    (claude / "settings.json").write_text(
+        json.dumps({"battleBuddy": {"bindings": {
+            "observability.q": "mcp__multi__call",
+            "alerting.get": "mcp__multi__call"}}}),
+        encoding="utf-8",
+    )
+    payload = {"hook_event_name": "PreToolUse", "tool_name": "mcp__multi__call",
+               "tool_input": {"command": "kubectl delete namespace prod"},
+               "cwd": str(root), "transcript_path": str(tmp_path / "t.jsonl")}
+    guardrail_deny.run(json.dumps(payload))
+    line = json.loads(
+        (root / ".bb-session" / "trace.jsonl").read_text().splitlines()[-1]
+    )
+    assert line["capability"] == "alerting,observability"
 
 
 def test_denied_line_omits_capability_when_no_bindings(tmp_path):
