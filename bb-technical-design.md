@@ -2,10 +2,14 @@
 
 *Companion to `oncall-harness-requirements.md` (PRD v0.9). The PRD says what; this document says how.*
 
-**Version:** 1.2
+**Version:** 1.2.1
 **Status:** Approved design, pre-implementation
 **Last updated:** 2026-07-19
 **Audience:** Implementers building the MVP.
+
+**Changes in 1.2.1:** Diary `read_recent(n)` ordering documented in §6.2 — entries return most
+recent first (interface commitment: adapters over oldest-first stores reverse on read). Surfaced
+by PR #1 review, which found the slice-1 spec citing an ordering the contract never stated.
 
 **Changes in 1.2:** Testing strategy (§10) — test scaffold precedes component build; two hermetic required layers (unit tests on hooks/helpers, contract tests against `bb-mock-mcp`); scenario harness with swappable drivers — local interactive self-test as the default, headless as an optional clean-room wrapper; no dedicated live-Google test rig (real `/setup`/`/doctor` runs are the live conformance). Decisions and traceability renumbered to §11/§12.
 
@@ -554,7 +558,7 @@ Alert→service resolution: match the firing alert's fields against `alert_match
 Interface (skill-level contract, MCP-implemented):
 
 ```
-read_recent(n) -> entries[]        # format matching
+read_recent(n) -> entries[]        # format matching; ordered most recent first
 write_entry(content) -> url        # the dual-write's first write
 ```
 

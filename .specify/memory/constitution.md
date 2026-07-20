@@ -1,14 +1,23 @@
 <!--
-Sync Impact Report
-- Version change: (template) → 1.0.0 (initial ratification)
+Sync Impact Report — 1.0.1 (2026-07-19)
+- Version change: 1.0.0 → 1.0.1 (PATCH: corrected slice-spec location from `.specify/` to
+  `specs/` — spec-kit's actual scaffold layout; PR #1 review finding)
+- Modified principles: none (Development Workflow section path fix only)
+- Added/removed sections: none
+- Templates re-validated for 1.0.1:
+  ✅ .specify/templates/plan-template.md — already uses `specs/`; compatible
+  ✅ .specify/templates/spec-template.md — no path references; compatible
+  ✅ .specify/templates/tasks-template.md — already uses `specs/`; compatible
+- Companion updates in same PR: AGENTS.md (source-docs table + Allowed path tier → `specs/`)
+- Follow-up TODOs: none
+
+Sync Impact Report — 1.0.0 (2026-07-19, initial ratification)
+- Version change: (template) → 1.0.0
 - Modified principles: n/a (initial adoption)
 - Added sections: Core Principles (I–VIII), Platform Constraints, Development Workflow, Governance
 - Removed sections: none
-- Templates requiring updates:
-  ✅ .specify/templates/plan-template.md — generic "Constitution Check" gate; compatible, gates derive from this file
-  ✅ .specify/templates/spec-template.md — no constitution-specific slots; compatible
-  ✅ .specify/templates/tasks-template.md — test-first task ordering aligns with Principle VIII
-- Follow-up TODOs: none
+- Templates validated: plan-template.md ("Constitution Check" gate derives from this file),
+  spec-template.md, tasks-template.md (test-first ordering aligns with Principle VIII) — all compatible
 - Source documents: oncall-harness-requirements.md (PRD v0.9), bb-technical-design.md (design v1.2)
 -->
 
@@ -113,7 +122,7 @@ changes honest; code without its tests in the same change is incomplete.
 ## Development Workflow
 
 - **The design doc is upstream; specs correlate to code.** `bb-technical-design.md` is the
-  architectural reference. Each vertical slice gets its own spec under `.specify/`
+  architectural reference. Each vertical slice gets its own spec under `specs/`
   (spec → plan → tasks → implement), citing the design sections it implements and carrying
   its own acceptance criteria. Traceability runs PRD FR → design § → slice spec → code +
   tests.
@@ -141,4 +150,4 @@ guardrail and validator test suites are the mechanical arm of that review.
 Runtime agent guidance lives in `CLAUDE.md` (and `AGENTS.md` once adopted); those files
 route — this file rules.
 
-**Version**: 1.0.0 | **Ratified**: 2026-07-19 | **Last Amended**: 2026-07-19
+**Version**: 1.0.1 | **Ratified**: 2026-07-19 | **Last Amended**: 2026-07-19
