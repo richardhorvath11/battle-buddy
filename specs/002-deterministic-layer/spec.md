@@ -38,7 +38,7 @@ A component about to persist a triage verdict or ledger checkpoint runs `bb-vali
 **Acceptance Scenarios**:
 
 1. **Given** a well-formed verdict or ledger document, **When** validated, **Then** exit 0 and no output (or an explicit pass summary) — the document is untouched.
-2. **Given** a document violating a schema rule (missing field, wrong type, unknown version tag) or a semantic invariant (unvalidated `recall` hypothesis, two live hypotheses, no `fresh` hypothesis, prose-only evidence), **When** validated, **Then** non-zero exit and a machine-readable error list naming each violated rule and its location in the document.
+2. **Given** a document violating a schema rule (missing field, wrong type, unknown version tag) or a semantic invariant (unvalidated `recall` hypothesis, two live hypotheses or no `fresh` hypothesis while `phase` indicates deep-dive (FR-006), prose-only evidence), **When** validated, **Then** non-zero exit and a machine-readable error list naming each violated rule and its location in the document.
 3. **Given** a document with multiple violations, **When** validated, **Then** all violations are reported in one pass (no fix-one-rerun loops).
 4. **Given** any input at all (including non-JSON), **When** validated, **Then** the validator terminates with a decisive exit code — it never hangs, crashes uncleanly, or partially reports.
 
