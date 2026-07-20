@@ -42,3 +42,16 @@
   Assumptions, plus the design's own three-verbs-vs-close-workspace gap flagged
   proactively for plan-time resolution.
 - Items validated against spec.md as written on 2026-07-20; all pass.
+- Re-validated 2026-07-20 after converge-review round 1 (two-lens review; all findings
+  fixed, none defended): FR-001's "exactly three verbs" no longer collides with the
+  workspace-close operation — its existence is now pinned into the interface as a
+  recorded D-2 addition (slice-5 precedent), name/semantics at plan time; the
+  absent-vs-unrecognized notice scoping is now one consistent answer across FR-002,
+  SC-002, US1, and Assumptions (absent = silent, unrecognized = noticed, with the
+  slice-2 and slice-4 precedents distinguished); multi-pane workspace composition
+  pinned caller-driven; Constitution III citations reframed as analogy with §9 R-2 +
+  Platform Constraints as binding authorities; SC-005's gate named correctly
+  (test_stdlib_boundary.py, no extension needed); D-9's verification claim scoped to
+  SSO persistence; degraded open-pane print-vs-no-op flagged in the owning slice;
+  notify degraded delivery re-cited to §9 R-1; PR-number pairing fixed. All items
+  re-checked against the updated file and pass.
