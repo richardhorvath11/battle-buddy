@@ -96,12 +96,16 @@ class MockMcp:
                 raise SeedError("seed file is not valid JSON: {}".format(exc))
         self._validate_seed(seed)
         snapshot = self._state_snapshot()
+        applying = None
         try:
-            for record in seed.get("records", []):
+            for i, record in enumerate(seed.get("records", [])):
+                applying = "records[{}]".format(i)
                 self.records.append_record(dict(record))
-            for artifact in seed.get("artifacts", []):
+            for i, artifact in enumerate(seed.get("artifacts", [])):
+                applying = "artifacts[{}]".format(i)
                 self.artifacts.put_file(artifact["name"], artifact["content"])
-            for content in seed.get("diary", []):
+            for i, content in enumerate(seed.get("diary", [])):
+                applying = "diary[{}]".format(i)
                 self.diary.append_entry(content)
             alerts = seed.get("alerts", {})
             for alert in alerts.get("alerts", []):
@@ -114,8 +118,8 @@ class MockMcp:
             # by hoping the two validators stay in sync.
             self._state_restore(snapshot)
             raise SeedError(
-                "seed apply rejected by a store check ({}); no state applied".format(
-                    exc.message
+                "seed {}: rejected by a store check ({}); no state applied".format(
+                    applying, exc.message
                 )
             )
 

@@ -154,4 +154,5 @@ def test_apply_failure_rolls_back_all_state(mock_mcp, tmp_path, monkeypatch):
     with pytest.raises(SeedError) as excinfo:
         mock_mcp.load_seed(path)
     assert "no state applied" in str(excinfo.value)
+    assert "artifacts[0]" in str(excinfo.value)  # AS-2: names the offending entry
     _assert_untouched(mock_mcp)

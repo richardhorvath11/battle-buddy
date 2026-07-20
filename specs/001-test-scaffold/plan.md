@@ -90,6 +90,7 @@ tests/
 ├── conftest.py                  # fresh-mock factory fixture; fixture-loading helpers
 ├── unit/
 │   ├── test_harness_selftest.py # table-driven pattern demo: (payload, state) -> (exit, output)
+│   ├── test_verify_gate.py      # make-target behavior: green-but-loud, red naming the test
 │   └── test_packaging.py        # FR-010/SC-007 bundle-boundary check (fixture-driven, R7)
 ├── contract/
 │   ├── test_storage.py          # conformance per storage op incl. D-3 limit + errors
@@ -99,8 +100,10 @@ tests/
 │   ├── test_schema_registry.py  # FR-011 / Story 2 AS-5
 │   ├── test_write_ordering.py   # cross-capability ordering demo (SC-004)
 │   ├── test_rejections.py       # seeded-defect corpus: ≥1 violation per op (SC-006)
-│   └── test_seeds.py            # Story 3: seed load, corrupted-seed failure
+│   ├── test_seeds.py            # Story 3: seed load, corrupted-seed failure
+│   └── test_assertion_helpers.py # negative coverage: helpers fail on divergence
 ├── helpers/
+│   ├── __init__.py
 │   └── assertions.py            # FR-008 artifact-assertion entry point (T022)
 └── fixtures/
     ├── seeds/synthetic-incident.json
