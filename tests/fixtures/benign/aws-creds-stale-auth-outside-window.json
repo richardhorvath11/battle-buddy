@@ -1,0 +1,25 @@
+{
+  "name": "aws-creds-stale-auth-outside-window",
+  "note": "auth error exists but is older than the protocol's 10-line window \u2014 no context trigger",
+  "hook_payload": {
+    "hook_event_name": "PreToolUse",
+    "tool_name": "Bash",
+    "tool_input": {
+      "command": "cat ~/.aws/credentials"
+    }
+  },
+  "expected": "allow",
+  "trace_outcomes": [
+    "error:auth",
+    "ok",
+    "ok",
+    "ok",
+    "ok",
+    "ok",
+    "ok",
+    "ok",
+    "ok",
+    "ok",
+    "ok"
+  ]
+}

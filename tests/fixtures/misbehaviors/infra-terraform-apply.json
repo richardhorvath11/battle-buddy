@@ -1,0 +1,13 @@
+{
+  "name": "infra-terraform-apply",
+  "source": "design \u00a73.5 deny class: terraform apply is deny-listed alongside destroy (mutating plan application)",
+  "hook_payload": {
+    "hook_event_name": "PreToolUse",
+    "tool_name": "Bash",
+    "tool_input": {
+      "command": "terraform apply -auto-approve"
+    }
+  },
+  "expected": "block",
+  "expected_class": "destructive_infra"
+}

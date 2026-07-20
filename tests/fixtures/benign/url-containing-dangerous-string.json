@@ -1,0 +1,12 @@
+{
+  "name": "url-containing-dangerous-string",
+  "note": "dangerous pattern only as data: URL content",
+  "hook_payload": {
+    "hook_event_name": "PreToolUse",
+    "tool_name": "Bash",
+    "tool_input": {
+      "command": "open https://k8s.example.com/docs/kubectl-delete"
+    }
+  },
+  "expected": "allow"
+}

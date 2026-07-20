@@ -28,10 +28,10 @@
 **Goal**: Four deny classes, corpus-gated, fail-open
 **Independent Test**: two-corpus run + fault corpus, no agent involved (spec US1)
 
-- [ ] T006 [US1] Implement `hooks/guardrail_deny.py`: DENY_CLASSES table (destructive_filesystem, destructive_infra, verify_skip pattern classes), stdin→verdict flow, fail-open wrapper, block messages naming the class, and on every block append the `denied:guardrail:<class>` trace line via `_state.py` (protocol: one line per tool call incl. blocked ones); register in `hooks/hooks.json` (PreToolUse)
-- [ ] T007 [US1] Add the credential_scan class with its context rule: `error:auth` within the protocol's 10-line trace window (reads via `_state.py` tail; degrades to pattern-only when no trace exists per spec Assumption)
-- [ ] T008 [P] [US1] Author the misbehavior corpus `tests/fixtures/misbehaviors/*.json` — ≥3 source-annotated fixtures per deny class (documented real-world agentic misbehaviors) — and the benign corpus `tests/fixtures/benign/*.json` per the US1 AS-2 membership rule (incl. quoted `rm -rf` in commit message, URL containing dangerous string)
-- [ ] T009 [US1] Write `tests/unit/test_guardrail_deny.py`: iterate both corpora (SC-001), context-rule cases (auth window present/absent/stale), fault corpus (fail-open), block-message content
+- [X] T006 [US1] Implement `hooks/guardrail_deny.py`: DENY_CLASSES table (destructive_filesystem, destructive_infra, verify_skip pattern classes), stdin→verdict flow, fail-open wrapper, block messages naming the class, and on every block append the `denied:guardrail:<class>` trace line via `_state.py` (protocol: one line per tool call incl. blocked ones); register in `hooks/hooks.json` (PreToolUse)
+- [X] T007 [US1] Add the credential_scan class with its context rule: `error:auth` within the protocol's 10-line trace window (reads via `_state.py` tail; degrades to pattern-only when no trace exists per spec Assumption)
+- [X] T008 [P] [US1] Author the misbehavior corpus `tests/fixtures/misbehaviors/*.json` — ≥3 source-annotated fixtures per deny class (documented real-world agentic misbehaviors) — and the benign corpus `tests/fixtures/benign/*.json` per the US1 AS-2 membership rule (incl. quoted `rm -rf` in commit message, URL containing dangerous string)
+- [X] T009 [US1] Write `tests/unit/test_guardrail_deny.py`: iterate both corpora (SC-001), context-rule cases (auth window present/absent/stale), fault corpus (fail-open), block-message content
 
 **Checkpoint**: US1 deliverable — the misbehavior gate is live in CI
 

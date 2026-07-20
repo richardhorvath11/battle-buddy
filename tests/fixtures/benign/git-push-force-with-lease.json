@@ -1,0 +1,12 @@
+{
+  "name": "git-push-force-with-lease",
+  "note": "the safe force variant must stay allowed (boundary pin for the --force pattern)",
+  "hook_payload": {
+    "hook_event_name": "PreToolUse",
+    "tool_name": "Bash",
+    "tool_input": {
+      "command": "git push --force-with-lease origin feature"
+    }
+  },
+  "expected": "allow"
+}

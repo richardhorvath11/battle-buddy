@@ -1,0 +1,12 @@
+{
+  "name": "rm-single-file",
+  "note": "non-recursive single-file removal",
+  "hook_payload": {
+    "hook_event_name": "PreToolUse",
+    "tool_name": "Bash",
+    "tool_input": {
+      "command": "rm build/output.log"
+    }
+  },
+  "expected": "allow"
+}

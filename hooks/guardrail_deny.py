@@ -1,0 +1,272 @@
+#!/usr/bin/env python3
+"""PreToolUse deny layer — guardrail layer 1 (design §3.5; Constitution III).
+
+Deterministic pattern matching over tool-call command text; matched calls are
+exit-blocked outright (exit 2, reason on stderr), beneath and independent of
+approval gates. Everything else is allowed. The hook itself fails open: any
+internal error allows the call with the failure visible in diagnostics —
+safety must never brick a session at 3am (spec FR-004).
+
+Matching model (spec US1 AS-2's corpus-membership rule, made mechanical):
+- Only command-shaped input fields are scanned (``command``, ``script``,
+  ``sql``, …) — prose/data fields (commit messages, excerpts) are never
+  evaluated.
+- Quoted substrings and URLs are masked before matching, so a dangerous
+  pattern appearing only as data (a quoted string, a URL) does not match…
+- …unless the unquoted residue contains an execution sink (``sh -c``,
+  ``eval``, ``psql -c``, …): then the raw text is scanned too, because the
+  quoted content *is* the executed action.
+Over-match beyond the benign corpus is acceptable collateral (Constitution
+III); the corpus is the decided boundary and narrowing happens by growing it.
+
+The four v1 deny classes live in DENY_CLASSES below — in code, not config, so
+a user-broken config file can never silently disable the layer (research R3).
+``credential_scan`` carries the one context rule: it fires only when an
+``error:auth`` outcome appears in the protocol's 10-line trace window — or in
+degraded pattern-only mode when no trace exists yet (spec Assumptions).
+
+On every block this hook appends the call's own ``denied:guardrail:<class>``
+trace line (protocol: one line per tool call, including blocked ones).
+
+Python 3.9-compatible, stdlib only.
+"""
+
+import json
+import os
+import re
+import sys
+
+import _state
+
+SUMMARY_LIMIT = 120
+
+# Input fields whose values are commands to evaluate. Anything else
+# (descriptions, messages, excerpts, row values) is data, never scanned.
+COMMAND_FIELDS = ("command", "cmd", "script", "code", "sql", "query", "statement")
+
+_QUOTED = re.compile(r"'[^']*'|\"[^\"]*\"")
+_URL = re.compile(r"\bhttps?://\S+")
+# Execution sinks: constructs that execute their (typically quoted) argument.
+_SINKS = re.compile(
+    r"(?:\b(?:ba|z|k|da)?sh\s+(?:-\w+\s+)*-c\b)"
+    r"|\beval\b|\bxargs\b|\bsource\s"
+    r"|\bpsql\b[^|;&]*\s-c\b"
+    r"|\bmysql\b[^|;&]*\s(?:-e|--execute)\b"
+    r"|\bpython3?\s+-c\b"
+    r"|\bnode\s+(?:-e|--eval)\b"
+)
+
+_HOMES = r"(?:~|\$HOME|/home/[\w.-]+|/Users/[\w.-]+)"
+
+
+def _c(*patterns):
+    return tuple(re.compile(p, re.IGNORECASE) for p in patterns)
+
+
+# (name, human description, compiled patterns). Order = evaluation order;
+# first matching class names the block. Patterns change only alongside the
+# two fixture corpora — the corpus is the regression gate (FR-005).
+DENY_CLASSES = (
+    (
+        "destructive_filesystem",
+        "destructive filesystem operation",
+        _c(
+            r"\brm\s+-\w*(?:r\w*f|f\w*r)\w*\b",
+            r"\brm\s+[^|;&]*--recursive\b[^|;&]*--force\b",
+            r"\brm\s+[^|;&]*--force\b[^|;&]*--recursive\b",
+            r"\brm\s+[^|;&]*-\w*r\b[^|;&]*\s-\w*f\b",
+            r"\brm\s+[^|;&]*-\w*f\b[^|;&]*\s-\w*r\b",
+            r"\brm\s+-\w*r\w*\s+(?:/|~(?:\s|/\s*$|$)|\$HOME\b|\*)",
+            r"\bmkfs(?:\.\w+)?\b",
+            r"\bdd\b[^|;&]*\bof=/dev/",
+            r"\bshred\b[^|;&]*/dev/",
+            r">\s*/dev/(?:sd|nvme|disk)",
+        ),
+    ),
+    (
+        "destructive_infra",
+        "destructive cluster/cloud operation",
+        _c(
+            r"\bkubectl\s+delete\b",
+            r"\bterraform\s+(?:destroy|apply)\b",
+            r"\baws\s+ec2\s+terminate-instances\b",
+            r"\baws\s+rds\s+delete-",
+            r"\baws\s+iam\s+(?:create|delete|put|attach|detach|update|add|remove)\w*-",
+            r"\bgcloud\s+compute\s+instances\s+delete\b",
+            r"\bgcloud\s+projects\s+delete\b",
+            r"\baz\s+vm\s+delete\b",
+            r"\bhelm\s+(?:uninstall|delete)\b",
+            r"\bdrop\s+(?:table|database|schema)\b",
+            r"\btruncate\s+table\b",
+        ),
+    ),
+    (
+        "credential_scan",
+        "credential scanning after an auth error",
+        _c(
+            _HOMES + r"/\.aws\b",
+            _HOMES + r"/\.ssh/",
+            _HOMES + r"/\.netrc\b",
+            r"/etc/shadow\b",
+            r"\bsecurity\s+(?:dump-keychain|find-generic-password|find-internet-password)\b",
+            r"\b(?:env|printenv)\b[^|;&]*\|[^|;&]*\bgrep\b.*(?:secret|token|api.?key|password|credential)",
+        ),
+    ),
+    (
+        "verify_skip",
+        "verification-skipping retry",
+        _c(
+            r"\bgit\s+push\b[^|;&]*(?:--force(?!-with-lease)\b|\s-f\b)",
+            r"--no-verify\b",
+            r"--skip-hooks\b",
+            r"\bcurl\b[^|;&]*(?:\s-k\b|--insecure\b)",
+            r"\bwget\b[^|;&]*--no-check-certificate\b",
+            r"sslVerify\s*=\s*false",
+            r"NODE_TLS_REJECT_UNAUTHORIZED\s*=\s*0",
+            r"PYTHONHTTPSVERIFY\s*=\s*0",
+        ),
+    ),
+)
+
+BLOCK_MESSAGE = (
+    "battle-buddy guardrail blocked this call — %s (pattern class: %s). "
+    "This deterministic deny layer blocks the matched class outright, with no "
+    "inline bypass; choose a safe alternative or hand the action to the "
+    "responder."
+)
+
+
+def _command_texts(tool_input):
+    """Command-shaped string values, recursively; data fields never scanned."""
+    texts = []
+
+    def walk(node, key=None):
+        if isinstance(node, dict):
+            for child_key, value in node.items():
+                walk(value, child_key)
+        elif isinstance(node, list):
+            for value in node:
+                walk(value, key)
+        elif isinstance(node, str) and key in COMMAND_FIELDS:
+            texts.append(node)
+
+    walk(tool_input)
+    return texts
+
+
+def _scan_variants(text):
+    """The masked text always; the raw text too when a sink survives masking."""
+    masked = _QUOTED.sub("<quoted>", _URL.sub("<url>", text))
+    variants = [masked]
+    if _SINKS.search(masked):
+        variants.append(text)
+    return variants
+
+
+def _auth_error_in_window(root):
+    """True: auth error in the 10-line window. False: window clean.
+    None: no trace context at all (degraded, pattern-only mode)."""
+    tail = _state.tail_trace(root)
+    if not tail:
+        return None
+    return any(
+        line.get("outcome") == _state.OUTCOME_ERROR_AUTH for line in tail
+    )
+
+
+def _evaluate(payload):
+    """Return (class_name, message) for a block, or None to allow."""
+    tool_input = payload.get("tool_input")
+    if not isinstance(tool_input, dict):
+        return None
+    texts = _command_texts(tool_input)
+    if not texts:
+        return None
+
+    root = payload.get("cwd")
+    if not isinstance(root, str) or not root:
+        root = os.getcwd()
+
+    for name, description, patterns in DENY_CLASSES:
+        matched = any(
+            pattern.search(variant)
+            for text in texts
+            for variant in _scan_variants(text)
+            for pattern in patterns
+        )
+        if not matched:
+            continue
+        if name == "credential_scan":
+            # Context rule: fire on auth error in the recent-trace window, or
+            # in pattern-only mode when no trace context exists yet.
+            if _auth_error_in_window(root) is False:
+                continue
+        return name, BLOCK_MESSAGE % (description, name)
+    return None
+
+
+def _append_denied_line(payload, class_name, texts):
+    root = payload.get("cwd")
+    if not isinstance(root, str) or not root:
+        root = os.getcwd()
+    summary = (texts[0] if texts else "")[:SUMMARY_LIMIT]
+    _state.append_trace(
+        root,
+        {
+            "agent": _state.actor_key(payload.get("transcript_path", "")),
+            "tool": payload.get("tool_name", ""),
+            "summary": summary,
+            "outcome": _state.OUTCOME_DENIED_GUARDRAIL_PREFIX + class_name,
+        },
+    )
+
+
+def run(stdin_text):
+    """Pure entry point: stdin text -> (exit_code, stdout, stderr).
+
+    Exit 0 allows; exit 2 blocks with the reason on stderr. Every failure
+    path inside the hook allows (fail open) with a visible diagnostic.
+    """
+    try:
+        payload = json.loads(stdin_text)
+        if not isinstance(payload, dict):
+            raise ValueError("hook payload is not a JSON object")
+    except ValueError as exc:
+        return 0, "", "guardrail_deny fail-open: unreadable payload (%s)\n" % exc
+
+    try:
+        verdict = _evaluate(payload)
+    except Exception as exc:  # any internal error must not block the session
+        return 0, "", "guardrail_deny fail-open: internal error (%s)\n" % exc
+
+    if verdict is None:
+        return 0, "", ""
+
+    class_name, message = verdict
+    diagnostics = ""
+    try:
+        tool_input = payload.get("tool_input")
+        texts = _command_texts(tool_input) if isinstance(tool_input, dict) else []
+        _append_denied_line(payload, class_name, texts)
+    except Exception as exc:
+        # Bookkeeping failure never downgrades a deny — but stays visible.
+        diagnostics = "guardrail_deny: denied-line append failed (%s)\n" % exc
+    return 2, "", message + "\n" + diagnostics
+
+
+def main():
+    try:
+        stdin_text = sys.stdin.read()
+    except Exception as exc:
+        sys.stderr.write("guardrail_deny fail-open: stdin unreadable (%s)\n" % exc)
+        sys.exit(0)
+    exit_code, stdout, stderr = run(stdin_text)
+    if stdout:
+        sys.stdout.write(stdout)
+    if stderr:
+        sys.stderr.write(stderr)
+    sys.exit(exit_code)
+
+
+if __name__ == "__main__":
+    main()

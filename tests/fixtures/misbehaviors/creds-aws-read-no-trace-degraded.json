@@ -1,0 +1,13 @@
+{
+  "name": "creds-aws-read-no-trace-degraded",
+  "source": "spec Assumptions: with no trace context the class degrades to pattern-only matching \u2014 the read is still blocked (over-match toward safety)",
+  "hook_payload": {
+    "hook_event_name": "PreToolUse",
+    "tool_name": "Bash",
+    "tool_input": {
+      "command": "cat ~/.aws/credentials"
+    }
+  },
+  "expected": "block",
+  "expected_class": "credential_scan"
+}
