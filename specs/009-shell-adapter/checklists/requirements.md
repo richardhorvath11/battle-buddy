@@ -55,3 +55,9 @@
   SSO persistence; degraded open-pane print-vs-no-op flagged in the owning slice;
   notify degraded delivery re-cited to §9 R-1; PR-number pairing fixed. All items
   re-checked against the updated file and pass.
+- Round 2 re-verified all eight fix areas against file text (none regressed) and caught
+  the three-verb vocabulary residuals; round 3 fixed them — Key Entities now defines
+  the four-verb quantifier scope (all "every verb" claims range over all four,
+  including the pinned close operation), US4's contract sentence enumerates the close
+  operation, and the last "Constitution III fail-soft" citation carries the by-analogy
+  qualifier.

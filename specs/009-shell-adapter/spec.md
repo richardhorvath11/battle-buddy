@@ -37,7 +37,7 @@ Mid-session, the cmux socket dies — the app crashed, the socket file vanished,
 
 **Acceptance Scenarios**:
 
-1. **Given** a socket connection refused or absent, **When** any verb runs under `shell: cmux`, **Then** the call falls back to degraded output, exits success, and the fallback is noted in diagnostics. *(§6.3, §9 R-2 row; Constitution III fail-soft)*
+1. **Given** a socket connection refused or absent, **When** any verb runs under `shell: cmux`, **Then** the call falls back to degraded output, exits success, and the fallback is noted in diagnostics. *(§6.3, §9 R-2 row; Constitution Platform Constraints, III by analogy)*
 2. **Given** a mid-write socket death, **When** the verb runs, **Then** same fallback — no hang, no partial-failure error surfaced to the caller. *(§9 R-2)*
 3. **Given** repeated failures in one session, **When** calls continue, **Then** each falls back identically — the shim is stateless about backend health; no lockout, no retry storm. *(spec-pinned default — see Assumptions)*
 
@@ -60,7 +60,7 @@ Browser panes render third-party tools with the responder's own SSO sessions. Th
 
 ### User Story 4 - Any future shell slots in behind the same small verb set (Priority: P3)
 
-The shim's documented interface — `open-pane`, `navigate-pane`, `notify`, with backend selection by configuration — is the adapter contract: a future shell (a different multiplexer, an IDE, a web dashboard) integrates by implementing the same verbs' semantics behind the shim, with zero changes to any command or skill. Commands and skills invoke only `bb-shell`; nothing in the core knows which shell answers.
+The shim's documented interface — `open-pane`, `navigate-pane`, `notify`, and the workspace-close operation (FR-001), with backend selection by configuration — is the adapter contract: a future shell (a different multiplexer, an IDE, a web dashboard) integrates by implementing the same verbs' semantics behind the shim, with zero changes to any command or skill. Commands and skills invoke only `bb-shell`; nothing in the core knows which shell answers.
 
 **Why this priority**: D-2's rationale — the interface doubles as the spec for any future shell. Documentation property; P3.
 
@@ -99,7 +99,7 @@ The shim's documented interface — `open-pane`, `navigate-pane`, `notify`, with
 
 ### Key Entities
 
-- **`bb-shell` shim**: The shipped CLI — three verbs, config-selected backend, fail-soft; the only shell surface any other slice touches.
+- **`bb-shell` shim**: The shipped CLI — the four interface verbs (the three §6.3 verbs plus the pinned workspace-close operation; every "every verb" quantifier in this spec ranges over all four), config-selected backend, fail-soft; the only shell surface any other slice touches.
 - **Adapter interface document**: The backend-independent contract (D-2) — the spec any future shell implements.
 - **cmux backend**: The v1 socket-API implementation; protocol specifics pinned at plan time against the real API.
 - **Degraded backend**: The print-everything implementation; first-class, default, and the universal fallback.
