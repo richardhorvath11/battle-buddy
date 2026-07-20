@@ -17,7 +17,7 @@
 
 **Purpose**: Repo skeleton and the contract artifact everything derives from
 
-- [ ] T001 Create directory skeleton per plan.md: `tools/bb-mock-mcp/bb_mock_mcp/` (empty `__init__.py`), `tests/unit/`, `tests/contract/`, `tests/fixtures/{seeds,packaging,unit}/`
+- [X] T001 Create directory skeleton per plan.md: `tools/bb-mock-mcp/bb_mock_mcp/` (empty `__init__.py`), `tests/unit/`, `tests/contract/`, `tests/fixtures/{seeds,packaging,unit}/`
 - [ ] T002 Add pytest configuration (`pyproject.toml` with `[tool.pytest.ini_options]`: testpaths, `-q` defaults) and a root `tests/conftest.py` stub; document `pip install pytest` as the only dev dependency in `tools/bb-mock-mcp/README.md` placeholder
 - [ ] T003 [P] Encode `specs/001-test-scaffold/contracts/operations.md` as machine-readable `tools/bb-mock-mcp/contract.json` (every capability, op, input/output field with type+required, error codes, the 45000 D-3 limit as a named constant field) — research R5: this file is the single source the mock, registry, and tests load
 
