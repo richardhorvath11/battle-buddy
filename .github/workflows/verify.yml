@@ -1,0 +1,48 @@
+# CI mirror of `make verify` (FR-009, research R4): the jobs invoke the exact
+# make targets contributors run locally — one verify loop, one exit code.
+#
+# NOTE (manual, one-time): for FR-009's "block merge on failure" (SC-005), the
+# `unit` and `contract` checks must be marked as required status checks in the
+# repository's branch-protection settings for `main`. GitHub offers no
+# in-workflow way to do this.
+#
+# Python versions per research R2: the unit layer proves the shipped-code floor
+# (3.9, design D-1) alongside modern 3.12; the contract layer is dev-only and
+# runs on 3.12 alone.
+
+name: verify
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+jobs:
+  unit:
+    name: unit (py${{ matrix.python-version }})
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        python-version: ["3.9", "3.12"]
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: ${{ matrix.python-version }}
+      - name: Install dev dependencies (pytest only)
+        run: python -m pip install pytest
+      - name: Run unit layer
+        run: make test-unit
+
+  contract:
+    name: contract (py3.12)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Install dev dependencies (pytest only)
+        run: python -m pip install pytest
+      - name: Run contract layer
+        run: make test-contract
