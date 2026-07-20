@@ -15,5 +15,5 @@ start there. Only Claude-specific notes go below.
 <!-- SPECKIT START -->
 For additional context about technologies to be used, project structure,
 shell commands, and other important information, read the current plan:
-`specs/001-test-scaffold/plan.md`
+`specs/002-deterministic-layer/plan.md`
 <!-- SPECKIT END -->
