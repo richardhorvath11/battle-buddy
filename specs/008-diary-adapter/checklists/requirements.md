@@ -52,3 +52,8 @@
   concrete-store abstraction pins flagged; citation fixes (FR-4/4b, deferral list,
   contract-tested short-read behavior). All items re-checked against the updated
   file and pass.
+- Round 2 verified all ten round-1 fixes against file text and caught one residual the
+  round-1 edit introduced: FR-005 listed "timeline" as a pre-write drafting input,
+  contradicting §4's step-4 derivation (after the diary write). Round 3 fixed it —
+  the draft receives the timeline's staged *sources* (trace + checkpoint history),
+  never the timeline; "links" scoped to in-session evidence links.
