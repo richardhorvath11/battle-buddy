@@ -8,17 +8,22 @@ assigned to the plan are resolved here (R5, R6, R9).
 
 **Decision**: Three shipped scripts with explicit event registrations in `hooks/hooks.json`:
 
-| Script | PreToolUse | PostToolUse | SessionStart | Stop/SessionEnd |
+| Script | PreToolUse | PostToolUse | SessionStart | SessionEnd |
 |---|---|---|---|---|
-| `guardrail_deny.py` | ✓ deny classes | — | — | — |
-| `tool_trace.py` | ✓ turn-cap check (count from trace) | ✓ capture line + tripwire | — | — |
+| `guardrail_deny.py` | ✓ deny classes; on block, appends the `denied:guardrail:<class>` trace line | — | — | — |
+| `tool_trace.py` | ✓ turn-cap check (count from `counters.json`); on deny, appends `denied:turn_cap` line | ✓ capture call line (outcome) + tripwire | — | — |
 | `session_guard.py` | — | — | ✓ config-presence warning (FR-015) | ✓ marker check + transcript staging |
 
 **Rationale**: Turn-cap *denial* must precede execution (PreToolUse); the `outcome` field
 and tripwire need results (PostToolUse) — so `tool_trace.py` binds to both events and
-dispatches on `hook_event_name`. The config warning fires once at session start, not on
-every call. **Alternative rejected**: one mega-script on all events (harder to test as
-pure functions, one crash risks all functions — fail-open blast radius).
+dispatches on `hook_event_name`. Denying hooks append their own `denied:*` lines so every
+tool call yields exactly one trace line with no PostToolUse dependency (FR-008 — blocked
+calls never reach PostToolUse). The marker check registers on **SessionEnd only**: Stop
+fires after every conversational turn and would nag a legitimately-open session; the
+blocking variant of FR-011 is deferred until the runtime has a clean blocking
+end-of-session point (protocol doc records this). **Alternative rejected**: one
+mega-script on all events (harder to test as pure functions, one crash risks all
+functions — fail-open blast radius).
 
 ## R2 — Local-state protocol v1: `.bb-session/` directory
 
@@ -77,13 +82,18 @@ every family ships with both fixture directions so precision regressions are cau
 
 **Decision**: Read-only helper shared by the hooks (stdlib `json`): workspace config =
 `.claude/settings.json` → `battleBuddy` key. Keys consumed this slice:
-`battleBuddy.budgets.triageTurnCap` (int, default **15** when absent),
-`battleBuddy.bindings` (capability → tool map; absent ⇒ tripwire disabled with one
-logged notice per session), plus key-presence itself for FR-015. Malformed JSON ⇒ treat
-as absent (fail open), notice in diagnostics.
+`battleBuddy.budgets.triageTurnCap` (int, default **15** when absent), and
+`battleBuddy.bindings` as an **operation-level map** — `capability.operation → tool name`
+per design §7.2/D-13 (e.g. `"storage.append_record": "mcp__sheets__add_row"`); a flat
+capability→tool map could not represent one capability whose operations bind to
+different tools. Tool→capability classification is the reverse lookup with prefix parse
+(protocol doc pins the rule, incl. multi-capability tools). Bindings absent ⇒ tripwire
+disabled with one logged notice per session. Key presence itself feeds FR-015. Malformed
+JSON ⇒ treated as absent (fail open), notice in diagnostics.
 
-**Rationale**: D-10 named the location; defaults must exist because slice 4's `/setup`
-(which writes these keys) doesn't exist yet.
+**Rationale**: D-10 named the location and §7.2 the shape; matching slice 4's future
+writer exactly is what keeps the tripwire classifying on real rosters. Defaults must
+exist because slice 4's `/setup` doesn't exist yet.
 
 ## R7 — Helpers are libraries with CLI shims
 
@@ -115,3 +125,36 @@ evidence-gathering | deep-dive | resolution` (superset of the design §5.4 examp
 
 **Rationale**: Matches the design's example while giving the ledger a full lifecycle;
 closed enumeration keeps validation deterministic (unknown ⇒ error, never guess).
+
+## R10 — Agent identity: derived actor keys + convention-registered roles
+
+**Decision**: Hook payloads carry no agent name, so identity is derived: actor key = a
+stable hash-suffix of the payload's `transcript_path` (distinct per agent instance). Role
+mapping (`triage` / `deep` / `specialist:*`) is registered in `.bb-session/agents.json`
+by the investigation skill's spawn flow (slice 6) — mechanism here, policy there.
+**Unregistered actor ⇒ no turn cap (fail open)**: enforcement without identity would cap
+the wrong agents. The triage turn cap is therefore fully deterministic once registration
+exists, and harmlessly inert before slice 6 — matching how the config seam (R6) treats
+slice 4.
+
+**Rationale**: The one identity signal the runtime reliably provides is the per-agent
+transcript path; everything else would be model-cooperation. **Alternative rejected**:
+capping all subagents when unregistered (would throttle the deep investigator — a worse
+failure than an uncapped triage).
+
+## R11 — Seq and counting: atomic append-time assignment, sidecar counters, no reservation
+
+**Decision**: `seq` is a line sequence assigned at append time from
+`.bb-session/counters.json` under `fcntl.flock`; denying hooks append their own
+`denied:*` lines at PreToolUse; completed calls append at PostToolUse; tripwire event
+lines consume their own seq and are excluded from call counts by the `event` field.
+Per-agent turn counts live in the same counters file — **the trace is never read by its
+appender** (spec edge case; R8's O(1) requirement).
+
+**Rationale**: The naive "reserve at Pre, finalize at Post" cannot be simultaneously
+gap-free, completion-ordered, and reservation-crash-safe under the spec's parallel-
+subagent edge case; append-time assignment gives all three by construction. A crash
+between counter increment and append can skip a seq value at most — never duplicate,
+never reorder (protocol doc records this bound). **Alternative rejected**: per-call
+reservation with a pending-file handshake (two writes + cleanup per call, more failure
+states, no property gained).

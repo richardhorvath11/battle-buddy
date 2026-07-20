@@ -17,52 +17,111 @@ the directory is removed by a confirmed close (slice 5) after artifact upload.
   "session_id": "page-ALERT-123-2026-07-20",
   "source_id": "ALERT-123",
   "opened_at": "<iso8601>",
-  "open_write_confirmed": false,
-  "closed_confirmed": false
+  "open_write_confirmed": false
 }
 ```
 
 Lifecycle: created at session open (slice 5 writes it; this slice reads it) →
 `open_write_confirmed: true` after the open-time row append read-back → the whole file is
-**deleted** on confirmed close (deletion *is* the cleared state — no
-`closed_confirmed: true` resting state exists on disk; the field exists for in-flight
-atomic rewrites only). Session-guard trigger (spec FR-011): **file present at
-Stop/SessionEnd ⇒ warn/block**, regardless of `open_write_confirmed`.
+**deleted** on confirmed close (deletion *is* the cleared state — no resting "closed"
+state exists on disk). Session-guard trigger (spec FR-011): **file present at SessionEnd
+⇒ warn loudly**, regardless of `open_write_confirmed`.
 
 ## trace.jsonl
 
-Append-only; one JSON object per line per tool call; never rewritten or read-modified by
-the appender.
+Append-only; never rewritten; **the appender never reads it** (spec edge case — counts
+and seq come from `counters.json`, below). Three line types share one monotonic `seq`:
 
 ```json
-{"protocol": "bb.local.v1", "seq": 12, "agent": "triage", "tool": "mcp__sheets__append_row",
- "capability": "storage", "at": "<iso8601>", "summary": "append_record session_id=…",
- "outcome": "ok"}
+{"protocol":"bb.local.v1","seq":12,"agent":"agent-3f2a","tool":"mcp__sheets__append_row",
+ "capability":"storage","at":"<iso8601>","summary":"append_record session_id=…","outcome":"ok"}
+{"protocol":"bb.local.v1","seq":13,"agent":"agent-3f2a","tool":"Bash","at":"<iso8601>",
+ "summary":"kubectl delete deploy …","outcome":"denied:guardrail:destructive_infra"}
+{"protocol":"bb.local.v1","seq":14,"event":"tripwire","agent":"agent-3f2a",
+ "tool":"mcp__opsgenie__get_alert","at":"<iso8601>","matched":"instruction_override"}
 ```
 
-- `seq`: monotonic from 1 per session; PreToolUse reserves, PostToolUse writes the final
-  line (a call denied at PreToolUse writes a line with `outcome: "denied:<reason-class>"`).
-- `capability`: from the binding map when present, else omitted.
-- `outcome` ∈ `ok | error:auth | error:timeout | error:other | denied:<class>`
-  (classification per research R4).
-- Auth-context window: consumers reading "recent" trace context (deny hook's
-  credential-scanning class) read the **last 10 lines** — the window is part of this
-  protocol.
-- Tripwire events append a supplementary line: `{"protocol":"bb.local.v1","seq":n,
-  "event":"tripwire","tool":…,"at":…,"matched":"<family>"}`.
+- **seq is a line sequence**, not a call count: assigned atomically at append time from
+  `counters.json` under an OS file lock; file order = seq order, gap-free by
+  construction. There is **no reservation step** — a call denied at PreToolUse gets its
+  line appended *by the denying hook* at denial time (`outcome: denied:guardrail:<class>`
+  or `denied:turn_cap`); a completed call gets its line at PostToolUse with its outcome.
+  One line per tool call either way (spec FR-008); under parallel subagents, per-line
+  atomicity and uniqueness hold, and ordering is by append (completion/denial) time.
+- **Call lines** have no `event` field; **tripwire event lines** carry
+  `event: "tripwire"` and consume their own seq. Consumers counting *calls* filter on
+  the absence of `event` (SC-005's 100 calls ⇒ exactly 100 call lines).
+- `agent`: the actor key (see agents.json). `capability`: from the binding map when
+  present, else omitted.
+- `outcome` ∈ `ok | error:auth | error:timeout | error:other | denied:guardrail:<class> |
+  denied:turn_cap`. Mapping to spec FR-008 vocabulary: spec "success" ≡ `ok`, spec
+  "auth_error" ≡ `error:auth`; the `denied:*` values extend the spec's enumeration via
+  this protocol (recorded here per the protocol's versioning duty).
+- **Auth-context window**: consumers reading "recent" context (deny hook's
+  credential-scanning class) read the **last 10 lines**; the window is part of this
+  protocol. (The deny hook is a reader, not the appender of completed-call lines, so the
+  appender-never-reads rule is untouched.)
+
+## counters.json
+
+Sidecar for everything that must not require scanning the trace:
+
+```json
+{"protocol":"bb.local.v1","seq":14,"turns":{"agent-3f2a":9,"agent-77c1":41}}
+```
+
+Read-increment-write under `fcntl.flock` (POSIX — macOS/Linux, the supported runtime
+platforms); crash between increment and trace append can skip a seq value at most (never
+duplicate); the turn cap compares `turns[actor]` against config **before** incrementing.
+
+## agents.json — actor identity and roles
+
+Hook payloads carry no agent name; identity is **derived**: the actor key is a stable
+hash-suffix of the hook payload's `transcript_path` (distinct per agent instance,
+including the main session). Role mapping is **registered by convention**: the
+investigation skill's spawn flow (slice 6) writes `{actor_key: "triage" | "deep" |
+"specialist:<name>"}` entries at spawn time. The mechanism/policy split is deliberate:
+this layer provides deterministic identity + enforcement; the skill provides role
+registration. **Fallback when an actor is unregistered: no turn cap applies (fail open)**
+— enforcement without identity would cap the wrong agents.
+
+```json
+{"protocol":"bb.local.v1","roles":{"agent-3f2a":"triage"}}
+```
 
 ## staging/
 
 `staging/transcript.md` — copied by `session_guard.py` from the runtime's
-`transcript_path` at Stop/SessionEnd; upload to Drive is slice 5's close flow. Missing
+`transcript_path` at SessionEnd; slice 5's close flow uploads it, and uploads
+`trace.jsonl` under the design's artifact name **`tool-trace.jsonl`** (design §5.3 — the
+local and uploaded names differ; this mapping is part of the protocol). Missing
 transcript ⇒ logged notice, no failure.
+
+## Hook event bindings (which component touches what, when)
+
+| Event | guardrail_deny.py | tool_trace.py | session_guard.py |
+|---|---|---|---|
+| PreToolUse | evaluate deny classes; on block: append `denied:guardrail:*` line | turn-cap check via counters; on deny: append `denied:turn_cap` line | — |
+| PostToolUse | — | append call line (outcome classified); tripwire evaluation | — |
+| SessionStart | — | — | config-presence warning (FR-015) |
+| SessionEnd | — | — | marker check (warn if present); transcript staging |
+
+Session-guard note: v1 registers the marker check on **SessionEnd only** — it fires once
+at session termination and cannot block, satisfying FR-011 as a loud warning; a Stop-hook
+registration would re-fire after every conversational turn of a live session (constant
+false nags for a legitimately-open marker). A blocking variant is deferred until the
+runtime offers a clean end-of-session blocking point (recorded as a research decision).
 
 ## Config keys read by this layer (workspace `.claude/settings.json` → `battleBuddy`)
 
 | Key | Type | Default when absent |
 |---|---|---|
 | `budgets.triageTurnCap` | int | 15 |
-| `bindings` | map capability→tool | tripwire disabled (one notice/session); `capability` omitted from trace lines |
+| `bindings` | map **`capability.operation` → tool name** (design §7.2, D-13 — e.g. `"storage.append_record": "mcp__sheets__append_row"`) | tripwire disabled (one notice/session); `capability` omitted from trace lines |
 | *(key presence)* | — | absence of the whole `battleBuddy` block ⇒ FR-015 warning at SessionStart |
 
-Malformed config JSON is treated as absent (fail open) with a diagnostic notice.
+Tool→capability classification (tripwire, trace lines) is the **reverse lookup**: find
+binding entries whose value equals the tool name; the capability is the key's prefix
+before the first `.`. One tool serving ops of several capabilities classifies as the set
+of matching capabilities (tripwire fires if any is untrusted). Malformed config JSON is
+treated as absent (fail open) with a diagnostic notice.

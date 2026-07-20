@@ -2,7 +2,7 @@
 
 **Input**: Design documents from `/specs/002-deterministic-layer/`
 
-**Prerequisites**: plan.md, spec.md, research.md, data-model.md, contracts/local-state-protocol.md, quickstart.md — and slice 1 merged (the pytest harness and CI these tasks build on)
+**Prerequisites**: plan.md, spec.md, research.md, data-model.md, contracts/local-state-protocol.md, quickstart.md — and slice 1's implementation (merged, PR #6: pytest harness, CI matrix, `tests/helpers/`, packaging fixtures; this branch is synced onto it)
 
 **Tests**: Constitution VIII — every component lands with its table-driven tests in the same task.
 
@@ -18,8 +18,8 @@
 ## Phase 2: Foundational (blocking all stories)
 
 - [ ] T003 Implement `hooks/_config.py` ConfigView per research R6 (turn cap default 15, bindings, config-presence; malformed ⇒ absent) + table-driven tests in `tests/unit/test_config_view.py` — every hook consumes this
-- [ ] T004 Implement local-state protocol helpers (marker read, trace append/tail-read, seq reservation) inside `hooks/tool_trace.py` and `hooks/session_guard.py` shared via a small `hooks/_state.py` module, matching `contracts/local-state-protocol.md` exactly; write `tests/unit/test_local_state_protocol.py` with one test per protocol-doc assertion (FR-013 acceptance)
-- [ ] T005 [P] Author the fault corpus `tests/fixtures/faults/*.json` (malformed stdin, truncated JSON, unreadable state dir, seeded exception trigger) + shared fail-open test helper asserting allow/proceed + visible diagnostics (SC-007) — reused by every hook's test file
+- [ ] T004 Implement `hooks/_state.py` — the local-state protocol helpers consumed by all three hooks: flock-guarded `counters.json` (atomic seq assignment, per-actor turn counts), trace append (append-only, appender never reads), 10-line tail read for consumers, marker read, actor-key derivation from transcript_path (R10), `agents.json` role lookup — matching `contracts/local-state-protocol.md` exactly; write `tests/unit/test_local_state_protocol.py` with one test per protocol-doc assertion (FR-013 acceptance), including the parallel-append concurrency case (multiprocessing writers → unique, gap-free, monotonic seq per R11)
+- [ ] T005 [P] Author the fault corpus `tests/fixtures/faults/*.json` (malformed stdin, truncated JSON, unreadable state dir, seeded exception trigger) + shared fail-open runner `tests/helpers/failopen.py` asserting allow/proceed + visible diagnostics (SC-007) — reused by every hook's test file
 
 **Checkpoint**: protocol pinned and tested; config + state helpers green
 
@@ -28,7 +28,7 @@
 **Goal**: Four deny classes, corpus-gated, fail-open
 **Independent Test**: two-corpus run + fault corpus, no agent involved (spec US1)
 
-- [ ] T006 [US1] Implement `hooks/guardrail_deny.py`: DENY_CLASSES table (destructive_filesystem, destructive_infra, verify_skip pattern classes), stdin→verdict flow, fail-open wrapper, block messages naming the class; register in `hooks/hooks.json` (PreToolUse)
+- [ ] T006 [US1] Implement `hooks/guardrail_deny.py`: DENY_CLASSES table (destructive_filesystem, destructive_infra, verify_skip pattern classes), stdin→verdict flow, fail-open wrapper, block messages naming the class, and on every block append the `denied:guardrail:<class>` trace line via `_state.py` (protocol: one line per tool call incl. blocked ones); register in `hooks/hooks.json` (PreToolUse)
 - [ ] T007 [US1] Add the credential_scan class with its context rule: `error:auth` within the protocol's 10-line trace window (reads via `_state.py` tail; degrades to pattern-only when no trace exists per spec Assumption)
 - [ ] T008 [P] [US1] Author the misbehavior corpus `tests/fixtures/misbehaviors/*.json` — ≥3 source-annotated fixtures per deny class (documented real-world agentic misbehaviors) — and the benign corpus `tests/fixtures/benign/*.json` per the US1 AS-2 membership rule (incl. quoted `rm -rf` in commit message, URL containing dangerous string)
 - [ ] T009 [US1] Write `tests/unit/test_guardrail_deny.py`: iterate both corpora (SC-001), context-rule cases (auth window present/absent/stale), fault corpus (fail-open), block-message content
@@ -63,9 +63,9 @@
 **Independent Test**: scripted 100-call session + cap + tripwire fixtures (spec US4)
 
 - [ ] T016 [US4] Implement `hooks/tool_trace.py` PostToolUse path: trace-line append per protocol (seq, agent, tool, capability from bindings, at, summary, outcome via R4 classifier); register in `hooks.json`
-- [ ] T017 [US4] Implement PreToolUse path: per-agent turn count from trace, cap from ConfigView, past-cap denial with emit-your-verdict message + `denied:turn_cap` line; no separate marker (verdict fields carry FR-5f(a) semantics per spec FR-009)
+- [ ] T017 [US4] Implement PreToolUse path: per-actor turn count from `counters.json` (never trace scans), actor role from `agents.json` (R10 — unregistered ⇒ uncapped, fail open), cap from ConfigView, past-cap denial with emit-your-verdict message + `denied:turn_cap` line; no separate marker (verdict fields carry FR-5f(a) semantics per spec FR-009)
 - [ ] T018 [US4] Implement the tripwire: R5 regex families over untrusted-capability results (bindings-classified; set v1 = alerting, observability), one advisory + one tripwire trace event per trip; no-binding-map ⇒ disabled with one notice per session
-- [ ] T019 [P] [US4] Author fixtures: `outcomes/*.json` (R4 pairs), `tripwire/*.json` (trip/no-trip per family + no-binding-map case), the scripted 100-call session
+- [ ] T019 [P] [US4] Author fixtures: `tests/fixtures/outcomes/*.json` (R4 classifier pairs), `tests/fixtures/tripwire/*.json` (trip/no-trip per family + no-binding-map case), and `tests/fixtures/sessions/hundred-call.json` (the scripted multi-agent session, SC-005)
 - [ ] T020 [US4] Write `tests/unit/test_tool_trace.py`: SC-005 (100 lines, ordered, no dupes; N+1 denied), outcome classification, tripwire incl. degraded mode, fault corpus (fail-open)
 
 ## Phase 7: User Story 5 — Session guard (P2)
@@ -73,14 +73,14 @@
 **Goal**: Unpersisted-record detection, transcript staging, config warning
 **Independent Test**: four marker states + transcript + config fixtures (spec US5)
 
-- [ ] T021 [US5] Implement `hooks/session_guard.py`: Stop/SessionEnd marker check (present-and-not-cleared ⇒ warn/block with remedial instruction; deletion = cleared per protocol), transcript copy to `staging/` with degrade-to-notice, SessionStart config-presence warning (FR-015, non-blocking); register in `hooks.json`
+- [ ] T021 [US5] Implement `hooks/session_guard.py`: **SessionEnd** marker check (present ⇒ warn with remedial instruction; deletion = cleared per protocol — SessionEnd not Stop, so a legitimately-open session isn't nagged every turn, per protocol doc's event-binding note), transcript copy to `staging/` with degrade-to-notice, SessionStart config-presence warning (FR-015, non-blocking); register both events in `hooks.json`
 - [ ] T022 [P] [US5] Author `tests/fixtures/markers/*.json`: absent / open-unconfirmed / open-confirmed-never-closed / cleared, plus transcript-present/missing/unreadable and config-present/absent payloads
 - [ ] T023 [US5] Write `tests/unit/test_session_guard.py`: warnings on exactly the two present states (US5 Independent Test), staging behavior, FR-015 warning, fault corpus (fail-open)
 
 ## Phase 8: Polish & Cross-Cutting
 
 - [ ] T024 [P] Write `tests/unit/test_hook_latency.py`: R8 timing tripwire — p95 < 100ms over 100 invocations per hook entry (SC-002)
-- [ ] T025 [P] Update `tests/fixtures/packaging/intended-bundle.json` (slice 1) so the shipped bundle includes `hooks/` + `bin/` and the packaging test proves tests/fixtures stay excluded (SC-006 boundary from the shipped side)
+- [ ] T025 [P] Confirm `tests/fixtures/packaging/intended-bundle.json` (merged in slice 1) already lists `hooks/**` + `bin/**` (it does); the real work is a shipped-side exclusion case proving `tests/`, `tools/`, and `.bb-session/` never appear in the bundle — extend `tests/unit/test_packaging.py` accordingly (SC-006 from the shipped side)
 - [ ] T026 Full quickstart walkthrough (all 10 scenarios); append validation run to `specs/002-deterministic-layer/checklists/requirements.md`
 
 ## Dependencies
@@ -92,6 +92,7 @@ T001 → T002 ∥ (T003, T004, T005) → ┬→ US1: T006 → T007 → T009; T00
                                    ├→ US4: T016 → T017 → T018 → T020; T019 ∥
                                    └→ US5: T021 → T023; T022 ∥
 T007 needs T004 (trace tail) · T016–T018 need T003+T004 · T021 needs T003+T004
+Fixture→test edges (each test consumes its corpus): T008→T009 · T011→T012 · T014→T015 · T019→T020 · T022→T023
 Polish: T024 after all hooks; T025 after T001; T026 last
 ```
 

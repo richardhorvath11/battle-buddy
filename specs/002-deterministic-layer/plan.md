@@ -9,7 +9,7 @@
 Build the five shipped deterministic components: `guardrail_deny.py` (PreToolUse deny
 classes, misbehavior corpus as regression gate), `tool_trace.py` (PreToolUse turn-cap +
 PostToolUse capture with `outcome` classification and injection tripwire),
-`session_guard.py` (SessionStart config warning + Stop/SessionEnd marker check and
+`session_guard.py` (SessionStart config warning + SessionEnd marker check and
 transcript staging), and the `bb-fingerprint` / `bb-validate` helpers (library + CLI).
 All stdlib-only at the 3.9 floor, all fail-open, all tested as pure functions by the
 slice-1 harness, with the local-state protocol pinned as a versioned contract document.
@@ -17,7 +17,8 @@ slice-1 harness, with the local-state protocol pinned as a versioned contract do
 ## Technical Context
 
 **Language/Version**: Python 3, **3.9 floor** (shipped code — design D-1); CI matrix
-3.9 + 3.12 proves both ends (slice-1 workflow, already merged)
+3.9 + 3.12 proves both ends (slice-1 implementation merged in PR #6; this branch is
+synced onto it and `make verify` runs its 97 tests green)
 
 **Primary Dependencies**: none at runtime (stdlib only — Constitution Platform
 Constraints, verified mechanically per SC-006); pytest dev-only
@@ -82,10 +83,11 @@ specs/002-deterministic-layer/
 ```text
 hooks/
 ├── hooks.json                       # event registrations per research R1
-├── guardrail_deny.py                # PreToolUse: DENY_CLASSES table, corpus-gated
-├── tool_trace.py                    # PreToolUse (turn cap) + PostToolUse (capture, outcome, tripwire)
-├── session_guard.py                 # SessionStart (config warning) + Stop/SessionEnd (marker, transcript)
-└── _config.py                       # shared read-only ConfigView helper (R6) — underscore: not a hook
+├── guardrail_deny.py                # PreToolUse: DENY_CLASSES table, corpus-gated; appends denied:guardrail:* lines
+├── tool_trace.py                    # PreToolUse (turn cap via counters) + PostToolUse (capture, outcome, tripwire)
+├── session_guard.py                 # SessionStart (config warning) + SessionEnd (marker, transcript)
+├── _config.py                       # shared read-only ConfigView helper (R6) — underscore: not a hook
+└── _state.py                        # local-state protocol helpers: locked counters, trace append, marker read (R11) — not a hook; ships in the bundle like every hooks/ file
 
 bin/
 ├── bb-fingerprint                   # CLI shim → bb_fingerprint.py
@@ -94,14 +96,17 @@ bin/
 └── bb_validate.py                   # schema + semantic invariants, one-pass JSON-lines output
 
 tests/unit/
+├── test_config_view.py              # R6 keys, defaults, malformed-config, reverse lookup
 ├── test_guardrail_deny.py           # two-corpus gate + context rule + fail-open
-├── test_tool_trace.py               # capture/order/outcome, turn cap, tripwire (incl. degraded)
+├── test_tool_trace.py               # capture/order/outcome, turn cap, tripwire (incl. degraded), parallel-append concurrency (R11)
 ├── test_session_guard.py            # four marker states, transcript staging, config warning
 ├── test_fingerprint.py              # golden corpus, both matrix ends, version-bump tripwire
 ├── test_validate.py                 # violation corpus, one-pass reporting, byte-identity
 ├── test_local_state_protocol.py     # one test per protocol-doc assertion (FR-013)
 ├── test_stdlib_boundary.py          # SC-006 import check over hooks/ + bin/
 └── test_hook_latency.py             # R8 timing tripwire (SC-002)
+
+tests/helpers/failopen.py            # shared fault-corpus runner (extends slice-1 tests/helpers/)
 
 tests/fixtures/
 ├── misbehaviors/*.json              # must-block corpus (source-annotated)
@@ -110,6 +115,7 @@ tests/fixtures/
 ├── outcomes/*.json                  # R4 classifier pairs
 ├── tripwire/*.json                  # trip/no-trip pairs per family + no-binding-map case
 ├── markers/*.json                   # four marker states
+├── sessions/hundred-call.json       # scripted multi-agent session (SC-005)
 ├── validate/*.json                  # per-rule violation + valid documents
 └── fingerprint/golden.json          # the executable §5.2 rules
 ```

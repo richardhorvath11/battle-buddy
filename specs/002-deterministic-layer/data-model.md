@@ -17,9 +17,12 @@ Entities per the spec, concretized by research R1–R9 and the local-state proto
   expected_class?}` — directories are the corpora (research R3); benign membership per the
   spec's corpus rule (executed action safe, dangerous pattern only as data)
 
-## TraceLine / TripwireEvent / SessionMarker
+## TraceLine / TripwireEvent / SessionMarker / Counters / AgentRoles
 
-- Per `contracts/local-state-protocol.md` (protocol `bb.local.v1`)
+- Per `contracts/local-state-protocol.md` (protocol `bb.local.v1`) — authoritative for
+  seq semantics (line sequence, append-time atomic, denying hook appends `denied:*`),
+  `counters.json` (seq + per-actor turn counts under flock), and `agents.json` (derived
+  actor keys, convention-registered roles, unregistered ⇒ uncapped per R10)
 
 ## OutcomeClassifier (in `tool_trace.py`)
 
@@ -50,5 +53,8 @@ Entities per the spec, concretized by research R1–R9 and the local-state proto
 
 ## ConfigView (shared read helper)
 
-- `turn_cap: int (default 15)`, `bindings: dict|None`, `config_present: bool` — computed
-  once per invocation from `.claude/settings.json` (R6); malformed ⇒ absent semantics
+- `turn_cap: int (default 15)`, `bindings: dict[str, str]|None` (keys
+  `capability.operation`, values tool names — design §7.2 shape, R6),
+  `config_present: bool` — computed once per invocation from `.claude/settings.json`;
+  malformed ⇒ absent semantics; exposes `capabilities_for(tool) -> set[str]` (reverse
+  lookup with prefix parse per the protocol doc)
