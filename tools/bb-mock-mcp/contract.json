@@ -10,7 +10,7 @@
   },
   "constants": {
     "single_field_limit_chars": 45000,
-    "single_field_limit_note": "D-3 threshold (design §5.4). Extra-contractual store emulation: rejecting any single field above this makes caller-side overflow handling testable; it is not a §7.1 contract rule."
+    "single_field_limit_note": "D-3 threshold (design §5.4). Extra-contractual store emulation: rejecting any single STRING field value above this makes caller-side overflow handling testable; it is not a §7.1 contract rule. Applies to string values only — operations.md pins sizes as UTF-8 character counts, and the emulated store limit is a cell-string guard."
   },
   "error_shape": {
     "error": {
@@ -20,7 +20,7 @@
     }
   },
   "error_codes": ["invalid_input", "not_found", "limit_exceeded", "unknown_op"],
-  "error_code_notes": "Closed set for the uniform envelope. v1 required ops assign oversized-field rejections to invalid_input per the operations.md error tables; limit_exceeded is reserved in the enum.",
+  "error_code_notes": "Closed set for the uniform envelope. v1 required ops assign oversized-field rejections to invalid_input per the operations.md error tables; limit_exceeded is reserved in the enum. Additionally, generic contract-shape validation can return invalid_input on ANY op for a missing, mistyped, or unexpected payload field — the per-op errors arrays list op-specific errors only and understate that generic surface deliberately (they mirror operations.md).",
   "capabilities": {
     "storage": {
       "required": true,

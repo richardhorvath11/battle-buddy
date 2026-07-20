@@ -95,17 +95,50 @@ class MockMcp:
             except ValueError as exc:
                 raise SeedError("seed file is not valid JSON: {}".format(exc))
         self._validate_seed(seed)
-        for record in seed.get("records", []):
-            self.records.append_record(dict(record))
-        for artifact in seed.get("artifacts", []):
-            self.artifacts.put_file(artifact["name"], artifact["content"])
-        for content in seed.get("diary", []):
-            self.diary.append_entry(content)
-        alerts = seed.get("alerts", {})
-        for alert in alerts.get("alerts", []):
-            self.alerting.alerts[alert["alert_id"]] = dict(alert)
-        for entry in alerts.get("history", []):
-            self.alerting.history.append(dict(entry))
+        snapshot = self._state_snapshot()
+        try:
+            for record in seed.get("records", []):
+                self.records.append_record(dict(record))
+            for artifact in seed.get("artifacts", []):
+                self.artifacts.put_file(artifact["name"], artifact["content"])
+            for content in seed.get("diary", []):
+                self.diary.append_entry(content)
+            alerts = seed.get("alerts", {})
+            for alert in alerts.get("alerts", []):
+                self.alerting.alerts[alert["alert_id"]] = dict(alert)
+            for entry in alerts.get("history", []):
+                self.alerting.history.append(dict(entry))
+        except ContractViolation as exc:
+            # A store check the seed validator doesn't mirror fired mid-apply.
+            # Restore so the all-or-nothing guarantee holds mechanically, not
+            # by hoping the two validators stay in sync.
+            self._state_restore(snapshot)
+            raise SeedError(
+                "seed apply rejected by a store check ({}); no state applied".format(
+                    exc.message
+                )
+            )
+
+    def _state_snapshot(self):
+        return (
+            [dict(r) for r in self.records.records],
+            dict(self.artifacts.files),
+            self.artifacts._counter,
+            [dict(e) for e in self.diary.entries],
+            self.diary._clock,
+            dict(self.alerting.alerts),
+            list(self.alerting.history),
+        )
+
+    def _state_restore(self, snapshot):
+        records, files, counter, entries, clock, alerts, history = snapshot
+        self.records.records = records
+        self.artifacts.files = files
+        self.artifacts._counter = counter
+        self.diary.entries = entries
+        self.diary._clock = clock
+        self.alerting.alerts = alerts
+        self.alerting.history = history
 
     def _validate_seed(self, seed):
         limit = self.schema_registry.constants["single_field_limit_chars"]
@@ -157,6 +190,7 @@ class MockMcp:
         for key in alerts:
             if key not in ("alerts", "history"):
                 raise SeedError("seed alerts: unknown key '{}'".format(key))
+        seen_alert_ids = set()
         for group in ("alerts", "history"):
             entries = alerts.get(group, [])
             if not isinstance(entries, list):
@@ -174,11 +208,30 @@ class MockMcp:
                     raise SeedError(
                         "seed {}: alert_id must be a non-empty string".format(where)
                     )
+                # the alerts map is keyed by alert_id — a duplicate would be
+                # silently collapsed (last wins); history may legitimately
+                # repeat an alert_id (that IS flap history)
+                if group == "alerts":
+                    if alert["alert_id"] in seen_alert_ids:
+                        raise SeedError(
+                            "seed {}: duplicate alert_id '{}'".format(
+                                where, alert["alert_id"]
+                            )
+                        )
+                    seen_alert_ids.add(alert["alert_id"])
 
     @staticmethod
     def _validate_shape(input_spec, payload):
         """Generic contract-shape validation: required fields, types, and the
         contract's declared constraints — semantic rules stay in the stores."""
+        for field in payload:
+            if field not in input_spec:
+                raise ContractViolation(
+                    "invalid_input",
+                    "unexpected field '{}' — not in the operation's contract "
+                    "(a typoed optional field would otherwise change semantics "
+                    "silently)".format(field),
+                )
         for field, spec in input_spec.items():
             if field not in payload:
                 if spec.get("required"):
@@ -215,4 +268,6 @@ def _summarize(op, payload, result):
         return "name={} -> {}".format(payload["name"], result["link"])
     if op == "append_entry":
         return "-> {}".format(result["link"])
-    return op
+    # A new mutating op must get an explicit summarizer — a silent fallback
+    # would quietly degrade the write log's inspection value (FR-005).
+    raise ValueError("no write-log summarizer for mutating op {!r}".format(op))

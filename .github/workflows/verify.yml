@@ -2,9 +2,12 @@
 # make targets contributors run locally — one verify loop, one exit code.
 #
 # NOTE (manual, one-time): for FR-009's "block merge on failure" (SC-005), the
-# `unit` and `contract` checks must be marked as required status checks in the
-# repository's branch-protection settings for `main`. GitHub offers no
-# in-workflow way to do this.
+# three check runs — `unit (py3.9)`, `unit (py3.12)`, and `contract (py3.12)`
+# (matrix-expanded from the job names below) — must be marked as required
+# status checks in the repository's branch-protection settings for `main`.
+# GitHub offers no in-workflow way to do this. Caveat: branch protection is
+# unavailable on private free-plan repos; the repo must be public or on a paid
+# plan before SC-005's merge-blocking can be enabled.
 #
 # Python versions per research R2: the unit layer proves the shipped-code floor
 # (3.9, design D-1) alongside modern 3.12; the contract layer is dev-only and

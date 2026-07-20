@@ -50,6 +50,10 @@ def test_read_records_absent_filter_means_all(mock_mcp):
     assert len(mock_mcp.invoke("storage", "read_records")["records"]) == 1
 
 
+def test_read_records_on_empty_store_is_empty_list_not_error(mock_mcp):
+    assert mock_mcp.invoke("storage", "read_records", {}) == {"records": []}
+
+
 def test_update_record_merges_fields(mock_mcp):
     mock_mcp.invoke("storage", "append_record", {"record": {"session_id": "s1", "status": "open", "owner": "a"}})
     out = mock_mcp.invoke("storage", "update_record", {"session_id": "s1", "fields": {"status": "closed"}})

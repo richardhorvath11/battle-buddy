@@ -24,6 +24,10 @@ def test_read_recent_entries_carry_link_content_at(mock_mcp):
     assert entry["at"]  # ISO 8601, deterministic logical clock
 
 
+def test_read_recent_on_empty_diary_is_empty_list_not_error(mock_mcp):
+    assert mock_mcp.invoke("diary", "read_recent", {"n": 5}) == {"entries": []}
+
+
 def test_read_recent_n_larger_than_entries_returns_all(mock_mcp):
     mock_mcp.invoke("diary", "append_entry", {"content": "only"})
     out = mock_mcp.invoke("diary", "read_recent", {"n": 10})

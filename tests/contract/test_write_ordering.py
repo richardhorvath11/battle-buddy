@@ -5,6 +5,8 @@ the log; read ops are never logged; interleaved two-actor writes land
 deterministically in both log and final state.
 """
 
+import pytest
+
 
 def ops_in_log(mock):
     return [(e["capability"], e["op"]) for e in mock.write_log.entries]
@@ -63,3 +65,25 @@ def test_interleaved_two_actor_writes_deterministic(mock_mcp):
         "owner": "A",
         "status": "closed",
     }
+
+
+def test_write_log_summaries_are_deterministic(mock_mcp):
+    mock_mcp.invoke("diary", "append_entry", {"content": "x"})
+    mock_mcp.invoke("artifacts", "put_file", {"name": "f.md", "content": "c"})
+    mock_mcp.invoke("storage", "append_record", {"record": {"session_id": "s1"}})
+    mock_mcp.invoke("storage", "update_record", {"session_id": "s1", "fields": {"b": "2", "a": "1"}})
+    assert [e["summary"] for e in mock_mcp.write_log.entries] == [
+        "-> diary://1",
+        "name=f.md -> art://1",
+        "session_id=s1",
+        "session_id=s1 fields=['a', 'b']",
+    ]
+
+
+def test_summarizer_refuses_unknown_mutating_op(mock_mcp):
+    """A future mutating op without an explicit summarizer must fail loudly,
+    not silently degrade the log (FR-005)."""
+    from bb_mock_mcp import _summarize
+
+    with pytest.raises(ValueError):
+        _summarize("new_mutating_op", {}, {})

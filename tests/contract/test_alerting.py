@@ -59,6 +59,10 @@ def test_list_alert_history_filters_by_service_hint(mock_mcp):
     assert [a["description"] for a in out["alerts"]] == ["firing #3"]
 
 
+def test_list_alert_history_on_empty_store_is_empty_list_not_error(mock_mcp):
+    assert mock_mcp.invoke("alerting", "list_alert_history", {"filter": {}}) == {"alerts": []}
+
+
 def test_list_alert_history_non_map_filter_rejected(mock_mcp):
     result = mock_mcp.invoke("alerting", "list_alert_history", {"filter": "checkout"})
     assert result["error"]["code"] == "invalid_input"

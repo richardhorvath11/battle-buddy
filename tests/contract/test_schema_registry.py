@@ -63,3 +63,13 @@ def test_binding_resolution_style_matching(mock_mcp):
                 and required <= set(t["input_fields"])
             ]
             assert len(matches) == 1, "no unique binding for {}.{}".format(cap, op)
+
+
+def test_binding_resolution_rejects_nonconforming_tool(mock_mcp):
+    """The negative half: a tool missing a required input field must NOT bind
+    — the described shapes carry enough information to refuse."""
+    spec = mock_mcp.describe()["storage"]["update_record"]
+    required = {f for f, s in spec["input"].items() if s.get("required")}
+    assert required == {"session_id", "fields"}
+    nonconforming = {"capability": "storage", "op": "update_record", "input_fields": ["session_id"]}
+    assert not required <= set(nonconforming["input_fields"])

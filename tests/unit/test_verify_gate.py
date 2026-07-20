@@ -65,3 +65,34 @@ def test_failing_layer_goes_red_naming_the_test(tmp_path, layer):
     result = run_make_target(tmp_path, layer)
     assert result.returncode != 0
     assert "test_seeded_defect" in result.stdout
+
+
+def run_make_verify(sandbox):
+    shutil.copy(str(REPO_ROOT / "Makefile"), str(sandbox / "Makefile"))
+    return subprocess.run(
+        ["make", "verify"], cwd=str(sandbox), capture_output=True, text=True
+    )
+
+
+def test_verify_aggregates_both_layers_green(tmp_path):
+    for layer in LAYERS:
+        layer_dir = tmp_path / "tests" / layer
+        layer_dir.mkdir(parents=True)
+        (layer_dir / "test_green.py").write_text(PASSING_TEST)
+    result = run_make_verify(tmp_path)
+    assert result.returncode == 0
+    assert "verify: green" in result.stdout
+
+
+@pytest.mark.parametrize("red_layer", LAYERS)
+def test_verify_goes_red_when_either_layer_fails(tmp_path, red_layer):
+    # FR-001: the single command exits zero only when all present tests pass —
+    # a Makefile edit dropping a layer from `verify:` must not survive this.
+    for layer in LAYERS:
+        layer_dir = tmp_path / "tests" / layer
+        layer_dir.mkdir(parents=True)
+        content = FAILING_TEST if layer == red_layer else PASSING_TEST
+        (layer_dir / "test_layer.py").write_text(content)
+    result = run_make_verify(tmp_path)
+    assert result.returncode != 0
+    assert "verify: green" not in result.stdout

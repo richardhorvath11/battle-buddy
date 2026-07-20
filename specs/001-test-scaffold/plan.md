@@ -100,6 +100,8 @@ tests/
 │   ├── test_write_ordering.py   # cross-capability ordering demo (SC-004)
 │   ├── test_rejections.py       # seeded-defect corpus: ≥1 violation per op (SC-006)
 │   └── test_seeds.py            # Story 3: seed load, corrupted-seed failure
+├── helpers/
+│   └── assertions.py            # FR-008 artifact-assertion entry point (T022)
 └── fixtures/
     ├── seeds/synthetic-incident.json
     ├── seeds/corrupted.json
