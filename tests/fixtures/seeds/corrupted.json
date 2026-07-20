@@ -1,0 +1,12 @@
+{
+  "records": [
+    {
+      "session_id": "bb-2026-07-01-checkout-latency",
+      "fingerprint": "fp-checkout-latency-p99"
+    },
+    {
+      "fingerprint": "fp-missing-session-id",
+      "status": "this record deliberately lacks session_id — loading must fail naming records[1]"
+    }
+  ]
+}

@@ -1,0 +1,29 @@
+{
+  "description": "Table for the unit-layer selftest: each case feeds a (payload, state) pair to a reference pure gate function and pins its (exit_code, output) verdict — the exact shape slice-2 hook/helper tests will use (FR-007, design §10 layer 1).",
+  "cases": [
+    {
+      "id": "allowed-op",
+      "payload": {"op": "read_records"},
+      "state": {"denied_ops": []},
+      "expect": {"exit_code": 0, "output": "ok"}
+    },
+    {
+      "id": "denied-op-named-in-output",
+      "payload": {"op": "force_push"},
+      "state": {"denied_ops": ["force_push", "rm_rf"]},
+      "expect": {"exit_code": 2, "output": "denied: force_push"}
+    },
+    {
+      "id": "malformed-payload",
+      "payload": {},
+      "state": {"denied_ops": []},
+      "expect": {"exit_code": 1, "output": "invalid payload: missing op"}
+    },
+    {
+      "id": "broken-state-fails-open",
+      "payload": {"op": "read_records"},
+      "state": {},
+      "expect": {"exit_code": 0, "output": "ok (state unavailable — failing open)"}
+    }
+  ]
+}

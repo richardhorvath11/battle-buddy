@@ -1,0 +1,10 @@
+{
+  "description": "Deliberately mis-packaged bundle (SC-007): includes dev-only mock and test paths; the packaging boundary check must flag every offending glob.",
+  "bundle": [
+    "commands/**",
+    "hooks/**",
+    "tools/bb-mock-mcp/**",
+    "tests/fixtures/seeds/**",
+    "tests/conftest.py"
+  ]
+}
