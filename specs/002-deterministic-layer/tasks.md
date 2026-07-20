@@ -51,9 +51,9 @@
 **Goal**: One implementation, versioned rules, golden corpus
 **Independent Test**: corpus on both matrix ends + rule-change tripwire (spec US3)
 
-- [ ] T013 [US3] Implement `bin/bb_fingerprint.py` + `bin/bb-fingerprint` CLI shim: §5.2 normalization (lowercase/trim/collapse; alert-type volatile-token placeholders: UUID, hex≥8, int≥3, ISO timestamp, hostname/IP), sha256 16-hex truncation, `bb.fp.v1` version in output metadata, deterministic flagged outputs for empty/all-volatile inputs
-- [ ] T014 [P] [US3] Author `tests/fixtures/fingerprint/golden.json`: unicode, messy whitespace, each volatile-token type, near-collisions, empty/all-volatile edge cases — the executable form of the rules
-- [ ] T015 [US3] Write `tests/unit/test_fingerprint.py`: golden corpus 100% (runs on both CI matrix versions by virtue of the slice-1 workflow), determinism across repeated calls, seeded rule-change failure demo (SC-003)
+- [X] T013 [US3] Implement `bin/bb_fingerprint.py` + `bin/bb-fingerprint` CLI shim: §5.2 normalization (lowercase/trim/collapse; alert-type volatile-token placeholders: UUID, hex≥8, int≥3, ISO timestamp, hostname/IP), sha256 16-hex truncation, `bb.fp.v1` version in output metadata, deterministic flagged outputs for empty/all-volatile inputs
+- [X] T014 [P] [US3] Author `tests/fixtures/fingerprint/golden.json`: unicode, messy whitespace, each volatile-token type, near-collisions, empty/all-volatile edge cases — the executable form of the rules
+- [X] T015 [US3] Write `tests/unit/test_fingerprint.py`: golden corpus 100% (runs on both CI matrix versions by virtue of the slice-1 workflow), determinism across repeated calls, seeded rule-change failure demo (SC-003)
 
 **Checkpoint**: all three P1 stories deliverable
 
