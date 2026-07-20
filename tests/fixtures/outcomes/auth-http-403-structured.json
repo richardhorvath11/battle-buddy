@@ -1,0 +1,9 @@
+{
+  "name": "auth-http-403-structured",
+  "description": "403 in a structured result body",
+  "tool_response": {
+    "status": 403,
+    "body": "Forbidden"
+  },
+  "expected": "error:auth"
+}

@@ -1,0 +1,8 @@
+{
+  "name": "timeout-deadline-exceeded",
+  "description": "gRPC-style deadline phrasing",
+  "tool_response": {
+    "error": "context deadline exceeded"
+  },
+  "expected": "error:timeout"
+}

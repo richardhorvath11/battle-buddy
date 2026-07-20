@@ -56,7 +56,10 @@ append property on the normal path. Three line types share one monotonic `seq`:
   with no cross-visibility, so a call that is *both* guardrail-dangerous *and* past-cap
   can produce two `denied:*` lines (one per denying hook) — an accepted, bounded case;
   call-counting deduplicates denied lines sharing the same tool-call identity within one
-  PreToolUse batch.
+  PreToolUse batch. **Tool-call identity** (pinned by this slice's implementation; both
+  denying hooks derive `summary` through the same shared helper so the identity is
+  well-defined): identical `agent` + `tool` + `summary` on **adjacent** `denied:*` lines
+  — nothing else can interleave between the two denying hooks' appends for one call.
 - **Call lines** have no `event` field; **tripwire event lines** carry
   `event: "tripwire"` and consume their own seq. Consumers counting *calls* filter on
   the absence of `event` (SC-005's 100 calls ⇒ exactly 100 call lines).
@@ -103,6 +106,13 @@ corrupt counter grants the triage actor a fresh turn window, an accepted degrada
 (FR-004 visibility), never silent. The counter write is write-then-truncate,
 partial-write-safe, and `fsync`-ed so the increment is durable before the dependent trace
 append.
+
+**Once-only notices** (additive field, this slice; no version bump — no consumer-parse
+change, same precedent as corruption recovery above): the sidecar may carry a `notices`
+object of `{key: true}` entries recording session-scoped diagnostics already emitted
+once — e.g. `tripwire_disabled_notified`, backing the tripwire's
+one-disabled-notice-per-session rule. Consumers never parse it; a wrong-typed `notices`
+resets to `{}` and is **not** treated as corruption (it feeds no seq/turn guarantee).
 
 ## agents.json — actor identity and roles
 

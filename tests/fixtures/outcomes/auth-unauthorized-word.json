@@ -1,0 +1,8 @@
+{
+  "name": "auth-unauthorized-word",
+  "description": "bare 'unauthorized' phrasing",
+  "tool_response": {
+    "content": "request rejected: unauthorized client"
+  },
+  "expected": "error:auth"
+}

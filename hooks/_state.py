@@ -60,6 +60,14 @@ FIXED_OUTCOMES = (
 
 _TAIL_READ_BYTES = 65536  # bounded tail read: O(1) in trace size (SC-002)
 
+# Input fields whose string values are commands. Shared by every hook so the
+# summary on a trace line is derived identically everywhere — concurrent
+# PreToolUse hooks denying the same call produce denied lines with the same
+# tool-call identity (agent, tool, summary), which is what the protocol's
+# double-deny dedup keys on.
+COMMAND_FIELDS = ("command", "cmd", "script", "code", "sql", "query", "statement")
+SUMMARY_LIMIT = 120
+
 
 def state_dir(root):
     return os.path.join(str(root), STATE_DIR_NAME)
@@ -67,6 +75,69 @@ def state_dir(root):
 
 def now_iso():
     return datetime.now(timezone.utc).isoformat(timespec="seconds")
+
+
+def command_texts(tool_input):
+    """Command-shaped string values, recursively; data fields never scanned."""
+    texts = []
+
+    def walk(node, key=None):
+        if isinstance(node, dict):
+            for child_key, value in node.items():
+                walk(value, child_key)
+        elif isinstance(node, list):
+            for value in node:
+                walk(value, key)
+        elif isinstance(node, str) and key in COMMAND_FIELDS:
+            texts.append(node)
+
+    walk(tool_input)
+    return texts
+
+
+def summarize_tool_input(tool_input):
+    """The trace line's ``summary`` field, derived one way for every hook.
+
+    Command-shaped input summarizes to its first command text; anything else
+    to compact sorted JSON — deterministic, so two hooks denying the same call
+    emit the same summary (the protocol's dedup identity).
+    """
+    if isinstance(tool_input, dict):
+        texts = command_texts(tool_input)
+        if texts:
+            return texts[0][:SUMMARY_LIMIT]
+        try:
+            return json.dumps(
+                tool_input, separators=(",", ":"), sort_keys=True, default=str
+            )[:SUMMARY_LIMIT]
+        except (TypeError, ValueError):
+            return ""
+    return ""
+
+
+def count_calls(lines):
+    """Count tool calls in parsed trace lines, per the protocol's rules.
+
+    Event lines (``event`` present) are not calls. Denied lines sharing the
+    same tool-call identity (``agent``, ``tool``, ``summary``) on *adjacent*
+    lines are one call denied by two concurrent PreToolUse hooks (the
+    protocol's bounded double-deny case) and count once.
+    """
+    count = 0
+    previous_denied_identity = None
+    for line in lines:
+        if not isinstance(line, dict) or "event" in line:
+            continue
+        outcome = line.get("outcome")
+        identity = (line.get("agent"), line.get("tool"), line.get("summary"))
+        if isinstance(outcome, str) and outcome.startswith("denied:"):
+            if identity == previous_denied_identity:
+                continue
+            previous_denied_identity = identity
+        else:
+            previous_denied_identity = None
+        count += 1
+    return count
 
 
 def actor_key(transcript_path):
@@ -134,18 +205,19 @@ def _read_counters_fd(fd):
 
 
 def _max_trace_seq(root):
-    """Highest seq anywhere in the bounded trace tail (0 if none). Used only on
-    the cold counters-recovery path — never on the hot append path. Scans the
-    whole window (not just the last line) and takes the max, so a torn trailing
-    line — the natural co-symptom of the crash that corrupted the counter —
-    cannot under-recover seq to 0 and reintroduce duplicates."""
+    """Highest seq anywhere in the bounded trace tail (0 if none), plus the
+    tail's trustworthiness. Used only on the cold counters-recovery path —
+    never on the hot append path. Scans the whole window (not just the last
+    line) and takes the max, so a torn trailing line — the natural co-symptom
+    of the crash that corrupted the counter — cannot under-recover seq to 0
+    and reintroduce duplicates."""
     highest = 0
-    lines, _ = tail_trace_status(root, n=None)
+    lines, trustworthy = tail_trace_status(root, n=None)
     for line in lines:
         seq = line.get("seq")
         if isinstance(seq, int) and not isinstance(seq, bool) and seq > highest:
             highest = seq
-    return highest
+    return highest, trustworthy
 
 
 def _write_counters_fd(fd, data):
@@ -173,12 +245,19 @@ def _write_counters_fd(fd, data):
 def _recover_seq(root, counters):
     """Re-seed a corrupt counter's seq from the trace tail so the next append
     never duplicates an existing seq. Returns a diagnostic notice."""
-    recovered = max(counters["seq"], _max_trace_seq(root))
+    tail_max, tail_trustworthy = _max_trace_seq(root)
+    recovered = max(counters["seq"], tail_max)
     counters["seq"] = recovered
-    return (
+    notice = (
         "counters.json was corrupt; recovered seq from trace tail (>=%d). "
         "Surviving per-actor turn counts (if any) were preserved." % recovered
     )
+    if not tail_trustworthy:
+        notice += (
+            " The recovery tail itself contained unparseable lines; the"
+            " recovered seq is a best-effort lower bound."
+        )
+    return notice
 
 
 def append_trace(root, fields):
@@ -303,6 +382,30 @@ def increment_turn(root, actor):
         return counters["turns"][actor]
 
 
+def notice_once(root, key):
+    """True the first time ``key`` is recorded this session; False after.
+
+    Session-scoped once-only diagnostics dedup (e.g. the tripwire's
+    one-disabled-notice-per-session). Rides the counters sidecar — the
+    protocol's home for "everything that must not require scanning the trace"
+    — as the additive ``notices`` object: no consumer-parse change, wrong-typed
+    ``notices`` resets rather than flagging corruption (protocol doc).
+    """
+    with _locked_counters(root) as fd:
+        counters, corrupt = _read_counters_fd(fd)
+        if corrupt:
+            sys.stderr.write("bb-state: " + _recover_seq(root, counters) + "\n")
+        notices = counters.get("notices")
+        if not isinstance(notices, dict):
+            notices = {}
+        if notices.get(key):
+            return False
+        notices[key] = True
+        counters["notices"] = notices
+        _write_counters_fd(fd, counters)
+        return True
+
+
 def read_roles(root):
     """agents.json role map ``{actor_key: role}``; {} when absent/malformed."""
     path = os.path.join(state_dir(root), AGENTS_NAME)
@@ -346,9 +449,15 @@ def stage_transcript(root, transcript_path):
     never a session-ending failure)."""
     staging = os.path.join(state_dir(root), STAGING_DIR_NAME)
     destination = os.path.join(staging, STAGED_TRANSCRIPT_NAME)
+    source = str(transcript_path)
+    if not os.path.isfile(source):
+        # A missing source must not conjure .bb-session/ into a workspace that
+        # never had one ("created lazily by the first writer" — and this write
+        # has nothing to write).
+        return None
     try:
         os.makedirs(staging, exist_ok=True)
-        shutil.copyfile(str(transcript_path), destination)
+        shutil.copyfile(source, destination)
     except OSError:
         return None
     return destination

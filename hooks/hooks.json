@@ -9,6 +9,26 @@
             "command": "python3 \"${CLAUDE_PLUGIN_ROOT}/hooks/guardrail_deny.py\""
           }
         ]
+      },
+      {
+        "matcher": "*",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "python3 \"${CLAUDE_PLUGIN_ROOT}/hooks/tool_trace.py\""
+          }
+        ]
+      }
+    ],
+    "PostToolUse": [
+      {
+        "matcher": "*",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "python3 \"${CLAUDE_PLUGIN_ROOT}/hooks/tool_trace.py\""
+          }
+        ]
       }
     ]
   }

@@ -62,11 +62,11 @@
 **Goal**: Complete capture with outcomes, turn cap, tripwire
 **Independent Test**: scripted 100-call session + cap + tripwire fixtures (spec US4)
 
-- [ ] T016 [US4] Implement `hooks/tool_trace.py` PostToolUse path: trace-line append per protocol (seq, agent, tool, capability from bindings, at, summary, outcome via R4 classifier); register in `hooks.json`
-- [ ] T017 [US4] Implement PreToolUse path: per-actor turn count from `counters.json` (never trace scans), actor role from `agents.json` (R10 — unregistered ⇒ uncapped, fail open), cap from ConfigView, past-cap denial with emit-your-verdict message + `denied:turn_cap` line; no separate marker (verdict fields carry FR-5f(a) semantics per spec FR-009)
-- [ ] T018 [US4] Implement the tripwire: R5 regex families over untrusted-capability results (bindings-classified; set v1 = alerting, observability), one advisory + one tripwire trace event per trip; no-binding-map ⇒ disabled with one notice per session
-- [ ] T019 [P] [US4] Author fixtures: `tests/fixtures/outcomes/*.json` (R4 classifier pairs), `tests/fixtures/tripwire/*.json` (trip/no-trip per family + no-binding-map case), and `tests/fixtures/sessions/hundred-call.json` (the scripted multi-agent session, SC-005)
-- [ ] T020 [US4] Write `tests/unit/test_tool_trace.py`: SC-005 (100 lines, ordered, no dupes; N+1 denied), outcome classification, tripwire incl. degraded mode, fault corpus (fail-open)
+- [X] T016 [US4] Implement `hooks/tool_trace.py` PostToolUse path: trace-line append per protocol (seq, agent, tool, capability from bindings, at, summary, outcome via R4 classifier); register in `hooks.json`
+- [X] T017 [US4] Implement PreToolUse path: per-actor turn count from `counters.json` (never trace scans), actor role from `agents.json` (R10 — unregistered ⇒ uncapped, fail open), cap from ConfigView, past-cap denial with emit-your-verdict message + `denied:turn_cap` line; no separate marker (verdict fields carry FR-5f(a) semantics per spec FR-009)
+- [X] T018 [US4] Implement the tripwire: R5 regex families over untrusted-capability results (bindings-classified; set v1 = alerting, observability), one advisory + one tripwire trace event per trip; no-binding-map ⇒ disabled with one notice per session
+- [X] T019 [P] [US4] Author fixtures: `tests/fixtures/outcomes/*.json` (R4 classifier pairs), `tests/fixtures/tripwire/*.json` (trip/no-trip per family + no-binding-map case), and `tests/fixtures/sessions/hundred-call.json` (the scripted multi-agent session, SC-005)
+- [X] T020 [US4] Write `tests/unit/test_tool_trace.py`: SC-005 (100 lines, ordered, no dupes; N+1 denied), outcome classification, tripwire incl. degraded mode, fault corpus (fail-open)
 
 ## Phase 7: User Story 5 — Session guard (P2)
 

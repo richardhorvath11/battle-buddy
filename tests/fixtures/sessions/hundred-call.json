@@ -1,0 +1,911 @@
+{
+  "name": "hundred-call",
+  "description": "SC-005 scripted multi-agent session: 100 tool calls across three actors (triage/deep/main by transcript path). Uncapped run yields exactly 100 ordered call lines; with agents.json registering the triage actor and the cap set to N, the triage actor's call N+1 is denied with the emit-your-verdict message.",
+  "transcripts": {
+    "triage": "/tmp/bb-agents/triage-instance.jsonl",
+    "deep": "/tmp/bb-agents/deep-instance.jsonl",
+    "main": "/tmp/bb-agents/main-session.jsonl"
+  },
+  "calls": [
+    {
+      "transcript_path": "/tmp/bb-agents/triage-instance.jsonl",
+      "agent_label": "triage",
+      "tool_name": "Bash",
+      "tool_input": {
+        "command": "echo probe-0"
+      },
+      "tool_response": "probe-0 ok"
+    },
+    {
+      "transcript_path": "/tmp/bb-agents/deep-instance.jsonl",
+      "agent_label": "deep",
+      "tool_name": "Read",
+      "tool_input": {
+        "file_path": "/var/log/app/1.log"
+      },
+      "tool_response": "log body 1"
+    },
+    {
+      "transcript_path": "/tmp/bb-agents/main-session.jsonl",
+      "agent_label": "main",
+      "tool_name": "mcp__grafana__run_query",
+      "tool_input": {
+        "query": "rate(errors[3m])"
+      },
+      "tool_response": "series ok 2"
+    },
+    {
+      "transcript_path": "/tmp/bb-agents/triage-instance.jsonl",
+      "agent_label": "triage",
+      "tool_name": "Bash",
+      "tool_input": {
+        "command": "echo probe-3"
+      },
+      "tool_response": "probe-3 ok"
+    },
+    {
+      "transcript_path": "/tmp/bb-agents/deep-instance.jsonl",
+      "agent_label": "deep",
+      "tool_name": "Read",
+      "tool_input": {
+        "file_path": "/var/log/app/4.log"
+      },
+      "tool_response": "log body 4"
+    },
+    {
+      "transcript_path": "/tmp/bb-agents/triage-instance.jsonl",
+      "agent_label": "triage",
+      "tool_name": "mcp__grafana__run_query",
+      "tool_input": {
+        "query": "rate(errors[6m])"
+      },
+      "tool_response": "series ok 5"
+    },
+    {
+      "transcript_path": "/tmp/bb-agents/main-session.jsonl",
+      "agent_label": "main",
+      "tool_name": "Bash",
+      "tool_input": {
+        "command": "echo probe-6"
+      },
+      "tool_response": "probe-6 ok"
+    },
+    {
+      "transcript_path": "/tmp/bb-agents/deep-instance.jsonl",
+      "agent_label": "deep",
+      "tool_name": "Read",
+      "tool_input": {
+        "file_path": "/var/log/app/7.log"
+      },
+      "tool_response": "log body 7"
+    },
+    {
+      "transcript_path": "/tmp/bb-agents/triage-instance.jsonl",
+      "agent_label": "triage",
+      "tool_name": "mcp__grafana__run_query",
+      "tool_input": {
+        "query": "rate(errors[9m])"
+      },
+      "tool_response": "series ok 8"
+    },
+    {
+      "transcript_path": "/tmp/bb-agents/main-session.jsonl",
+      "agent_label": "main",
+      "tool_name": "Bash",
+      "tool_input": {
+        "command": "echo probe-9"
+      },
+      "tool_response": "probe-9 ok"
+    },
+    {
+      "transcript_path": "/tmp/bb-agents/triage-instance.jsonl",
+      "agent_label": "triage",
+      "tool_name": "Read",
+      "tool_input": {
+        "file_path": "/var/log/app/10.log"
+      },
+      "tool_response": "log body 10"
+    },
+    {
+      "transcript_path": "/tmp/bb-agents/deep-instance.jsonl",
+      "agent_label": "deep",
+      "tool_name": "mcp__grafana__run_query",
+      "tool_input": {
+        "query": "rate(errors[3m])"
+      },
+      "tool_response": "series ok 11"
+    },
+    {
+      "transcript_path": "/tmp/bb-agents/main-session.jsonl",
+      "agent_label": "main",
+      "tool_name": "Bash",
+      "tool_input": {
+        "command": "echo probe-12"
+      },
+      "tool_response": "probe-12 ok"
+    },
+    {
+      "transcript_path": "/tmp/bb-agents/triage-instance.jsonl",
+      "agent_label": "triage",
+      "tool_name": "Read",
+      "tool_input": {
+        "file_path": "/var/log/app/13.log"
+      },
+      "tool_response": "log body 13"
+    },
+    {
+      "transcript_path": "/tmp/bb-agents/deep-instance.jsonl",
+      "agent_label": "deep",
+      "tool_name": "mcp__grafana__run_query",
+      "tool_input": {
+        "query": "rate(errors[6m])"
+      },
+      "tool_response": "series ok 14"
+    },
+    {
+      "transcript_path": "/tmp/bb-agents/triage-instance.jsonl",
+      "agent_label": "triage",
+      "tool_name": "Bash",
+      "tool_input": {
+        "command": "echo probe-15"
+      },
+      "tool_response": "probe-15 ok"
+    },
+    {
+      "transcript_path": "/tmp/bb-agents/main-session.jsonl",
+      "agent_label": "main",
+      "tool_name": "Read",
+      "tool_input": {
+        "file_path": "/var/log/app/16.log"
+      },
+      "tool_response": "log body 16"
+    },
+    {
+      "transcript_path": "/tmp/bb-agents/deep-instance.jsonl",
+      "agent_label": "deep",
+      "tool_name": "mcp__grafana__run_query",
+      "tool_input": {
+        "query": "rate(errors[9m])"
+      },
+      "tool_response": "series ok 17"
+    },
+    {
+      "transcript_path": "/tmp/bb-agents/triage-instance.jsonl",
+      "agent_label": "triage",
+      "tool_name": "Bash",
+      "tool_input": {
+        "command": "echo probe-18"
+      },
+      "tool_response": "probe-18 ok"
+    },
+    {
+      "transcript_path": "/tmp/bb-agents/main-session.jsonl",
+      "agent_label": "main",
+      "tool_name": "Read",
+      "tool_input": {
+        "file_path": "/var/log/app/19.log"
+      },
+      "tool_response": "log body 19"
+    },
+    {
+      "transcript_path": "/tmp/bb-agents/triage-instance.jsonl",
+      "agent_label": "triage",
+      "tool_name": "mcp__grafana__run_query",
+      "tool_input": {
+        "query": "rate(errors[3m])"
+      },
+      "tool_response": "series ok 20"
+    },
+    {
+      "transcript_path": "/tmp/bb-agents/deep-instance.jsonl",
+      "agent_label": "deep",
+      "tool_name": "Bash",
+      "tool_input": {
+        "command": "echo probe-21"
+      },
+      "tool_response": "probe-21 ok"
+    },
+    {
+      "transcript_path": "/tmp/bb-agents/main-session.jsonl",
+      "agent_label": "main",
+      "tool_name": "Read",
+      "tool_input": {
+        "file_path": "/var/log/app/22.log"
+      },
+      "tool_response": "log body 22"
+    },
+    {
+      "transcript_path": "/tmp/bb-agents/triage-instance.jsonl",
+      "agent_label": "triage",
+      "tool_name": "mcp__grafana__run_query",
+      "tool_input": {
+        "query": "rate(errors[6m])"
+      },
+      "tool_response": "series ok 23"
+    },
+    {
+      "transcript_path": "/tmp/bb-agents/deep-instance.jsonl",
+      "agent_label": "deep",
+      "tool_name": "Bash",
+      "tool_input": {
+        "command": "echo probe-24"
+      },
+      "tool_response": "probe-24 ok"
+    },
+    {
+      "transcript_path": "/tmp/bb-agents/triage-instance.jsonl",
+      "agent_label": "triage",
+      "tool_name": "Read",
+      "tool_input": {
+        "file_path": "/var/log/app/25.log"
+      },
+      "tool_response": "log body 25"
+    },
+    {
+      "transcript_path": "/tmp/bb-agents/main-session.jsonl",
+      "agent_label": "main",
+      "tool_name": "mcp__grafana__run_query",
+      "tool_input": {
+        "query": "rate(errors[9m])"
+      },
+      "tool_response": "series ok 26"
+    },
+    {
+      "transcript_path": "/tmp/bb-agents/deep-instance.jsonl",
+      "agent_label": "deep",
+      "tool_name": "Bash",
+      "tool_input": {
+        "command": "echo probe-27"
+      },
+      "tool_response": "probe-27 ok"
+    },
+    {
+      "transcript_path": "/tmp/bb-agents/triage-instance.jsonl",
+      "agent_label": "triage",
+      "tool_name": "Read",
+      "tool_input": {
+        "file_path": "/var/log/app/28.log"
+      },
+      "tool_response": "log body 28"
+    },
+    {
+      "transcript_path": "/tmp/bb-agents/main-session.jsonl",
+      "agent_label": "main",
+      "tool_name": "mcp__grafana__run_query",
+      "tool_input": {
+        "query": "rate(errors[3m])"
+      },
+      "tool_response": "series ok 29"
+    },
+    {
+      "transcript_path": "/tmp/bb-agents/triage-instance.jsonl",
+      "agent_label": "triage",
+      "tool_name": "Bash",
+      "tool_input": {
+        "command": "echo probe-30"
+      },
+      "tool_response": "probe-30 ok"
+    },
+    {
+      "transcript_path": "/tmp/bb-agents/deep-instance.jsonl",
+      "agent_label": "deep",
+      "tool_name": "Read",
+      "tool_input": {
+        "file_path": "/var/log/app/31.log"
+      },
+      "tool_response": "log body 31"
+    },
+    {
+      "transcript_path": "/tmp/bb-agents/main-session.jsonl",
+      "agent_label": "main",
+      "tool_name": "mcp__grafana__run_query",
+      "tool_input": {
+        "query": "rate(errors[6m])"
+      },
+      "tool_response": "series ok 32"
+    },
+    {
+      "transcript_path": "/tmp/bb-agents/triage-instance.jsonl",
+      "agent_label": "triage",
+      "tool_name": "Bash",
+      "tool_input": {
+        "command": "echo probe-33"
+      },
+      "tool_response": "probe-33 ok"
+    },
+    {
+      "transcript_path": "/tmp/bb-agents/deep-instance.jsonl",
+      "agent_label": "deep",
+      "tool_name": "Read",
+      "tool_input": {
+        "file_path": "/var/log/app/34.log"
+      },
+      "tool_response": "log body 34"
+    },
+    {
+      "transcript_path": "/tmp/bb-agents/triage-instance.jsonl",
+      "agent_label": "triage",
+      "tool_name": "mcp__grafana__run_query",
+      "tool_input": {
+        "query": "rate(errors[9m])"
+      },
+      "tool_response": "series ok 35"
+    },
+    {
+      "transcript_path": "/tmp/bb-agents/main-session.jsonl",
+      "agent_label": "main",
+      "tool_name": "Bash",
+      "tool_input": {
+        "command": "echo probe-36"
+      },
+      "tool_response": "probe-36 ok"
+    },
+    {
+      "transcript_path": "/tmp/bb-agents/deep-instance.jsonl",
+      "agent_label": "deep",
+      "tool_name": "Read",
+      "tool_input": {
+        "file_path": "/var/log/app/37.log"
+      },
+      "tool_response": "log body 37"
+    },
+    {
+      "transcript_path": "/tmp/bb-agents/triage-instance.jsonl",
+      "agent_label": "triage",
+      "tool_name": "mcp__grafana__run_query",
+      "tool_input": {
+        "query": "rate(errors[3m])"
+      },
+      "tool_response": "series ok 38"
+    },
+    {
+      "transcript_path": "/tmp/bb-agents/main-session.jsonl",
+      "agent_label": "main",
+      "tool_name": "Bash",
+      "tool_input": {
+        "command": "echo probe-39"
+      },
+      "tool_response": "probe-39 ok"
+    },
+    {
+      "transcript_path": "/tmp/bb-agents/triage-instance.jsonl",
+      "agent_label": "triage",
+      "tool_name": "Read",
+      "tool_input": {
+        "file_path": "/var/log/app/40.log"
+      },
+      "tool_response": "log body 40"
+    },
+    {
+      "transcript_path": "/tmp/bb-agents/deep-instance.jsonl",
+      "agent_label": "deep",
+      "tool_name": "mcp__grafana__run_query",
+      "tool_input": {
+        "query": "rate(errors[6m])"
+      },
+      "tool_response": "series ok 41"
+    },
+    {
+      "transcript_path": "/tmp/bb-agents/main-session.jsonl",
+      "agent_label": "main",
+      "tool_name": "Bash",
+      "tool_input": {
+        "command": "echo probe-42"
+      },
+      "tool_response": "probe-42 ok"
+    },
+    {
+      "transcript_path": "/tmp/bb-agents/triage-instance.jsonl",
+      "agent_label": "triage",
+      "tool_name": "Read",
+      "tool_input": {
+        "file_path": "/var/log/app/43.log"
+      },
+      "tool_response": "log body 43"
+    },
+    {
+      "transcript_path": "/tmp/bb-agents/deep-instance.jsonl",
+      "agent_label": "deep",
+      "tool_name": "mcp__grafana__run_query",
+      "tool_input": {
+        "query": "rate(errors[9m])"
+      },
+      "tool_response": "series ok 44"
+    },
+    {
+      "transcript_path": "/tmp/bb-agents/triage-instance.jsonl",
+      "agent_label": "triage",
+      "tool_name": "Bash",
+      "tool_input": {
+        "command": "echo probe-45"
+      },
+      "tool_response": "probe-45 ok"
+    },
+    {
+      "transcript_path": "/tmp/bb-agents/main-session.jsonl",
+      "agent_label": "main",
+      "tool_name": "Read",
+      "tool_input": {
+        "file_path": "/var/log/app/46.log"
+      },
+      "tool_response": "log body 46"
+    },
+    {
+      "transcript_path": "/tmp/bb-agents/deep-instance.jsonl",
+      "agent_label": "deep",
+      "tool_name": "mcp__grafana__run_query",
+      "tool_input": {
+        "query": "rate(errors[3m])"
+      },
+      "tool_response": "series ok 47"
+    },
+    {
+      "transcript_path": "/tmp/bb-agents/triage-instance.jsonl",
+      "agent_label": "triage",
+      "tool_name": "Bash",
+      "tool_input": {
+        "command": "echo probe-48"
+      },
+      "tool_response": "probe-48 ok"
+    },
+    {
+      "transcript_path": "/tmp/bb-agents/main-session.jsonl",
+      "agent_label": "main",
+      "tool_name": "Read",
+      "tool_input": {
+        "file_path": "/var/log/app/49.log"
+      },
+      "tool_response": "log body 49"
+    },
+    {
+      "transcript_path": "/tmp/bb-agents/triage-instance.jsonl",
+      "agent_label": "triage",
+      "tool_name": "mcp__grafana__run_query",
+      "tool_input": {
+        "query": "rate(errors[6m])"
+      },
+      "tool_response": "series ok 50"
+    },
+    {
+      "transcript_path": "/tmp/bb-agents/deep-instance.jsonl",
+      "agent_label": "deep",
+      "tool_name": "Bash",
+      "tool_input": {
+        "command": "echo probe-51"
+      },
+      "tool_response": "probe-51 ok"
+    },
+    {
+      "transcript_path": "/tmp/bb-agents/main-session.jsonl",
+      "agent_label": "main",
+      "tool_name": "Read",
+      "tool_input": {
+        "file_path": "/var/log/app/52.log"
+      },
+      "tool_response": "log body 52"
+    },
+    {
+      "transcript_path": "/tmp/bb-agents/triage-instance.jsonl",
+      "agent_label": "triage",
+      "tool_name": "mcp__grafana__run_query",
+      "tool_input": {
+        "query": "rate(errors[9m])"
+      },
+      "tool_response": "series ok 53"
+    },
+    {
+      "transcript_path": "/tmp/bb-agents/deep-instance.jsonl",
+      "agent_label": "deep",
+      "tool_name": "Bash",
+      "tool_input": {
+        "command": "echo probe-54"
+      },
+      "tool_response": "probe-54 ok"
+    },
+    {
+      "transcript_path": "/tmp/bb-agents/triage-instance.jsonl",
+      "agent_label": "triage",
+      "tool_name": "Read",
+      "tool_input": {
+        "file_path": "/var/log/app/55.log"
+      },
+      "tool_response": "log body 55"
+    },
+    {
+      "transcript_path": "/tmp/bb-agents/main-session.jsonl",
+      "agent_label": "main",
+      "tool_name": "mcp__grafana__run_query",
+      "tool_input": {
+        "query": "rate(errors[3m])"
+      },
+      "tool_response": "series ok 56"
+    },
+    {
+      "transcript_path": "/tmp/bb-agents/deep-instance.jsonl",
+      "agent_label": "deep",
+      "tool_name": "Bash",
+      "tool_input": {
+        "command": "echo probe-57"
+      },
+      "tool_response": "probe-57 ok"
+    },
+    {
+      "transcript_path": "/tmp/bb-agents/triage-instance.jsonl",
+      "agent_label": "triage",
+      "tool_name": "Read",
+      "tool_input": {
+        "file_path": "/var/log/app/58.log"
+      },
+      "tool_response": "log body 58"
+    },
+    {
+      "transcript_path": "/tmp/bb-agents/main-session.jsonl",
+      "agent_label": "main",
+      "tool_name": "mcp__grafana__run_query",
+      "tool_input": {
+        "query": "rate(errors[6m])"
+      },
+      "tool_response": "series ok 59"
+    },
+    {
+      "transcript_path": "/tmp/bb-agents/triage-instance.jsonl",
+      "agent_label": "triage",
+      "tool_name": "Bash",
+      "tool_input": {
+        "command": "echo probe-60"
+      },
+      "tool_response": "probe-60 ok"
+    },
+    {
+      "transcript_path": "/tmp/bb-agents/deep-instance.jsonl",
+      "agent_label": "deep",
+      "tool_name": "Read",
+      "tool_input": {
+        "file_path": "/var/log/app/61.log"
+      },
+      "tool_response": "log body 61"
+    },
+    {
+      "transcript_path": "/tmp/bb-agents/main-session.jsonl",
+      "agent_label": "main",
+      "tool_name": "mcp__grafana__run_query",
+      "tool_input": {
+        "query": "rate(errors[9m])"
+      },
+      "tool_response": "series ok 62"
+    },
+    {
+      "transcript_path": "/tmp/bb-agents/triage-instance.jsonl",
+      "agent_label": "triage",
+      "tool_name": "Bash",
+      "tool_input": {
+        "command": "echo probe-63"
+      },
+      "tool_response": "probe-63 ok"
+    },
+    {
+      "transcript_path": "/tmp/bb-agents/deep-instance.jsonl",
+      "agent_label": "deep",
+      "tool_name": "Read",
+      "tool_input": {
+        "file_path": "/var/log/app/64.log"
+      },
+      "tool_response": "log body 64"
+    },
+    {
+      "transcript_path": "/tmp/bb-agents/triage-instance.jsonl",
+      "agent_label": "triage",
+      "tool_name": "mcp__grafana__run_query",
+      "tool_input": {
+        "query": "rate(errors[3m])"
+      },
+      "tool_response": "series ok 65"
+    },
+    {
+      "transcript_path": "/tmp/bb-agents/main-session.jsonl",
+      "agent_label": "main",
+      "tool_name": "Bash",
+      "tool_input": {
+        "command": "echo probe-66"
+      },
+      "tool_response": "probe-66 ok"
+    },
+    {
+      "transcript_path": "/tmp/bb-agents/deep-instance.jsonl",
+      "agent_label": "deep",
+      "tool_name": "Read",
+      "tool_input": {
+        "file_path": "/var/log/app/67.log"
+      },
+      "tool_response": "log body 67"
+    },
+    {
+      "transcript_path": "/tmp/bb-agents/triage-instance.jsonl",
+      "agent_label": "triage",
+      "tool_name": "mcp__grafana__run_query",
+      "tool_input": {
+        "query": "rate(errors[6m])"
+      },
+      "tool_response": "series ok 68"
+    },
+    {
+      "transcript_path": "/tmp/bb-agents/main-session.jsonl",
+      "agent_label": "main",
+      "tool_name": "Bash",
+      "tool_input": {
+        "command": "echo probe-69"
+      },
+      "tool_response": "probe-69 ok"
+    },
+    {
+      "transcript_path": "/tmp/bb-agents/triage-instance.jsonl",
+      "agent_label": "triage",
+      "tool_name": "Read",
+      "tool_input": {
+        "file_path": "/var/log/app/70.log"
+      },
+      "tool_response": "log body 70"
+    },
+    {
+      "transcript_path": "/tmp/bb-agents/deep-instance.jsonl",
+      "agent_label": "deep",
+      "tool_name": "mcp__grafana__run_query",
+      "tool_input": {
+        "query": "rate(errors[9m])"
+      },
+      "tool_response": "series ok 71"
+    },
+    {
+      "transcript_path": "/tmp/bb-agents/main-session.jsonl",
+      "agent_label": "main",
+      "tool_name": "Bash",
+      "tool_input": {
+        "command": "echo probe-72"
+      },
+      "tool_response": "probe-72 ok"
+    },
+    {
+      "transcript_path": "/tmp/bb-agents/triage-instance.jsonl",
+      "agent_label": "triage",
+      "tool_name": "Read",
+      "tool_input": {
+        "file_path": "/var/log/app/73.log"
+      },
+      "tool_response": "log body 73"
+    },
+    {
+      "transcript_path": "/tmp/bb-agents/deep-instance.jsonl",
+      "agent_label": "deep",
+      "tool_name": "mcp__grafana__run_query",
+      "tool_input": {
+        "query": "rate(errors[3m])"
+      },
+      "tool_response": "series ok 74"
+    },
+    {
+      "transcript_path": "/tmp/bb-agents/triage-instance.jsonl",
+      "agent_label": "triage",
+      "tool_name": "Bash",
+      "tool_input": {
+        "command": "echo probe-75"
+      },
+      "tool_response": "probe-75 ok"
+    },
+    {
+      "transcript_path": "/tmp/bb-agents/main-session.jsonl",
+      "agent_label": "main",
+      "tool_name": "Read",
+      "tool_input": {
+        "file_path": "/var/log/app/76.log"
+      },
+      "tool_response": "log body 76"
+    },
+    {
+      "transcript_path": "/tmp/bb-agents/deep-instance.jsonl",
+      "agent_label": "deep",
+      "tool_name": "mcp__grafana__run_query",
+      "tool_input": {
+        "query": "rate(errors[6m])"
+      },
+      "tool_response": "series ok 77"
+    },
+    {
+      "transcript_path": "/tmp/bb-agents/triage-instance.jsonl",
+      "agent_label": "triage",
+      "tool_name": "Bash",
+      "tool_input": {
+        "command": "echo probe-78"
+      },
+      "tool_response": "probe-78 ok"
+    },
+    {
+      "transcript_path": "/tmp/bb-agents/main-session.jsonl",
+      "agent_label": "main",
+      "tool_name": "Read",
+      "tool_input": {
+        "file_path": "/var/log/app/79.log"
+      },
+      "tool_response": "log body 79"
+    },
+    {
+      "transcript_path": "/tmp/bb-agents/triage-instance.jsonl",
+      "agent_label": "triage",
+      "tool_name": "mcp__grafana__run_query",
+      "tool_input": {
+        "query": "rate(errors[9m])"
+      },
+      "tool_response": "series ok 80"
+    },
+    {
+      "transcript_path": "/tmp/bb-agents/deep-instance.jsonl",
+      "agent_label": "deep",
+      "tool_name": "Bash",
+      "tool_input": {
+        "command": "echo probe-81"
+      },
+      "tool_response": "probe-81 ok"
+    },
+    {
+      "transcript_path": "/tmp/bb-agents/main-session.jsonl",
+      "agent_label": "main",
+      "tool_name": "Read",
+      "tool_input": {
+        "file_path": "/var/log/app/82.log"
+      },
+      "tool_response": "log body 82"
+    },
+    {
+      "transcript_path": "/tmp/bb-agents/triage-instance.jsonl",
+      "agent_label": "triage",
+      "tool_name": "mcp__grafana__run_query",
+      "tool_input": {
+        "query": "rate(errors[3m])"
+      },
+      "tool_response": "series ok 83"
+    },
+    {
+      "transcript_path": "/tmp/bb-agents/deep-instance.jsonl",
+      "agent_label": "deep",
+      "tool_name": "Bash",
+      "tool_input": {
+        "command": "echo probe-84"
+      },
+      "tool_response": "probe-84 ok"
+    },
+    {
+      "transcript_path": "/tmp/bb-agents/triage-instance.jsonl",
+      "agent_label": "triage",
+      "tool_name": "Read",
+      "tool_input": {
+        "file_path": "/var/log/app/85.log"
+      },
+      "tool_response": "log body 85"
+    },
+    {
+      "transcript_path": "/tmp/bb-agents/main-session.jsonl",
+      "agent_label": "main",
+      "tool_name": "mcp__grafana__run_query",
+      "tool_input": {
+        "query": "rate(errors[6m])"
+      },
+      "tool_response": "series ok 86"
+    },
+    {
+      "transcript_path": "/tmp/bb-agents/deep-instance.jsonl",
+      "agent_label": "deep",
+      "tool_name": "Bash",
+      "tool_input": {
+        "command": "echo probe-87"
+      },
+      "tool_response": "probe-87 ok"
+    },
+    {
+      "transcript_path": "/tmp/bb-agents/triage-instance.jsonl",
+      "agent_label": "triage",
+      "tool_name": "Read",
+      "tool_input": {
+        "file_path": "/var/log/app/88.log"
+      },
+      "tool_response": "log body 88"
+    },
+    {
+      "transcript_path": "/tmp/bb-agents/main-session.jsonl",
+      "agent_label": "main",
+      "tool_name": "mcp__grafana__run_query",
+      "tool_input": {
+        "query": "rate(errors[9m])"
+      },
+      "tool_response": "series ok 89"
+    },
+    {
+      "transcript_path": "/tmp/bb-agents/triage-instance.jsonl",
+      "agent_label": "triage",
+      "tool_name": "Bash",
+      "tool_input": {
+        "command": "echo probe-90"
+      },
+      "tool_response": "probe-90 ok"
+    },
+    {
+      "transcript_path": "/tmp/bb-agents/deep-instance.jsonl",
+      "agent_label": "deep",
+      "tool_name": "Read",
+      "tool_input": {
+        "file_path": "/var/log/app/91.log"
+      },
+      "tool_response": "log body 91"
+    },
+    {
+      "transcript_path": "/tmp/bb-agents/main-session.jsonl",
+      "agent_label": "main",
+      "tool_name": "mcp__grafana__run_query",
+      "tool_input": {
+        "query": "rate(errors[3m])"
+      },
+      "tool_response": "series ok 92"
+    },
+    {
+      "transcript_path": "/tmp/bb-agents/triage-instance.jsonl",
+      "agent_label": "triage",
+      "tool_name": "Bash",
+      "tool_input": {
+        "command": "echo probe-93"
+      },
+      "tool_response": "probe-93 ok"
+    },
+    {
+      "transcript_path": "/tmp/bb-agents/deep-instance.jsonl",
+      "agent_label": "deep",
+      "tool_name": "Read",
+      "tool_input": {
+        "file_path": "/var/log/app/94.log"
+      },
+      "tool_response": "log body 94"
+    },
+    {
+      "transcript_path": "/tmp/bb-agents/triage-instance.jsonl",
+      "agent_label": "triage",
+      "tool_name": "mcp__grafana__run_query",
+      "tool_input": {
+        "query": "rate(errors[6m])"
+      },
+      "tool_response": "series ok 95"
+    },
+    {
+      "transcript_path": "/tmp/bb-agents/main-session.jsonl",
+      "agent_label": "main",
+      "tool_name": "Bash",
+      "tool_input": {
+        "command": "echo probe-96"
+      },
+      "tool_response": "probe-96 ok"
+    },
+    {
+      "transcript_path": "/tmp/bb-agents/deep-instance.jsonl",
+      "agent_label": "deep",
+      "tool_name": "Read",
+      "tool_input": {
+        "file_path": "/var/log/app/97.log"
+      },
+      "tool_response": "log body 97"
+    },
+    {
+      "transcript_path": "/tmp/bb-agents/triage-instance.jsonl",
+      "agent_label": "triage",
+      "tool_name": "mcp__grafana__run_query",
+      "tool_input": {
+        "query": "rate(errors[9m])"
+      },
+      "tool_response": "series ok 98"
+    },
+    {
+      "transcript_path": "/tmp/bb-agents/main-session.jsonl",
+      "agent_label": "main",
+      "tool_name": "Bash",
+      "tool_input": {
+        "command": "echo probe-99"
+      },
+      "tool_response": "probe-99 ok"
+    }
+  ]
+}
