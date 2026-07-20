@@ -1,0 +1,7 @@
+{
+  "name": "truncated-json",
+  "description": "payload cut off mid-object (runtime crash mid-pipe)",
+  "stdin": "{\"hook_event_name\": \"PreToolUse\", \"tool_name\": \"Bash\", \"tool_input\": {\"comman",
+  "expected": "allow",
+  "expect_diagnostic": true
+}

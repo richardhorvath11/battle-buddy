@@ -1,0 +1,7 @@
+{
+  "name": "missing-fields",
+  "description": "object payload with every field absent \u2014 tolerated, not a fault (spec: hooks tolerate absent optional fields)",
+  "stdin": "{}",
+  "expected": "allow",
+  "expect_diagnostic": false
+}

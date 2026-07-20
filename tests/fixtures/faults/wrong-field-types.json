@@ -1,0 +1,7 @@
+{
+  "name": "wrong-field-types",
+  "description": "tool_name is a number, tool_input a string, cwd an int",
+  "stdin": "{\"hook_event_name\": \"PreToolUse\", \"tool_name\": 42, \"tool_input\": \"x\", \"cwd\": 17}",
+  "expected": "allow",
+  "expect_diagnostic": false
+}
