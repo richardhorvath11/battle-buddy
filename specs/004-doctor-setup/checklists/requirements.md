@@ -46,3 +46,8 @@
   header/folder pins (now honest fixture-surface pins), the manifest optional-half
   sourcing, the §2.1 workspace-repo contents, and the stamp-freshness ambiguity are
   resolved in the spec text; all items re-checked against the updated file and pass.
+- Round 2 re-verified all 12 fixes against file text (none regressed) and surfaced two
+  residuals, both fixed in round 3: the US2 narrative's leftover "diary writable"
+  clause, and the probe-outcome oracle — the doctor report is now pinned as a
+  structured artifact (FR-004, Key Entities) so US3's test asserts on an artifact,
+  not prose.
