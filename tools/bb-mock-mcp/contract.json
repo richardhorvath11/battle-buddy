@@ -1,0 +1,166 @@
+{
+  "contract_version": "1",
+  "source": "specs/001-test-scaffold/contracts/operations.md",
+  "notes": "Machine-readable encoding of the operation contract v1 (research R5). The mock's behavior, its schema registry (FR-011), and the conformance tests all load this file — one source of truth. Slice 4's shipped manifest/capabilities.json derives from it.",
+  "conventions": {
+    "record": "field map; required keys listed per op; other fields are opaque (research R6)",
+    "link": "opaque stable string, unique per stored object",
+    "timestamps": "ISO 8601",
+    "string_sizes": "UTF-8 character counts"
+  },
+  "constants": {
+    "single_field_limit_chars": 45000,
+    "single_field_limit_note": "D-3 threshold (design §5.4). Extra-contractual store emulation: rejecting any single STRING field value above this makes caller-side overflow handling testable; it is not a §7.1 contract rule. Applies to string values only — operations.md pins sizes as UTF-8 character counts, and the emulated store limit is a cell-string guard."
+  },
+  "error_shape": {
+    "error": {
+      "op": "str",
+      "code": "str",
+      "message": "str — names the violated expectation (FR-004)"
+    }
+  },
+  "error_codes": ["invalid_input", "not_found", "limit_exceeded", "unknown_op"],
+  "error_code_notes": "Closed set for the uniform envelope. v1 required ops assign oversized-field rejections to invalid_input per the operations.md error tables; limit_exceeded is reserved in the enum. Additionally, generic contract-shape validation can return invalid_input on ANY op for a missing, mistyped, or unexpected payload field — the per-op errors arrays list op-specific errors only and understate that generic surface deliberately (they mirror operations.md).",
+  "capabilities": {
+    "storage": {
+      "required": true,
+      "ops": {
+        "append_record": {
+          "mutating": true,
+          "input": {
+            "record": {
+              "type": "map",
+              "required": true,
+              "notes": "session_id (str, non-empty) required inside the record; duplicate session_id handling is caller policy, not enforced here; every field value ≤ single_field_limit_chars"
+            }
+          },
+          "output": {
+            "session_id": {"type": "str", "required": true}
+          },
+          "errors": ["invalid_input"]
+        },
+        "read_records": {
+          "mutating": false,
+          "input": {
+            "filter": {
+              "type": "map",
+              "required": false,
+              "notes": "field-equality map; empty/absent = all records"
+            }
+          },
+          "output": {
+            "records": {"type": "list", "required": true, "notes": "insertion order"}
+          },
+          "errors": ["invalid_input"]
+        },
+        "update_record": {
+          "mutating": true,
+          "input": {
+            "session_id": {"type": "str", "required": true, "non_empty": true},
+            "fields": {
+              "type": "map",
+              "required": true,
+              "non_empty": true,
+              "notes": "partial field map merged into the matching record; every field value ≤ single_field_limit_chars"
+            }
+          },
+          "output": {
+            "session_id": {"type": "str", "required": true}
+          },
+          "errors": ["not_found", "invalid_input"]
+        }
+      }
+    },
+    "artifacts": {
+      "required": true,
+      "ops": {
+        "put_file": {
+          "mutating": true,
+          "input": {
+            "name": {"type": "str", "required": true, "non_empty": true},
+            "content": {"type": "str", "required": true}
+          },
+          "output": {
+            "link": {"type": "str", "required": true}
+          },
+          "errors": ["invalid_input"]
+        },
+        "get_file": {
+          "mutating": false,
+          "notes": "read-back for tests",
+          "input": {
+            "link": {"type": "str", "required": true}
+          },
+          "output": {
+            "name": {"type": "str", "required": true},
+            "content": {"type": "str", "required": true}
+          },
+          "errors": ["not_found"]
+        }
+      }
+    },
+    "diary": {
+      "required": true,
+      "ops": {
+        "append_entry": {
+          "mutating": true,
+          "input": {
+            "content": {"type": "str", "required": true, "non_empty": true}
+          },
+          "output": {
+            "link": {"type": "str", "required": true}
+          },
+          "errors": ["invalid_input"]
+        },
+        "read_recent": {
+          "mutating": false,
+          "input": {
+            "n": {"type": "int", "required": true, "min": 1}
+          },
+          "output": {
+            "entries": {
+              "type": "list",
+              "required": true,
+              "notes": "[{link, content, at}] most recent first (design §6.2, v1.2.1)"
+            }
+          },
+          "errors": ["invalid_input"]
+        }
+      }
+    },
+    "alerting": {
+      "required": true,
+      "seed_only": true,
+      "ops": {
+        "get_alert": {
+          "mutating": false,
+          "input": {
+            "alert_id": {"type": "str", "required": true, "non_empty": true}
+          },
+          "output": {
+            "alert": {
+              "type": "map",
+              "required": true,
+              "notes": "field map incl. required alert_id, service_hint (may be empty), description, fired_at"
+            }
+          },
+          "errors": ["not_found"]
+        },
+        "list_alert_history": {
+          "mutating": false,
+          "input": {
+            "filter": {
+              "type": "map",
+              "required": true,
+              "notes": "field-equality map; supports at least {alert_id} and {service_hint}"
+            }
+          },
+          "output": {
+            "alerts": {"type": "list", "required": true, "notes": "newest first"}
+          },
+          "errors": ["invalid_input"]
+        }
+      }
+    }
+  }
+}

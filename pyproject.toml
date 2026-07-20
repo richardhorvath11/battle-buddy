@@ -1,0 +1,6 @@
+# battle-buddy dev-tooling configuration. Nothing here ships to responders —
+# shipped code is Python 3 stdlib only (constitution Platform Constraints).
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+addopts = "-q"

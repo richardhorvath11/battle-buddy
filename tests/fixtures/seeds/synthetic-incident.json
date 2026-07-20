@@ -1,0 +1,60 @@
+{
+  "records": [
+    {
+      "session_id": "bb-2026-07-01-checkout-latency",
+      "fingerprint": "fp-checkout-latency-p99",
+      "status": "resolved",
+      "service": "checkout",
+      "root_cause_proposal": "connection-pool exhaustion after deploy 2026-07-01 (human-curated: accepted)",
+      "report_link": "art://seeded-report-1"
+    },
+    {
+      "session_id": "bb-2026-06-12-search-5xx",
+      "fingerprint": "fp-search-5xx-burst",
+      "status": "resolved",
+      "service": "search"
+    }
+  ],
+  "artifacts": [
+    {
+      "name": "2026-07-01-checkout-latency-report.md",
+      "content": "# Session report\nPrior checkout latency incident; evidence: {url, excerpt} pairs live in the record."
+    }
+  ],
+  "diary": [
+    "2026-07-01 session closed: checkout latency traced to connection-pool exhaustion"
+  ],
+  "alerts": {
+    "alerts": [
+      {
+        "alert_id": "al-checkout-latency-p99",
+        "service_hint": "checkout",
+        "description": "CheckoutLatencyHigh: p99 above SLO for 10m",
+        "fired_at": "2026-07-18T09:14:00+00:00",
+        "fingerprint": "fp-checkout-latency-p99"
+      }
+    ],
+    "history": [
+      {
+        "alert_id": "al-checkout-latency-p99",
+        "service_hint": "checkout",
+        "description": "CheckoutLatencyHigh: p99 above SLO for 10m",
+        "fired_at": "2026-06-30T22:41:00+00:00",
+        "resolved_at": "2026-06-30T23:05:00+00:00"
+      },
+      {
+        "alert_id": "al-checkout-latency-p99",
+        "service_hint": "checkout",
+        "description": "CheckoutLatencyHigh: p99 above SLO for 10m",
+        "fired_at": "2026-07-01T08:02:00+00:00",
+        "resolved_at": "2026-07-01T09:30:00+00:00"
+      },
+      {
+        "alert_id": "al-checkout-latency-p99",
+        "service_hint": "checkout",
+        "description": "CheckoutLatencyHigh: p99 above SLO for 10m",
+        "fired_at": "2026-07-18T09:14:00+00:00"
+      }
+    ]
+  }
+}
