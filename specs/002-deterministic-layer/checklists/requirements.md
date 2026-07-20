@@ -40,6 +40,20 @@
 - The no-bypass decision for the deny hook (Assumptions) is recorded explicitly because
   the family-meals-derived push-gate pattern uses inline bypasses — spelling out that
   runtime deny classes differ prevents a plan-time wrong turn.
-- Validation run 1 (2026-07-20): all items pass. Lesson from slice 1 applied in advance:
-  operation/heuristic enumerations cite their design authority (§3.5, §5.2, §5.4) rather
-  than partially restating them. Ready for independent review, then `/speckit-plan`.
+- Validation run 1 (2026-07-20): all items marked pass. Independent review (PR #3)
+  falsified two: "testable and unambiguous" (FR-011 "confirmed" ambiguity, benign
+  near-miss contradiction, sourceless auth-error context, undefined untrusted-capability
+  classification) and "dependencies identified" (binding-map dependency for FR-008/FR-010
+  missing). Also: AGENTS.md push-gate scheduling conflict, undefined deep-dive/
+  truncated-verdict markers, FR-002↔FR-012 contradiction, missing §2.1 config warning,
+  wrong citation authorities, unpinned "newest Python", missing US5 Independent Test.
+- Validation run 2 (2026-07-20, post-review fixes): marker trigger pinned to "present and
+  not cleared" with the skipped-close scenario added (US5 AS-2); benign corpus given a
+  membership rule and made the decided over-match boundary; trace lines gained `outcome`
+  (incl. `auth_error`) making the credential-scanning class detectable; tripwire's
+  binding-map dependency named with graceful degradation; AGENTS.md amended in-PR on
+  push-gate scheduling; FR-006 keys off ledger `phase` (plan pins enumeration); FR-009
+  uses the verdict's own fields, no invented marker; FR-002 allows payload-named paths;
+  FR-013 cites D-6 and gained acceptance; FR-015 added for the §2.1 config warning;
+  SC-003 pinned to the 3.9/3.12 matrix; US5 Independent Test added. All items pass.
+  Ready for round-2 review, then `/speckit-plan`.
