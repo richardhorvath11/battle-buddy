@@ -1,0 +1,17 @@
+{
+  "name": "ssh-config-read-clean-window",
+  "note": "credential-path read with a clean auth window: the context rule keeps routine ssh-config reads working",
+  "hook_payload": {
+    "hook_event_name": "PreToolUse",
+    "tool_name": "Bash",
+    "tool_input": {
+      "command": "cat ~/.ssh/config"
+    }
+  },
+  "expected": "allow",
+  "trace_outcomes": [
+    "ok",
+    "ok",
+    "ok"
+  ]
+}

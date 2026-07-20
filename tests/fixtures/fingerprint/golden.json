@@ -1,0 +1,240 @@
+{
+  "version": "bb.fp.v1",
+  "note": "Executable form of the design §5.2 normalization rules. Expected fingerprints were computed from the hand-written normalized forms via an independent restatement of the formula (sha256(ns+'|'+na)[:16]); any behavioral change without a version bump fails this corpus (SC-003).",
+  "cases": [
+    {
+      "name": "basic",
+      "service": "Payments-API",
+      "alert_type": "High Latency",
+      "normalized_service": "payments-api",
+      "normalized_alert_type": "high latency",
+      "flags": [],
+      "fingerprint": "78e85d9ac520ebf6"
+    },
+    {
+      "name": "case-and-whitespace-collapse",
+      "service": "  Payments-API  ",
+      "alert_type": "High \t  Latency\n",
+      "normalized_service": "payments-api",
+      "normalized_alert_type": "high latency",
+      "flags": [],
+      "fingerprint": "78e85d9ac520ebf6"
+    },
+    {
+      "name": "unicode-lowercase-preserved",
+      "service": "Café-Service",
+      "alert_type": "Löschung FAILED",
+      "normalized_service": "café-service",
+      "normalized_alert_type": "löschung failed",
+      "flags": [],
+      "fingerprint": "69bebd74aa165b2b"
+    },
+    {
+      "name": "uuid-to-id",
+      "service": "svc-a",
+      "alert_type": "job 3F9D2C1E-8A4B-4C6D-9E0F-112233445566 failed",
+      "normalized_service": "svc-a",
+      "normalized_alert_type": "job <id> failed",
+      "flags": [],
+      "fingerprint": "0081aba05d4559b2"
+    },
+    {
+      "name": "uuid-repeat-alert-stability",
+      "service": "svc-a",
+      "alert_type": "job 99999999-aaaa-4bbb-8ccc-000011112222 failed",
+      "normalized_service": "svc-a",
+      "normalized_alert_type": "job <id> failed",
+      "flags": [],
+      "fingerprint": "0081aba05d4559b2"
+    },
+    {
+      "name": "hex-id-to-id",
+      "service": "svc-a",
+      "alert_type": "trace deadbeefcafe1234 stuck",
+      "normalized_service": "svc-a",
+      "normalized_alert_type": "trace <id> stuck",
+      "flags": [],
+      "fingerprint": "ef7b926b7484eb46"
+    },
+    {
+      "name": "digits-only-run-is-n-not-id",
+      "service": "svc-a",
+      "alert_type": "order 123456789 stuck",
+      "normalized_service": "svc-a",
+      "normalized_alert_type": "order <n> stuck",
+      "flags": [],
+      "fingerprint": "c42f598c28e4bbaf"
+    },
+    {
+      "name": "int-to-n",
+      "service": "svc-a",
+      "alert_type": "queue depth 12500 exceeded",
+      "normalized_service": "svc-a",
+      "normalized_alert_type": "queue depth <n> exceeded",
+      "flags": [],
+      "fingerprint": "f54bec078618dcf1"
+    },
+    {
+      "name": "small-int-stays",
+      "service": "svc-a",
+      "alert_type": "disk 85 percent full",
+      "normalized_service": "svc-a",
+      "normalized_alert_type": "disk 85 percent full",
+      "flags": [],
+      "fingerprint": "3651f188aa71855f"
+    },
+    {
+      "name": "datetime-to-ts",
+      "service": "svc-a",
+      "alert_type": "spike at 2026-07-20T03:14:15Z",
+      "normalized_service": "svc-a",
+      "normalized_alert_type": "spike at <ts>",
+      "flags": [],
+      "fingerprint": "f7e6ae7c5d2670a4"
+    },
+    {
+      "name": "datetime-offset-to-ts",
+      "service": "svc-a",
+      "alert_type": "since 2026-07-20 03:14:15+02:00",
+      "normalized_service": "svc-a",
+      "normalized_alert_type": "since <ts>",
+      "flags": [],
+      "fingerprint": "3cf69e71e6d9a007"
+    },
+    {
+      "name": "bare-date-to-ts",
+      "service": "svc-a",
+      "alert_type": "backup 2026-07-20 missing",
+      "normalized_service": "svc-a",
+      "normalized_alert_type": "backup <ts> missing",
+      "flags": [],
+      "fingerprint": "7bcd3ecedac529fd"
+    },
+    {
+      "name": "ipv4-to-host",
+      "service": "svc-a",
+      "alert_type": "node 10.1.2.34 unreachable",
+      "normalized_service": "svc-a",
+      "normalized_alert_type": "node <host> unreachable",
+      "flags": [],
+      "fingerprint": "ded2f305402d490c"
+    },
+    {
+      "name": "hostname-to-host",
+      "service": "svc-a",
+      "alert_type": "web-01.prod.example.com DOWN",
+      "normalized_service": "svc-a",
+      "normalized_alert_type": "<host> down",
+      "flags": [],
+      "fingerprint": "fb9f37de9064d87b"
+    },
+    {
+      "name": "mixed-volatile-tokens",
+      "service": "svc-a",
+      "alert_type": "OOM on db-02.prod.example.com at 2026-07-20T03:00:00Z pid 48213",
+      "normalized_service": "svc-a",
+      "normalized_alert_type": "oom on <host> at <ts> pid <n>",
+      "flags": [],
+      "fingerprint": "2e0dd28f1e04d01d"
+    },
+    {
+      "name": "service-keeps-digits",
+      "service": "Weird  Service  Name 12345",
+      "alert_type": "restart loop",
+      "normalized_service": "weird service name 12345",
+      "normalized_alert_type": "restart loop",
+      "flags": [],
+      "fingerprint": "ce693cde599d4b40"
+    },
+    {
+      "name": "empty-alert-type",
+      "service": "svc-a",
+      "alert_type": "",
+      "normalized_service": "svc-a",
+      "normalized_alert_type": "",
+      "flags": [
+        "empty_alert_type"
+      ],
+      "fingerprint": "1fd27a7fd5a27cf8"
+    },
+    {
+      "name": "whitespace-only-alert-type",
+      "service": "svc-a",
+      "alert_type": "   \t\n ",
+      "normalized_service": "svc-a",
+      "normalized_alert_type": "",
+      "flags": [
+        "empty_alert_type"
+      ],
+      "fingerprint": "1fd27a7fd5a27cf8"
+    },
+    {
+      "name": "empty-service",
+      "service": "",
+      "alert_type": "high latency",
+      "normalized_service": "",
+      "normalized_alert_type": "high latency",
+      "flags": [
+        "empty_service"
+      ],
+      "fingerprint": "5f7a4f233ac0f109"
+    },
+    {
+      "name": "all-volatile-alert-type",
+      "service": "svc-a",
+      "alert_type": "3f9d2c1e-8a4b-4c6d-9e0f-112233445566 481516 2342",
+      "normalized_service": "svc-a",
+      "normalized_alert_type": "<id> <n> <n>",
+      "flags": [
+        "all_volatile_alert_type"
+      ],
+      "fingerprint": "cd9443323ace7e6b"
+    },
+    {
+      "name": "near-collision-svc-b",
+      "service": "svc-b",
+      "alert_type": "high latency",
+      "normalized_service": "svc-b",
+      "normalized_alert_type": "high latency",
+      "flags": [],
+      "fingerprint": "a0d6df3471686a0b"
+    },
+    {
+      "name": "near-collision-boundary-shift",
+      "service": "svc",
+      "alert_type": "a high latency",
+      "normalized_service": "svc",
+      "normalized_alert_type": "a high latency",
+      "flags": [],
+      "fingerprint": "d09e01ad0e823fb6"
+    }
+  ],
+  "identical_pairs": [
+    [
+      "basic",
+      "case-and-whitespace-collapse"
+    ],
+    [
+      "uuid-to-id",
+      "uuid-repeat-alert-stability"
+    ]
+  ],
+  "distinct_pairs": [
+    [
+      "basic",
+      "near-collision-svc-b"
+    ],
+    [
+      "basic",
+      "near-collision-boundary-shift"
+    ],
+    [
+      "uuid-to-id",
+      "hex-id-to-id"
+    ],
+    [
+      "int-to-n",
+      "small-int-stays"
+    ]
+  ]
+}

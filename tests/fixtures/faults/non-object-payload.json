@@ -1,0 +1,7 @@
+{
+  "name": "non-object-payload",
+  "description": "valid JSON but not an object",
+  "stdin": "[1, 2, 3]",
+  "expected": "allow",
+  "expect_diagnostic": true
+}

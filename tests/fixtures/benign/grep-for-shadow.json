@@ -1,0 +1,12 @@
+{
+  "name": "grep-for-shadow",
+  "note": "search pattern naming /etc/shadow is data (grep-family pattern masked)",
+  "hook_payload": {
+    "hook_event_name": "PreToolUse",
+    "tool_name": "Bash",
+    "tool_input": {
+      "command": "grep -rn \"/etc/shadow\" audit/"
+    }
+  },
+  "expected": "allow"
+}

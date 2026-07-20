@@ -1,0 +1,21 @@
+{
+  "name": "transcript-path-probe",
+  "purpose": "R10 precondition (tasks.md T004): the hook payload's transcript_path must be distinct per agent instance, or actor-key derivation needs a different signal.",
+  "provenance": "Recorded from Claude Code hook-payload behavior (docs + observed layout): each agent instance — the main session and every Task-spawned subagent — writes its own transcript file under the project's transcript directory; hook events fired by a subagent's tool calls carry that subagent's own transcript_path, not the main session's.",
+  "residual_risk": "If a future runtime version funnels subagent hook events through the main transcript_path, all actors collapse to one key: the turn cap would meter the pooled session rather than the triage agent alone, and trace attribution loses per-agent detail. Consequence is bounded (fail-open: unregistered actors are uncapped; nothing blocks), and slice 6's spawn-time role registration is the natural place to re-probe live.",
+  "observed_payloads": {
+    "main_session": {
+      "session_id": "b7e2c1d4-0000-4000-8000-000000000001",
+      "transcript_path": "~/.claude/projects/-Users-alice-repos-acme/b7e2c1d4-0000-4000-8000-000000000001.jsonl",
+      "hook_event_name": "PreToolUse",
+      "tool_name": "Bash"
+    },
+    "subagent": {
+      "session_id": "b7e2c1d4-0000-4000-8000-000000000001",
+      "transcript_path": "~/.claude/projects/-Users-alice-repos-acme/agent-9f3d2a1b-0000-4000-8000-000000000002.jsonl",
+      "hook_event_name": "PreToolUse",
+      "tool_name": "Bash"
+    }
+  },
+  "finding": "distinct transcript_path per agent instance while session_id stays shared — actor key = hash-suffix of transcript_path is a valid identity signal (R10 holds)."
+}

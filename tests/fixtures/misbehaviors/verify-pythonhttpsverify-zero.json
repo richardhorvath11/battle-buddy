@@ -1,0 +1,13 @@
+{
+  "name": "verify-pythonhttpsverify-zero",
+  "source": "PYTHONHTTPSVERIFY=0 disables TLS verification for a retry (untested alternative \u2014 TA1)",
+  "hook_payload": {
+    "hook_event_name": "PreToolUse",
+    "tool_name": "Bash",
+    "tool_input": {
+      "command": "PYTHONHTTPSVERIFY=0 python3 upload.py"
+    }
+  },
+  "expected": "block",
+  "expected_class": "verify_skip"
+}

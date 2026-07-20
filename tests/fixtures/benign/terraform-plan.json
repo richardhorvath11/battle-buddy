@@ -1,0 +1,12 @@
+{
+  "name": "terraform-plan",
+  "note": "plan is the read-only sibling of the denied apply/destroy",
+  "hook_payload": {
+    "hook_event_name": "PreToolUse",
+    "tool_name": "Bash",
+    "tool_input": {
+      "command": "terraform plan"
+    }
+  },
+  "expected": "allow"
+}

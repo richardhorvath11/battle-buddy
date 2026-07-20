@@ -1,0 +1,12 @@
+{
+  "name": "aws-describe-instances",
+  "note": "read-only cloud inspection",
+  "hook_payload": {
+    "hook_event_name": "PreToolUse",
+    "tool_name": "Bash",
+    "tool_input": {
+      "command": "aws ec2 describe-instances"
+    }
+  },
+  "expected": "allow"
+}

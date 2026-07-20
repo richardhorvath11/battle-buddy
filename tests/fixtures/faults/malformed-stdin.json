@@ -1,0 +1,7 @@
+{
+  "name": "malformed-stdin",
+  "description": "stdin is not JSON at all",
+  "stdin": "{this is not json",
+  "expected": "allow",
+  "expect_diagnostic": true
+}

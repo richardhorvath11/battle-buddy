@@ -159,3 +159,47 @@ between counter increment and append can skip a seq value at most — never dupl
 never reorder (protocol doc records this bound). **Alternative rejected**: per-call
 reservation with a pending-file handshake (two writes + cleanup per call, more failure
 states, no property gained).
+
+## R12 — Fingerprint normalization: the disambiguations FR-007's "exactly" leaves open
+
+**Decision** (recorded because FR-007 requires implementing design §5.2 *exactly*, and
+these four points are §5.2 ambiguities the implementation had to resolve — a later
+change to any of them forces a re-fingerprint pass, so they are versioned rule decisions,
+not style, per the design's Development Workflow duty):
+
+1. **Volatile-rule application order** (§5.2 lists the substitutions but not their order):
+   `uuid → iso_timestamp → ipv4 → hostname → hex_id → integer`, earlier wins. Timestamps
+   MUST run before `integer`/`hex_id` or `2026-07-20` would collapse to `<n>-<n>-<n>`;
+   uuid before hex_id so a full UUID is one `<id>`, not several. Order changes fingerprints.
+2. **Hex rule requires ≥1 letter** (§5.2 says "hex strings ≥8 chars"): a pure-digit run is
+   classified `<n>` (integer), not `<id>`, so ordinary large decimal ids (order numbers,
+   epoch-ish counters) don't masquerade as hex ids. A hex token needs at least one `a–f`.
+3. **Hostname requires ≥3 dotted labels** (§5.2 says "hostnames/IPs" unqualified): a bare
+   2-label domain (`example.com`) stays literal — collapsing every 2-label token would
+   over-normalize common words-with-dots and shrink the fingerprint's discriminating power.
+   IPv4 is matched separately and always collapses.
+4. **"IPs" in v1 means IPv4 only**: an IPv6 literal (colon-separated) is *not* collapsed to
+   a single `<host>` token — only its numeric groups ≥3 digits are incidentally hit by the
+   integer rule (e.g. `2001:db8::1` → `<n>:db8::1`), so a repeat alert carrying a volatile
+   IPv6 address does not fingerprint stably. Recorded as a known v1 limitation rather than a
+   silent gap; adding proper IPv6 collapse later is fingerprint-behavioral and so forces a
+   version bump. v1 accepts this because IPv6 addresses are rare in the alert-type text this
+   normalizes.
+
+The golden corpus (`tests/fixtures/fingerprint/golden.json`) pins each of these as an
+executable rule (`bb.fp.v1`); the design §5.2 rules-home file
+(`skills/session-store/references/fingerprint.md`) lands with slice 3 and will cite this
+entry. **Alternative rejected**: implementing §5.2 literally without pinning order/edges —
+leaves the fingerprint under-specified exactly where silent drift breaks recall.
+
+## R13 — FR-004 "visible in diagnostics" means hook stderr
+
+**Decision** (interpretation confirmed with the maintainer during slice-2 review): the
+FR-004 requirement that a fail-open (or degraded/recovery) event be "visible in
+diagnostics" is satisfied by writing to the **hook's stderr** — the conventional Claude
+Code hook diagnostic channel, captured in debug/verbose logs and the transcript. It does
+**not** require a responder-facing surface (`systemMessage` JSON output or a
+`.bb-session/` log file) in v1. All fail-open, counter-recovery, fsync-failure, and
+degraded-mode notices in this slice write to stderr accordingly. **Alternative deferred**:
+a responder-visible diagnostics surface — reconsidered only if operational experience
+shows stderr-in-debug-logs is insufficient for post-incident review.

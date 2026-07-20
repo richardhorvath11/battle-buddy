@@ -1,0 +1,12 @@
+{
+  "name": "commit-message-quoting-rm",
+  "note": "dangerous pattern only as data: quoted commit-message content (spec US1 AS-2 membership rule)",
+  "hook_payload": {
+    "hook_event_name": "PreToolUse",
+    "tool_name": "Bash",
+    "tool_input": {
+      "command": "git commit -m \"fix: remove rm -rf usage from deploy script\""
+    }
+  },
+  "expected": "allow"
+}

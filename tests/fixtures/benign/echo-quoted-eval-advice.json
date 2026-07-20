@@ -1,0 +1,12 @@
+{
+  "name": "echo-quoted-eval-advice",
+  "note": "sink keyword only as quoted data \u2014 no sink outside quotes, raw text not scanned",
+  "hook_payload": {
+    "hook_event_name": "PreToolUse",
+    "tool_name": "Bash",
+    "tool_input": {
+      "command": "git commit -m \"avoid eval in parsers\""
+    }
+  },
+  "expected": "allow"
+}

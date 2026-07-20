@@ -1,0 +1,16 @@
+{
+  "name": "state-dir-is-file",
+  "description": ".bb-session exists but is a regular file, not a directory",
+  "payload": {
+    "hook_event_name": "PreToolUse",
+    "tool_name": "Bash",
+    "tool_input": {
+      "command": "ls -la"
+    }
+  },
+  "setup": {
+    "state_dir_is_file": true
+  },
+  "expected": "allow",
+  "expect_diagnostic": false
+}

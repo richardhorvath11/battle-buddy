@@ -1,0 +1,14 @@
+#!/usr/bin/env python3
+"""CLI shim for bb_fingerprint (research R7): triage, close, and future
+tier-1 ingestion all call this one implementation, so fingerprints are
+identical everywhere (D-4). Exit codes: 0 ok / 2 usage error."""
+
+import os
+import sys
+
+sys.path.insert(0, os.path.dirname(os.path.realpath(__file__)))
+
+from bb_fingerprint import main
+
+if __name__ == "__main__":
+    sys.exit(main())

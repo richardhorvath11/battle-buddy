@@ -1,0 +1,16 @@
+{
+  "name": "unreadable-state-dir",
+  "description": "benign call with .bb-session unreadable (chmod 000) \u2014 bookkeeping must not block",
+  "payload": {
+    "hook_event_name": "PreToolUse",
+    "tool_name": "Bash",
+    "tool_input": {
+      "command": "ls -la"
+    }
+  },
+  "setup": {
+    "unreadable_state_dir": true
+  },
+  "expected": "allow",
+  "expect_diagnostic": false
+}
