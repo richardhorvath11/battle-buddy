@@ -52,8 +52,16 @@
   membership rule and made the decided over-match boundary; trace lines gained `outcome`
   (incl. `auth_error`) making the credential-scanning class detectable; tripwire's
   binding-map dependency named with graceful degradation; AGENTS.md amended in-PR on
-  push-gate scheduling; FR-006 keys off ledger `phase` (plan pins enumeration); FR-009
-  uses the verdict's own fields, no invented marker; FR-002 allows payload-named paths;
-  FR-013 cites D-6 and gained acceptance; FR-015 added for the §2.1 config warning;
-  SC-003 pinned to the 3.9/3.12 matrix; US5 Independent Test added. All items pass.
-  Ready for round-2 review, then `/speckit-plan`.
+  push-gate scheduling; FR-006 keys off ledger `phase` (plan pins enumeration); FR-002
+  allows payload-named paths; FR-013 cites D-6 and gained acceptance; FR-015 added for
+  the §2.1 config warning; SC-003 pinned to the 3.9/3.12 matrix; US5 Independent Test
+  added. Claimed FR-009 was fixed — round-2 review caught that the FR-009 edit was NOT
+  actually applied (only US4 AS-2 was), leaving an FR↔scenario contradiction; that run's
+  "all items pass" was therefore false on one item.
+- Validation run 3 (2026-07-20, round-2 fixes): FR-009 actually rewritten (deny +
+  trace-log budget exhaustion, no marker, verdict fields carry FR-5f(a) semantics, PRD
+  citation labeled); US2 prose aligned to phase-based invariant; FR-010 degraded mode
+  given an Independent Test fixture; FR-002 read sources extended to the workspace config
+  block (fixture in tests); untrusted set v1 narrowed to alerting+observability with the
+  ticket-shaped deferral made an explicit plan obligation. All items pass. Ready for
+  round-3 verification, then `/speckit-plan`.
