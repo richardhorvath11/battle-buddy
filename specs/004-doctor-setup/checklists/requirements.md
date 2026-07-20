@@ -41,3 +41,8 @@
   roster-hash input, migration execution) are pinned as informed defaults and recorded
   in Assumptions for reviewer visibility.
 - Items validated against spec.md as written on 2026-07-20; all pass.
+- Re-validated 2026-07-20 after converge-review round 1 (two-lens review; all findings
+  fixed, none defended): the FR-002-vs-Assumptions probe contradiction, the untestable
+  header/folder pins (now honest fixture-surface pins), the manifest optional-half
+  sourcing, the §2.1 workspace-repo contents, and the stamp-freshness ambiguity are
+  resolved in the spec text; all items re-checked against the updated file and pass.
