@@ -276,11 +276,11 @@ def get_turns(root, actor):
         except OSError:
             pass
     if corrupt:
-        # Fail-open (read 0 → cap effectively lifted for this check), but not
-        # silent: the next writer recovers seq; surface it here too (FR-004).
+        # Not silent (FR-004): the next writer recovers seq. Surviving turns
+        # are still returned below — the message must not claim otherwise.
         sys.stderr.write(
-            "bb-state: counters.json corrupt at turn-cap read; treating turns "
-            "as 0 (cap check degraded)\n"
+            "bb-state: counters.json corrupt at turn-cap read; returning "
+            "best-effort surviving turn count, seq recovers on next write\n"
         )
     turns = counters["turns"].get(actor)
     if isinstance(turns, bool) or not isinstance(turns, int):

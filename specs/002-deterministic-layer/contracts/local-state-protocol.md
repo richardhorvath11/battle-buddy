@@ -92,8 +92,8 @@ consumes none. This makes turn-consumption independent of the concurrent guardra
 
 **Corruption recovery** (this slice's implementation; no version bump — no format or
 consumer-parse change, only a hardening of the never-duplicate guarantee): a
-`counters.json` that is unparseable, non-object, or a non-empty object lacking `seq` is
-treated as corrupt. The next writer re-seeds `seq` from the **maximum valid seq in the
+`counters.json` that is unparseable, a non-object, a non-empty object lacking `seq`, or an
+object whose `seq`/`turns` is the wrong type is treated as corrupt. The next writer re-seeds `seq` from the **maximum valid seq in the
 bounded trace tail** (the one sanctioned appender read — see trace.jsonl) rather than
 resetting to 0, so a corrupt counter can never cause a duplicate seq. Per-actor `turns`
 that survive in the file are preserved; turns lost to corruption reset to 0 — meaning a

@@ -58,8 +58,9 @@ COMMAND_FIELDS = ("command", "cmd", "script", "code", "sql", "query", "statement
 #   - URLs (never executed);
 #   - the value of a message flag (`-m "…"` commit/tag text);
 #   - the search pattern of a grep-family tool.
-# A span carrying command substitution (`$(…)`, backticks, `${…}`) is *never*
-# masked — that content executes regardless of position.
+# A span carrying command/process substitution (`$(…)`, backticks, `${…}`,
+# `<(…)`, `>(…)`) is *never* masked — that content executes regardless of
+# position.
 _URL = re.compile(r"\bhttps?://\S+")
 # Command substitution / process substitution execute wherever they appear —
 # a span carrying any of these is never treated as inert data.
@@ -72,9 +73,13 @@ _MESSAGE_FLAG_VALUE = re.compile(
     r"(?P<flag>(?:^|(?<=\s))(?:-m|--message|--reason))(?P<sep>=|\s+)"
     r"(?P<val>'[^']*'|\"[^\"]*\"|\S+)"
 )
-# Grep-family search pattern: the first quoted token after a search command.
+# Grep-family search pattern: the quoted FIRST positional argument only —
+# reachable across flag tokens (`-r`, `--include=…`) but NOT across a bare word.
+# A bare word is the search pattern, which makes any following quoted token a
+# FILE operand (an executed read), so `grep secret "~/.ssh/id_rsa"` must not
+# mask the credential path.
 _GREP_PATTERN = re.compile(
-    r"(?P<head>\b(?:egrep|fgrep|grep|rg|ag|ack)\b[^|;&]*?)"
+    r"(?P<head>\b(?:egrep|fgrep|grep|rg|ag|ack)\b(?:\s+-{1,2}\S+)*\s+)"
     r"(?P<pat>'[^']*'|\"[^\"]*\")"
 )
 
@@ -201,7 +206,9 @@ def _auth_error_in_window(root):
     window — the context is uncertain, so callers block conservatively rather
     than trust a window a corrupt line may have hidden the auth error from."""
     lines, trustworthy = _state.tail_trace_status(root)
-    if not trustworthy:
+    if not trustworthy or not lines:
+        # No usable context: absent, unreadable, torn, or an empty trace all
+        # mean "cannot clear this read" → conservative degraded block, uniformly.
         return None
     return any(
         line.get("outcome") == _state.OUTCOME_ERROR_AUTH for line in lines

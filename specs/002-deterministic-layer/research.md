@@ -163,7 +163,7 @@ states, no property gained).
 ## R12 — Fingerprint normalization: the disambiguations FR-007's "exactly" leaves open
 
 **Decision** (recorded because FR-007 requires implementing design §5.2 *exactly*, and
-these three points are §5.2 ambiguities the implementation had to resolve — a later
+these four points are §5.2 ambiguities the implementation had to resolve — a later
 change to any of them forces a re-fingerprint pass, so they are versioned rule decisions,
 not style, per the design's Development Workflow duty):
 
@@ -178,11 +178,13 @@ not style, per the design's Development Workflow duty):
    2-label domain (`example.com`) stays literal — collapsing every 2-label token would
    over-normalize common words-with-dots and shrink the fingerprint's discriminating power.
    IPv4 is matched separately and always collapses.
-4. **"IPs" in v1 means IPv4 only**: an IPv6 literal (colon-separated) is *not* collapsed —
-   it stays literal, so a repeat alert carrying a volatile IPv6 address would not
-   fingerprint identically. Recorded as a known v1 limitation rather than a silent gap;
-   adding IPv6 later is fingerprint-behavioral and so forces a version bump. v1 accepts
-   this because IPv6 addresses are rare in the alert-type text this normalizes.
+4. **"IPs" in v1 means IPv4 only**: an IPv6 literal (colon-separated) is *not* collapsed to
+   a single `<host>` token — only its numeric groups ≥3 digits are incidentally hit by the
+   integer rule (e.g. `2001:db8::1` → `<n>:db8::1`), so a repeat alert carrying a volatile
+   IPv6 address does not fingerprint stably. Recorded as a known v1 limitation rather than a
+   silent gap; adding proper IPv6 collapse later is fingerprint-behavioral and so forces a
+   version bump. v1 accepts this because IPv6 addresses are rare in the alert-type text this
+   normalizes.
 
 The golden corpus (`tests/fixtures/fingerprint/golden.json`) pins each of these as an
 executable rule (`bb.fp.v1`); the design §5.2 rules-home file

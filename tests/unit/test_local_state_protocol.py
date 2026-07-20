@@ -341,6 +341,33 @@ def test_seq_only_corruption_preserves_surviving_turns(tmp_path, capsys):
     assert _state.get_turns(tmp_path, "agent-a") == 2  # turns preserved
 
 
+def test_non_object_counters_is_corrupt(tmp_path, capsys):
+    # Protocol: a valid-JSON non-object counters file is corrupt (recover, not
+    # reset) — FR-013 coverage of the "non-object" trigger.
+    for _ in range(2):
+        _state.append_trace(tmp_path, {"agent": "a", "tool": "Bash",
+                                       "summary": "x", "outcome": "ok"})
+    (tmp_path / ".bb-session" / "counters.json").write_text("[]", encoding="utf-8")
+    capsys.readouterr()
+    line = _state.append_trace(tmp_path, {"agent": "a", "tool": "Bash",
+                                          "summary": "y", "outcome": "ok"})
+    assert line["seq"] == 3
+    assert "corrupt" in capsys.readouterr().err
+
+
+def test_fsync_failure_is_surfaced_not_silent(tmp_path, capsys, monkeypatch):
+    # Protocol: a swallowed fsync failure could later manifest as a duplicate
+    # seq; it must be visible on stderr (FR-004), never silent.
+    def _boom(fd):
+        raise OSError("simulated fsync failure")
+
+    monkeypatch.setattr(_state.os, "fsync", _boom)
+    capsys.readouterr()
+    _state.append_trace(tmp_path, {"agent": "a", "tool": "Bash",
+                                   "summary": "x", "outcome": "ok"})
+    assert "fsync failed" in capsys.readouterr().err
+
+
 def test_tail_trace_status_reports_torn_window(tmp_path):
     _state.append_trace(tmp_path, {"agent": "a", "tool": "Bash",
                                    "summary": "x", "outcome": "ok"})

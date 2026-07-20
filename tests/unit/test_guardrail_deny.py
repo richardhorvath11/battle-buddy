@@ -167,6 +167,18 @@ def test_torn_auth_line_in_window_blocks_not_silently_allows(tmp_path):
     assert "no trace context" in stderr
 
 
+def test_empty_trace_blocks_like_absent_trace(tmp_path):
+    # CR3-2: a present-but-empty trace is the same "no usable context" state as
+    # an absent one — both block conservatively, no silent allow via a falsely
+    # "clean" empty window.
+    state = tmp_path / ".bb-session"
+    state.mkdir()
+    (state / "trace.jsonl").write_text("", encoding="utf-8")
+    exit_code, _, stderr = run_creds(tmp_path, tmp_path)
+    assert exit_code == 2
+    assert "no trace context" in stderr
+
+
 def test_unreadable_state_blocks_conservatively_not_silently(tmp_path):
     # SF4: an unreadable state dir yields no auth context; the credential class
     # blocks conservatively (over-match direction) rather than allowing on an
