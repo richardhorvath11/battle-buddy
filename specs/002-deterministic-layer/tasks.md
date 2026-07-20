@@ -79,9 +79,9 @@
 
 ## Phase 8: Polish & Cross-Cutting
 
-- [ ] T024 [P] Write `tests/unit/test_hook_latency.py`: R8 timing tripwire — p95 < 100ms over 100 invocations per hook entry (SC-002)
-- [ ] T025 [P] Confirm `tests/fixtures/packaging/intended-bundle.json` (merged in slice 1) already lists `hooks/**` + `bin/**` (it does); the real work is a shipped-side exclusion case proving `tests/`, `tools/`, and `.bb-session/` never appear in the bundle — extend `tests/unit/test_packaging.py` accordingly (SC-006 from the shipped side)
-- [ ] T026 Full quickstart walkthrough (all 10 scenarios); append validation run to `specs/002-deterministic-layer/checklists/requirements.md`
+- [X] T024 [P] Write `tests/unit/test_hook_latency.py`: R8 timing tripwire — p95 < 100ms over 100 invocations per hook entry (SC-002)
+- [X] T025 [P] Confirm `tests/fixtures/packaging/intended-bundle.json` (merged in slice 1) already lists `hooks/**` + `bin/**` (it does); the real work is a shipped-side exclusion case proving `tests/`, `tools/`, and `.bb-session/` never appear in the bundle — extend `tests/unit/test_packaging.py` accordingly (SC-006 from the shipped side)
+- [X] T026 Full quickstart walkthrough (all 10 scenarios); append validation run to `specs/002-deterministic-layer/checklists/requirements.md`
 
 ## Dependencies
 
