@@ -1,6 +1,8 @@
 <!--
 Sync Impact Report
-- Version change: (template) → 1.0.0 (initial ratification)
+- Version change: 1.0.0 → 1.0.1 (PATCH: corrected slice-spec location from `.specify/` to
+  `specs/` — spec-kit's actual scaffold layout; PR #1 review finding)
+- Previous: (template) → 1.0.0 (initial ratification)
 - Modified principles: n/a (initial adoption)
 - Added sections: Core Principles (I–VIII), Platform Constraints, Development Workflow, Governance
 - Removed sections: none
@@ -113,7 +115,7 @@ changes honest; code without its tests in the same change is incomplete.
 ## Development Workflow
 
 - **The design doc is upstream; specs correlate to code.** `bb-technical-design.md` is the
-  architectural reference. Each vertical slice gets its own spec under `.specify/`
+  architectural reference. Each vertical slice gets its own spec under `specs/`
   (spec → plan → tasks → implement), citing the design sections it implements and carrying
   its own acceptance criteria. Traceability runs PRD FR → design § → slice spec → code +
   tests.
@@ -141,4 +143,4 @@ guardrail and validator test suites are the mechanical arm of that review.
 Runtime agent guidance lives in `CLAUDE.md` (and `AGENTS.md` once adopted); those files
 route — this file rules.
 
-**Version**: 1.0.0 | **Ratified**: 2026-07-19 | **Last Amended**: 2026-07-19
+**Version**: 1.0.1 | **Ratified**: 2026-07-19 | **Last Amended**: 2026-07-19

@@ -21,7 +21,7 @@ spec-kit scaffold; component code lands slice-by-slice (see Build order below).
 | `bb-technical-design.md` | The system: architecture, components, data design, decisions D-1…D-21, testing strategy (§10) |
 | `oncall-harness-requirements.md` | PRD v0.9 — what the product is and why |
 | `bb-*.mermaid` | System/data, session sequence, agent dispatch diagrams (embedded in the design doc) |
-| `.specify/specs/` | Per-slice specs — each vertical slice gets spec → plan → tasks → implement |
+| `specs/` | Per-slice specs — each vertical slice gets spec → plan → tasks → implement |
 
 Traceability runs **PRD FR → design § → slice spec → code + tests**.
 
@@ -48,7 +48,7 @@ with the deterministic-layer slice).
 
 | Tier | Paths | Notes |
 |---|---|---|
-| **Allowed** | future plugin dirs (`commands/`, `agents/`, `skills/`, `hooks/`, `bin/`, `manifest/`, `templates/`), `tests/`, `tools/`, docs, `.specify/specs/**` | Default. Still subject to the constitution |
+| **Allowed** | future plugin dirs (`commands/`, `agents/`, `skills/`, `hooks/`, `bin/`, `manifest/`, `templates/`), `tests/`, `tools/`, docs, `specs/**` | Default. Still subject to the constitution |
 | **Restricted** (call it out in the PR) | `.specify/memory/constitution.md` (semver bump + Sync Impact Report per Governance); `Makefile`; `.claude/settings.json`; `.specify/templates/*` | Governance and gate surface — change deliberately |
 | **Upstream-managed** | `.specify/scripts/**`, `.specify/extensions/**`, `.claude/skills/speckit-*` | spec-kit vendored files; update via `specify` upgrades, don't hand-edit |
 

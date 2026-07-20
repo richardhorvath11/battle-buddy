@@ -554,7 +554,7 @@ Alert→service resolution: match the firing alert's fields against `alert_match
 Interface (skill-level contract, MCP-implemented):
 
 ```
-read_recent(n) -> entries[]        # format matching
+read_recent(n) -> entries[]        # format matching; ordered most recent first
 write_entry(content) -> url        # the dual-write's first write
 ```
 
