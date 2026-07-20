@@ -1,0 +1,57 @@
+{
+  "name": "schema-unknown-version",
+  "document": {
+    "schema": "bb.verdict.v2",
+    "session_id": "page-ALERT-123-2026-07-20",
+    "known_issue": {
+      "matched_session_id": "page-ALERT-090-2026-06-02",
+      "prior_resolution": "rolled back deploy",
+      "validation": "VALIDATED"
+    },
+    "candidates": [
+      {
+        "statement": "recent deploy regressed the cache layer",
+        "confidence": 0.7,
+        "provenance": "recall",
+        "validation": "VALIDATED",
+        "evidence": [
+          {
+            "url": "https://grafana.example.com/d/abc?from=1&to=2",
+            "excerpt": "p99 latency 4.2s"
+          }
+        ]
+      },
+      {
+        "statement": "recent deploy regressed the cache layer",
+        "confidence": 0.7,
+        "provenance": "fresh",
+        "evidence": [
+          {
+            "url": "https://grafana.example.com/d/abc?from=1&to=2",
+            "excerpt": "p99 latency 4.2s"
+          }
+        ]
+      }
+    ],
+    "severity": "sev3",
+    "flap_assessment": "real",
+    "deploy_window": [
+      {
+        "pr_url": "https://github.com/x/y/pull/1",
+        "merged_at": "2026-07-20T01:00:00Z",
+        "touches": [
+          "svc-a"
+        ]
+      }
+    ],
+    "next_step": "deep_investigation",
+    "no_strong_signal": false,
+    "budget_spent": {
+      "turns": 11,
+      "seconds": 94
+    }
+  },
+  "expected_rules": [
+    "schema.unknown_version"
+  ]
+}

@@ -1,0 +1,61 @@
+{
+  "name": "ledger-unvalidated-recall-hypothesis",
+  "document": {
+    "schema": "bb.ledger.v1",
+    "seq": 4,
+    "phase": "deep-dive",
+    "hypotheses": [
+      {
+        "id": "h1",
+        "statement": "hypothesis h1",
+        "provenance": "triage",
+        "status": "live",
+        "confidence": 0.5,
+        "evidence_for": [
+          {
+            "url": "https://grafana.example.com/d/abc?from=1&to=2",
+            "excerpt": "p99 latency 4.2s"
+          }
+        ],
+        "evidence_against": [],
+        "validation": "VALIDATED"
+      },
+      {
+        "id": "h2",
+        "statement": "hypothesis h2",
+        "provenance": "recall",
+        "status": "live",
+        "confidence": 0.5,
+        "evidence_for": [
+          {
+            "url": "https://grafana.example.com/d/abc?from=1&to=2",
+            "excerpt": "p99 latency 4.2s"
+          }
+        ],
+        "evidence_against": []
+      },
+      {
+        "id": "h3",
+        "statement": "hypothesis h3",
+        "provenance": "fresh",
+        "status": "live",
+        "confidence": 0.5,
+        "evidence_for": [
+          {
+            "url": "https://grafana.example.com/d/abc?from=1&to=2",
+            "excerpt": "p99 latency 4.2s"
+          }
+        ],
+        "evidence_against": []
+      }
+    ],
+    "services_touched": [
+      "svc-a"
+    ],
+    "tool_call_count": 37,
+    "at": "2026-07-20T03:41:00Z"
+  },
+  "expected_rules": [
+    "memory.unvalidated_non_fresh"
+  ]
+}

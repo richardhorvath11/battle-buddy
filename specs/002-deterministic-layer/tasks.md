@@ -40,9 +40,9 @@
 **Goal**: Schema + semantic invariants, one-pass machine-readable errors
 **Independent Test**: violation corpus classified 100% correctly (spec US2)
 
-- [ ] T010 [US2] Implement `bin/bb_validate.py` + `bin/bb-validate` CLI shim: version-tag dispatch (`bb.verdict.v1`, `bb.ledger.v1`), schema shape checks, semantic invariants (validation status on non-fresh; ≥3 live + ≥1 fresh when `phase` ∈ {evidence-gathering, deep-dive} per R9; `{url, excerpt}` evidence), one-pass JSON-lines violation output, exit codes 0/1/2, input never modified
-- [ ] T011 [P] [US2] Author `tests/fixtures/validate/*.json`: ≥1 violating document per schema rule and per semantic invariant, multi-violation document, valid verdict + ledger documents, non-JSON input, `schema_valid: false` pre-flagged document (validates like any other)
-- [ ] T012 [US2] Write `tests/unit/test_validate.py`: corpus classification (SC-004), one-pass completeness on the multi-violation document, byte-identity of valid inputs, decisive termination on garbage
+- [X] T010 [US2] Implement `bin/bb_validate.py` + `bin/bb-validate` CLI shim: version-tag dispatch (`bb.verdict.v1`, `bb.ledger.v1`), schema shape checks, semantic invariants (validation status on non-fresh; ≥3 live + ≥1 fresh when `phase` ∈ {evidence-gathering, deep-dive} per R9; `{url, excerpt}` evidence), one-pass JSON-lines violation output, exit codes 0/1/2, input never modified
+- [X] T011 [P] [US2] Author `tests/fixtures/validate/*.json`: ≥1 violating document per schema rule and per semantic invariant, multi-violation document, valid verdict + ledger documents, non-JSON input, `schema_valid: false` pre-flagged document (validates like any other)
+- [X] T012 [US2] Write `tests/unit/test_validate.py`: corpus classification (SC-004), one-pass completeness on the multi-violation document, byte-identity of valid inputs, decisive termination on garbage
 
 **Checkpoint**: Constitution VI has its enforcement mechanism
 

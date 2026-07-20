@@ -1,0 +1,11 @@
+{
+  "name": "schema-not-object",
+  "document": [
+    "not",
+    "an",
+    "object"
+  ],
+  "expected_rules": [
+    "schema.not_object"
+  ]
+}
