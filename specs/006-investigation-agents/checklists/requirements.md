@@ -42,3 +42,14 @@
   findings-embedding, model-class configurability, cross-slice test sequencing) pinned
   in Assumptions.
 - Items validated against spec.md as written on 2026-07-20; all pass.
+- Re-validated 2026-07-20 after converge-review round 1 (two-lens review; all findings
+  fixed, none defended). The blocking finding — the anchoring-guard phase claim, which
+  contradicted the merged validator (invariant phases are evidence-gathering AND
+  deep-dive; sparse ledgers are legal only in triage-seeded/hypothesis-generation) —
+  is corrected everywhere (US1, edge case, FR-002, FR-012, SC-004, Assumptions), with
+  design §5.4's own failing example flagged for reconciliation. Also fixed: tripwire
+  no longer called deterministic (D-20); untrusted-set deferral note added (slice-2
+  FR-010 parity); toolset names canonicalized to manifest capabilities; Constitution V
+  landed in FR-005; autoLaunchDeep named; triage input contract pinned; SC-005 scope
+  clarified; unregistered-specialist edge case corrected (only triage is capped in v1).
+  All items re-checked against the updated file and pass.
