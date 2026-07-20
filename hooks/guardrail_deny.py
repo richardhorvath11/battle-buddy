@@ -36,6 +36,7 @@ import os
 import re
 import sys
 
+import _config
 import _state
 
 SUMMARY_LIMIT = 120
@@ -44,16 +45,28 @@ SUMMARY_LIMIT = 120
 # (descriptions, messages, excerpts, row values) is data, never scanned.
 COMMAND_FIELDS = ("command", "cmd", "script", "code", "sql", "query", "statement")
 
-_QUOTED = re.compile(r"'[^']*'|\"[^\"]*\"")
+# Scrubbing masks *data positions* — text the shell does not execute — so a
+# dangerous pattern that appears only as data (US1 AS-2) doesn't match, while
+# anything in an executed position stays raw and over-matches (Constitution
+# III's posture). Masking quotes syntactically was the wrong model: it let a
+# quoted flag or path (`git push "--force"`, `cat "~/.ssh/id_rsa"`) slip the
+# gate. We mask three inert positions instead:
+#   - URLs (never executed);
+#   - the value of a message flag (`-m "…"` commit/tag text);
+#   - the search pattern of a grep-family tool.
+# A span carrying command substitution (`$(…)`, backticks, `${…}`) is *never*
+# masked — that content executes regardless of position.
 _URL = re.compile(r"\bhttps?://\S+")
-# Execution sinks: constructs that execute their (typically quoted) argument.
-_SINKS = re.compile(
-    r"(?:\b(?:ba|z|k|da)?sh\s+(?:-\w+\s+)*-c\b)"
-    r"|\beval\b|\bxargs\b|\bsource\s"
-    r"|\bpsql\b[^|;&]*\s-c\b"
-    r"|\bmysql\b[^|;&]*\s(?:-e|--execute)\b"
-    r"|\bpython3?\s+-c\b"
-    r"|\bnode\s+(?:-e|--eval)\b"
+_CMDSUB = re.compile(r"\$\(|`|\$\{")
+# Message-flag value: keep the flag, mask the argument (quoted or a bare run).
+_MESSAGE_FLAG_VALUE = re.compile(
+    r"(?P<flag>(?:^|(?<=\s))(?:-m|--message|--reason|-C))(?P<sep>=|\s+)"
+    r"(?P<val>'[^']*'|\"[^\"]*\"|\S+)"
+)
+# Grep-family search pattern: the first quoted token after a search command.
+_GREP_PATTERN = re.compile(
+    r"(?P<head>\b(?:egrep|fgrep|grep|rg|ag|ack)\b[^|;&]*?)"
+    r"(?P<pat>'[^']*'|\"[^\"]*\")"
 )
 
 _HOMES = r"(?:~|\$HOME|/home/[\w.-]+|/Users/[\w.-]+)"
@@ -154,18 +167,28 @@ def _command_texts(tool_input):
     return texts
 
 
-def _scan_variants(text):
-    """The masked text always; the raw text too when a sink survives masking."""
-    masked = _QUOTED.sub("<quoted>", _URL.sub("<url>", text))
-    variants = [masked]
-    if _SINKS.search(masked):
-        variants.append(text)
-    return variants
+def _mask_inert(match, placeholder, group="val"):
+    """Replace a data span with a placeholder — unless it carries command
+    substitution, which executes wherever it appears and so stays raw."""
+    span = match.group(group)
+    if _CMDSUB.search(span):
+        return match.group(0)
+    return match.group(0)[: match.start(group) - match.start(0)] + placeholder
+
+
+def _scrub(text):
+    """Mask inert data positions so patterns match only executed content."""
+    text = _URL.sub(
+        lambda m: m.group(0) if _CMDSUB.search(m.group(0)) else "<url>", text
+    )
+    text = _MESSAGE_FLAG_VALUE.sub(lambda m: _mask_inert(m, "<msg>"), text)
+    text = _GREP_PATTERN.sub(lambda m: _mask_inert(m, "<pat>", group="pat"), text)
+    return text
 
 
 def _auth_error_in_window(root):
-    """True: auth error in the 10-line window. False: window clean.
-    None: no trace context at all (degraded, pattern-only mode)."""
+    """True: auth error in the 10-line window. False: window clean & readable.
+    None: no trace context (absent) — degraded, pattern-only mode."""
     tail = _state.tail_trace(root)
     if not tail:
         return None
@@ -187,38 +210,52 @@ def _evaluate(payload):
     if not isinstance(root, str) or not root:
         root = os.getcwd()
 
+    scrubbed = [_scrub(text) for text in texts]
     for name, description, patterns in DENY_CLASSES:
         matched = any(
-            pattern.search(variant)
-            for text in texts
-            for variant in _scan_variants(text)
-            for pattern in patterns
+            pattern.search(text) for text in scrubbed for pattern in patterns
         )
         if not matched:
             continue
         if name == "credential_scan":
-            # Context rule: fire on auth error in the recent-trace window, or
-            # in pattern-only mode when no trace context exists yet.
-            if _auth_error_in_window(root) is False:
+            # Context rule: block on an auth error in the recent-trace window,
+            # or conservatively in pattern-only mode when no trace context is
+            # available. Allow only when the window is present AND clean.
+            context = _auth_error_in_window(root)
+            if context is False:
                 continue
+            if context is None:
+                # No auth context to cite — say so, rather than asserting an
+                # auth error we cannot see (honest degraded-mode message).
+                return name, BLOCK_MESSAGE % (
+                    "credential-path read with no trace context to clear it",
+                    name,
+                )
         return name, BLOCK_MESSAGE % (description, name)
     return None
 
 
 def _append_denied_line(payload, class_name, texts):
+    """Append the block's own trace line. Returns config notices (if any) so
+    the caller can surface them in diagnostics (fail-open visibility)."""
     root = payload.get("cwd")
     if not isinstance(root, str) or not root:
         root = os.getcwd()
-    summary = (texts[0] if texts else "")[:SUMMARY_LIMIT]
-    _state.append_trace(
-        root,
-        {
-            "agent": _state.actor_key(payload.get("transcript_path", "")),
-            "tool": payload.get("tool_name", ""),
-            "summary": summary,
-            "outcome": _state.OUTCOME_DENIED_GUARDRAIL_PREFIX + class_name,
-        },
-    )
+    tool = payload.get("tool_name", "")
+    line = {
+        "agent": _state.actor_key(payload.get("transcript_path", "")),
+        "tool": tool,
+        "summary": (texts[0] if texts else "")[:SUMMARY_LIMIT],
+        "outcome": _state.OUTCOME_DENIED_GUARDRAIL_PREFIX + class_name,
+    }
+    # capability rides the line from the binding map when present (protocol
+    # doc); a lone matching capability is unambiguous, several are joined.
+    cfg = _config.load_config(root)
+    capabilities = cfg.capabilities_for(tool)
+    if capabilities:
+        line["capability"] = ",".join(sorted(capabilities))
+    _state.append_trace(root, line)
+    return cfg.notices
 
 
 def run(stdin_text):
@@ -247,7 +284,9 @@ def run(stdin_text):
     try:
         tool_input = payload.get("tool_input")
         texts = _command_texts(tool_input) if isinstance(tool_input, dict) else []
-        _append_denied_line(payload, class_name, texts)
+        notices = _append_denied_line(payload, class_name, texts)
+        for notice in notices:
+            diagnostics += "guardrail_deny config notice: %s\n" % notice
     except Exception as exc:
         # Bookkeeping failure never downgrades a deny — but stays visible.
         diagnostics = "guardrail_deny: denied-line append failed (%s)\n" % exc

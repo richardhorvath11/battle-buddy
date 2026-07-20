@@ -26,6 +26,7 @@ import hashlib
 import json
 import os
 import shutil
+import sys
 from datetime import datetime, timezone
 
 PROTOCOL = "bb.local.v1"
@@ -93,6 +94,10 @@ def _locked_counters(root):
 
 
 def _read_counters_fd(fd):
+    """Return (data, corrupt): parsed counters, and whether the on-disk bytes
+    were unusable. On corruption the caller re-seeds seq from the trace tail
+    rather than silently resetting to 0 (which would duplicate seq values —
+    the one thing the protocol promises never happens)."""
     os.lseek(fd, 0, os.SEEK_SET)
     chunks = []
     while True:
@@ -100,25 +105,66 @@ def _read_counters_fd(fd):
         if not chunk:
             break
         chunks.append(chunk)
+    raw = b"".join(chunks)
+    corrupt = False
     try:
-        data = json.loads(b"".join(chunks).decode("utf-8"))
+        data = json.loads(raw.decode("utf-8"))
         if not isinstance(data, dict):
             raise ValueError("counters.json is not an object")
     except ValueError:
+        # Empty file at first-create is normal, not corruption.
+        corrupt = bool(raw.strip())
         data = {}
     data.setdefault("protocol", PROTOCOL)
     if not isinstance(data.get("seq"), int) or isinstance(data.get("seq"), bool):
+        if data.get("seq") is not None:
+            corrupt = True
         data["seq"] = 0
     if not isinstance(data.get("turns"), dict):
+        if data.get("turns") is not None:
+            corrupt = True
         data["turns"] = {}
-    return data
+    return data, corrupt
+
+
+def _max_trace_seq(root):
+    """Highest seq already in the trace file (0 if none). Used only on the
+    cold counters-recovery path — never on the hot append path, so the
+    appender-never-reads rule holds for normal operation."""
+    highest = 0
+    for line in tail_trace(root, n=1):
+        seq = line.get("seq")
+        if isinstance(seq, int) and not isinstance(seq, bool):
+            highest = seq
+    return highest
 
 
 def _write_counters_fd(fd, data):
     payload = json.dumps(data, separators=(",", ":")).encode("utf-8")
     os.lseek(fd, 0, os.SEEK_SET)
-    os.ftruncate(fd, 0)
-    os.write(fd, payload)
+    written = 0
+    while written < len(payload):
+        n = os.write(fd, payload[written:])
+        if n <= 0:
+            raise OSError("short write to counters.json")
+        written += n
+    os.ftruncate(fd, written)  # write-then-truncate: never exposes an empty file
+    try:
+        os.fsync(fd)  # counter durable before the trace append that depends on it
+    except OSError:
+        pass
+
+
+def _recover_seq(root, counters):
+    """Re-seed a corrupt counter's seq from the trace tail so the next append
+    never duplicates an existing seq. Returns a diagnostic notice."""
+    recovered = max(counters["seq"], _max_trace_seq(root))
+    counters["seq"] = recovered
+    return (
+        "counters.json was corrupt; recovered seq from trace tail (>=%d). "
+        "Per-actor turn counts could not be recovered and reset to 0."
+        % recovered
+    )
 
 
 def append_trace(root, fields):
@@ -126,10 +172,13 @@ def append_trace(root, fields):
 
     ``fields`` supplies everything but ``protocol`` and ``seq`` (and ``at``,
     filled if absent). The append happens under the counters lock so file
-    order == seq order; the appender never reads the trace file.
+    order == seq order; the appender never reads the trace file (except the
+    cold corruption-recovery path, which must restore monotonicity).
     """
     with _locked_counters(root) as fd:
-        counters = _read_counters_fd(fd)
+        counters, corrupt = _read_counters_fd(fd)
+        if corrupt:
+            sys.stderr.write("bb-state: " + _recover_seq(root, counters) + "\n")
         counters["seq"] += 1
         _write_counters_fd(fd, counters)
         line = {"protocol": PROTOCOL, "seq": counters["seq"]}
@@ -164,12 +213,29 @@ def tail_trace(root, n=AUTH_CONTEXT_WINDOW):
 
 
 def get_turns(root, actor):
-    """Executed-call count for one actor (checked at PreToolUse)."""
+    """Executed-call count for one actor (checked at PreToolUse).
+
+    A pure read: it never creates ``.bb-session/`` or ``counters.json`` (the
+    protocol's "created lazily by the first writer" invariant — a PreToolUse
+    cap check in a workspace that never opened a session must leave no trace)."""
+    path = os.path.join(state_dir(root), COUNTERS_NAME)
+    if not os.path.exists(path):
+        return 0
     try:
-        with _locked_counters(root) as fd:
-            counters = _read_counters_fd(fd)
+        fd = os.open(path, os.O_RDONLY)
     except OSError:
         return 0
+    try:
+        fcntl.flock(fd, fcntl.LOCK_SH)
+        counters, _ = _read_counters_fd(fd)
+    except OSError:
+        return 0
+    finally:
+        try:
+            fcntl.flock(fd, fcntl.LOCK_UN)
+            os.close(fd)
+        except OSError:
+            pass
     turns = counters["turns"].get(actor)
     if isinstance(turns, bool) or not isinstance(turns, int):
         return 0
@@ -180,7 +246,9 @@ def increment_turn(root, actor):
     """Consume one turn for ``actor`` (called at PostToolUse only — executed
     calls consume turns; guardrail- or cap-denied calls never do)."""
     with _locked_counters(root) as fd:
-        counters = _read_counters_fd(fd)
+        counters, corrupt = _read_counters_fd(fd)
+        if corrupt:
+            sys.stderr.write("bb-state: " + _recover_seq(root, counters) + "\n")
         current = counters["turns"].get(actor)
         if isinstance(current, bool) or not isinstance(current, int):
             current = 0

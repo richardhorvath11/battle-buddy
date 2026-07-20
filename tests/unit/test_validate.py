@@ -7,6 +7,7 @@ invariant; the multi-violation fixture proves one-pass completeness.
 """
 
 import json
+import re
 import subprocess
 import sys
 from pathlib import Path
@@ -46,6 +47,15 @@ def test_every_violation_record_is_machine_readable(fixture_path):
         assert violation["rule"] and violation["message"]
 
 
+def emittable_rules_from_source():
+    """Every rule name the validator can emit, derived from the source rather
+    than a hand-maintained list (TA4) — a new `_violation(..., "rule.x", ...)`
+    with no fixture then actually fails this gate instead of slipping through
+    a frozen roster that lacks it on both sides."""
+    source = (BIN_DIR / "bb_validate.py").read_text(encoding="utf-8")
+    return set(re.findall(r'_violation\(\s*violations,\s*"([^"]+)"', source))
+
+
 def test_corpus_covers_every_rule_the_validator_can_emit():
     # The fixture corpus is the gate: if a rule exists in the validator but
     # no fixture triggers it, the corpus has a hole (SC-004's ">=1 violation
@@ -53,15 +63,14 @@ def test_corpus_covers_every_rule_the_validator_can_emit():
     emitted = set()
     for fixture_path in VALIDATE_FILES:
         emitted.update(load(fixture_path)["expected_rules"])
-    expected = {
-        "schema.not_object", "schema.unknown_version", "schema.missing_field",
-        "schema.wrong_type", "ledger.unknown_phase",
-        "memory.unvalidated_non_fresh", "validation.unknown_value",
-        "provenance.unknown", "evidence.not_url_excerpt_pair",
-        "confidence.out_of_range", "ledger.min_live_hypotheses",
-        "ledger.fresh_required",
-    }
-    assert emitted == expected
+    can_emit = emittable_rules_from_source()
+    assert can_emit, "roster derivation found no rules — regex drifted"
+    missing = can_emit - emitted
+    assert missing == set(), "rules with no violation fixture: %s" % sorted(missing)
+    assert emitted <= can_emit, (
+        "fixtures expect rules the validator cannot emit: %s"
+        % sorted(emitted - can_emit)
+    )
 
 
 def test_one_pass_reports_all_violations_of_a_multi_violation_document():
@@ -132,6 +141,18 @@ def test_cli_garbage_input_terminates_decisively_with_exit_2(garbage):
 def test_cli_missing_file_is_a_usage_error():
     result = run_cli(args=["/nonexistent/never.json"])
     assert result.returncode == 2
+    assert result.stderr.strip()
+
+
+def test_cli_non_utf8_file_is_a_read_error_not_a_violation(tmp_path):
+    # SF7: a UTF-16 file raises UnicodeDecodeError (a ValueError) on read; that
+    # must exit 2 (read error), never 1 (the "violations found" code a scripted
+    # caller would try to parse as JSON lines).
+    doc_path = tmp_path / "verdict-utf16.json"
+    doc_path.write_bytes('{"schema": "bb.verdict.v1"}'.encode("utf-16"))
+    result = run_cli(args=[str(doc_path)])
+    assert result.returncode == 2
+    assert result.stdout == ""
     assert result.stderr.strip()
 
 

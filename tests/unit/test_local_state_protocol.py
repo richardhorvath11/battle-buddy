@@ -30,9 +30,12 @@ def test_state_dir_is_created_lazily_by_first_writer(tmp_path):
 
 
 def test_readers_do_not_create_the_state_dir(tmp_path):
+    # get_turns is a PreToolUse read (cap check); it must not litter a
+    # .bb-session in a workspace that never opened a session (CR2).
     _state.tail_trace(tmp_path)
     _state.read_roles(tmp_path)
     _state.read_marker(tmp_path)
+    assert _state.get_turns(tmp_path, "agent-x") == 0
     assert not (tmp_path / ".bb-session").exists()
 
 
@@ -249,7 +252,7 @@ def test_denied_lines_do_not_consume_turns(tmp_path):
     assert _state.get_turns(tmp_path, "agent-a") == 0
 
 
-def test_corrupt_counters_recovers_to_empty_defaults(tmp_path):
+def test_corrupt_counters_with_no_trace_starts_at_one(tmp_path):
     state = tmp_path / ".bb-session"
     state.mkdir()
     (state / "counters.json").write_text("{broken", encoding="utf-8")
@@ -257,6 +260,45 @@ def test_corrupt_counters_recovers_to_empty_defaults(tmp_path):
     line = _state.append_trace(tmp_path, {"agent": "a", "tool": "Bash",
                                           "summary": "x", "outcome": "ok"})
     assert line["seq"] == 1
+
+
+def test_corrupt_counters_recover_seq_from_trace_tail_never_duplicating(
+    tmp_path, capsys
+):
+    # SF1: the failure that must not be silent. An existing trace at seq 7 with
+    # a corrupt counters.json must NOT reset the next append to seq 1 (that
+    # would duplicate seqs and falsify the audit log). Recover from the tail
+    # and surface a diagnostic.
+    for _ in range(7):
+        _state.append_trace(tmp_path, {"agent": "a", "tool": "Bash",
+                                       "summary": "x", "outcome": "ok"})
+    counters_path = tmp_path / ".bb-session" / "counters.json"
+    counters_path.write_text("{truncated mid-write", encoding="utf-8")
+    capsys.readouterr()  # clear
+    line = _state.append_trace(tmp_path, {"agent": "a", "tool": "Bash",
+                                          "summary": "y", "outcome": "ok"})
+    assert line["seq"] == 8  # continues past the tail — no duplicate of 1..7
+    assert "corrupt" in capsys.readouterr().err  # not silent (FR-004)
+    all_seqs = [l["seq"] for l in read_trace(tmp_path)]
+    assert len(all_seqs) == len(set(all_seqs))  # no duplicates anywhere
+
+
+def test_crash_window_seq_skip_is_bounded_never_duplicated(tmp_path):
+    # TA7: a crash between counter-increment and trace append can skip a seq
+    # value at most (counters ahead of the trace) — never duplicate. Simulate
+    # by advancing the counter past the trace, then assert monotonic-unique.
+    _state.append_trace(tmp_path, {"agent": "a", "tool": "Bash",
+                                   "summary": "x", "outcome": "ok"})
+    counters_path = tmp_path / ".bb-session" / "counters.json"
+    counters_path.write_text(
+        json.dumps({"protocol": "bb.local.v1", "seq": 5, "turns": {}}),
+        encoding="utf-8",
+    )
+    line = _state.append_trace(tmp_path, {"agent": "a", "tool": "Bash",
+                                          "summary": "y", "outcome": "ok"})
+    assert line["seq"] == 6  # skipped 2..5, never reused seq 1
+    seqs = [l["seq"] for l in read_trace(tmp_path)]
+    assert seqs == [1, 6] and len(seqs) == len(set(seqs))
 
 
 # --- Auth-context window ----------------------------------------------------

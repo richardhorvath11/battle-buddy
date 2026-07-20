@@ -135,7 +135,83 @@ def test_no_trace_degrades_to_pattern_only_block(tmp_path):
     assert exit_code == 2 and "credential_scan" in stderr
 
 
+def test_degraded_block_message_is_honest_about_missing_context(tmp_path):
+    # SF4: in pattern-only degraded mode the block must NOT claim "after an
+    # auth error" it cannot see — it says the trace context was unavailable.
+    exit_code, _, stderr = run_creds(tmp_path, tmp_path)
+    assert exit_code == 2
+    assert "no trace context" in stderr
+    assert "after an auth error" not in stderr
+
+
+def test_quoted_credential_path_still_matches(tmp_path):
+    # O2: quoting a credential path does not make the read safe — the class
+    # still fires (blocked here because there is no clean window to clear it).
+    payload = dict(CREDS_PAYLOAD, cwd=str(tmp_path),
+                   tool_input={"command": 'cat "$HOME/.aws/credentials"'},
+                   transcript_path=str(tmp_path / "t.jsonl"))
+    exit_code, _, stderr = guardrail_deny.run(json.dumps(payload))
+    assert exit_code == 2 and "credential_scan" in stderr
+
+
+def test_unreadable_state_blocks_conservatively_not_silently(tmp_path):
+    # SF4: an unreadable state dir yields no auth context; the credential class
+    # blocks conservatively (over-match direction) rather than allowing on an
+    # infra error, and the block is loud, not silent.
+    root = tmp_path / "workspace"
+    root.mkdir()
+    (root / ".bb-session").write_text("file where a dir should be", encoding="utf-8")
+    exit_code, _, stderr = run_creds(root, tmp_path)
+    assert exit_code == 2
+    assert "no trace context" in stderr
+
+
+# --- Y2: denied line carries capability when the binding map classifies it ---
+
+
+def test_denied_line_carries_capability_from_bindings(tmp_path):
+    root = tmp_path / "workspace"
+    root.mkdir()
+    claude = root / ".claude"
+    claude.mkdir()
+    (claude / "settings.json").write_text(
+        json.dumps({"battleBuddy": {"bindings": {
+            "observability.run_query": "mcp__grafana__delete_dashboard"}}}),
+        encoding="utf-8",
+    )
+    payload = {"hook_event_name": "PreToolUse",
+               "tool_name": "mcp__grafana__delete_dashboard",
+               "tool_input": {"command": "terraform destroy -auto-approve"},
+               "cwd": str(root), "transcript_path": str(tmp_path / "t.jsonl")}
+    exit_code, _, _ = guardrail_deny.run(json.dumps(payload))
+    assert exit_code == 2
+    lines = [
+        json.loads(l)
+        for l in (root / ".bb-session" / "trace.jsonl").read_text().splitlines()
+    ]
+    assert lines[-1]["capability"] == "observability"
+
+
+def test_denied_line_omits_capability_when_no_bindings(tmp_path):
+    root = tmp_path / "workspace"
+    root.mkdir()
+    payload = {"hook_event_name": "PreToolUse", "tool_name": "Bash",
+               "tool_input": {"command": "rm -rf /"},
+               "cwd": str(root), "transcript_path": str(tmp_path / "t.jsonl")}
+    guardrail_deny.run(json.dumps(payload))
+    line = json.loads(
+        (root / ".bb-session" / "trace.jsonl").read_text().splitlines()[-1]
+    )
+    assert "capability" not in line
+
+
 # --- fail-open under fault injection (SC-007) -------------------------------
+
+
+def test_fault_corpus_is_non_empty():
+    # TA5: an emptied/renamed faults/ dir would make every fail-open test
+    # vanish as an empty parametrize (skipped, suite green) — pin it.
+    assert len(failopen.fault_cases()) >= 5
 
 
 @pytest.mark.parametrize(

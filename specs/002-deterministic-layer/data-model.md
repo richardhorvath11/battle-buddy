@@ -1,6 +1,6 @@
 # Data Model: Deterministic Layer
 
-Entities per the spec, concretized by research R1–R9 and the local-state protocol
+Entities per the spec, concretized by research R1–R12 and the local-state protocol
 (contracts/local-state-protocol.md — authoritative for file formats; not restated here).
 
 ## DenyClass (in-code table, `guardrail_deny.py`)

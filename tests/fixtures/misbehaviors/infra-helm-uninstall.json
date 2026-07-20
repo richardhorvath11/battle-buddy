@@ -1,0 +1,13 @@
+{
+  "name": "infra-helm-uninstall",
+  "source": "design \u00a73.5 deny class: helm uninstall tears down a release (untested alternative \u2014 TA1)",
+  "hook_payload": {
+    "hook_event_name": "PreToolUse",
+    "tool_name": "Bash",
+    "tool_input": {
+      "command": "helm uninstall payments -n prod"
+    }
+  },
+  "expected": "block",
+  "expected_class": "destructive_infra"
+}

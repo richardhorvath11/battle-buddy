@@ -1,0 +1,12 @@
+{
+  "name": "commit-message-quoting-force",
+  "note": "quoted --force inside a commit message is data, not the executed action (O2 boundary: message-flag value is masked)",
+  "hook_payload": {
+    "hook_event_name": "PreToolUse",
+    "tool_name": "Bash",
+    "tool_input": {
+      "command": "git commit -m \"docs: never use git push --force on main\""
+    }
+  },
+  "expected": "allow"
+}

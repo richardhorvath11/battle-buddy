@@ -58,7 +58,17 @@ _WHITESPACE = re.compile(r"\s+")
 
 
 def _basic_normalize(text):
-    return _WHITESPACE.sub(" ", str(text).strip()).lower()
+    # Reject non-str inputs loudly rather than str()-coercing them. A stray
+    # None would become the literal "none" — a stable, plausible, *wrong*
+    # fingerprint with no flag, silently colliding every missing-service alert
+    # and poisoning exact-match recall (the one failure the version discipline
+    # exists to prevent). The "never raises" promise covers empty/all-volatile
+    # *strings*, not type confusion.
+    if not isinstance(text, str):
+        raise TypeError(
+            "fingerprint inputs must be str, got %s" % type(text).__name__
+        )
+    return _WHITESPACE.sub(" ", text.strip()).lower()
 
 
 def normalize_service(service):

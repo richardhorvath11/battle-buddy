@@ -45,6 +45,13 @@ def run_fault(hook_module, fixture_path, tmp_path, monkeypatch, exception_target
     restore_mode = None
     if setup.get("unreadable_state_dir"):
         state.mkdir()
+        # chmod(0) does not restrict root — under a root CI container the dir
+        # stays readable and the fault would be a no-op (vacuous pass). Skip
+        # rather than assert nothing (SF9).
+        if hasattr(os, "geteuid") and os.geteuid() == 0:
+            import pytest
+
+            pytest.skip("chmod-based unreadable-dir fault is a no-op as root")
         restore_mode = state.stat().st_mode
         os.chmod(str(state), 0)
     elif setup.get("state_dir_is_file"):

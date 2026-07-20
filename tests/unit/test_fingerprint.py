@@ -20,6 +20,13 @@ CASES = CORPUS["cases"]
 BY_NAME = {case["name"]: case for case in CASES}
 
 
+def test_corpus_is_non_empty():
+    # TA5: an emptied/renamed corpus must not make the golden gate vanish as an
+    # empty parametrize (skipped, suite green).
+    assert len(CASES) >= 20
+    assert CORPUS["identical_pairs"] and CORPUS["distinct_pairs"]
+
+
 def test_corpus_version_matches_implementation():
     assert CORPUS["version"] == bb_fingerprint.VERSION == "bb.fp.v1"
 
@@ -93,6 +100,38 @@ def test_never_raises_on_degenerate_inputs():
     for service, alert_type in [("", ""), ("   ", "\t"), ("x", "999")]:
         result = bb_fingerprint.fingerprint(service, alert_type)
         assert re.fullmatch(r"[0-9a-f]{16}", result["fingerprint"])
+
+
+@pytest.mark.parametrize(
+    "service, alert_type",
+    [(None, "x"), ("x", None), (42, "x"), ("x", {"k": "v"}), (["x"], "y")],
+    ids=["none-svc", "none-alert", "int-svc", "dict-alert", "list-svc"],
+)
+def test_non_str_inputs_raise_never_coerce(service, alert_type):
+    # SF3: str()-coercion would turn None into a stable "none" fingerprint with
+    # no flag, silently colliding every missing-service alert. Fail loud.
+    with pytest.raises(TypeError):
+        bb_fingerprint.fingerprint(service, alert_type)
+
+
+def test_two_label_domain_stays_literal_boundary():
+    # TA6: the hostname rule is ">=3 dotted labels"; a 2-label domain must NOT
+    # collapse to <host>. Quantifier drift ({2,}->{1,}) would silently break
+    # recall — pin the boundary.
+    result = bb_fingerprint.fingerprint("svc-a", "example.com is down")
+    assert "<host>" not in result["alert_type_normalized"]
+    assert "example.com" in result["alert_type_normalized"]
+
+
+def test_volatile_rule_precedence_is_pinned():
+    # TA6: timestamp must win over integer (a date is not three <n>s), and UUID
+    # must win over hex_id. Order changes fingerprints, so pin it.
+    ts = bb_fingerprint.fingerprint("svc-a", "at 2026-07-20")["alert_type_normalized"]
+    assert ts == "at <ts>"
+    uuid = bb_fingerprint.fingerprint(
+        "svc-a", "3f9d2c1e-8a4b-4c6d-9e0f-112233445566"
+    )["alert_type_normalized"]
+    assert uuid == "<id>"
 
 
 # --- CLI shim (R7) ----------------------------------------------------------

@@ -17,6 +17,16 @@ not by convention"):
 - every evidence entry is a `{url, excerpt}` pair — prose alone is invalid
   by schema (Constitution IV).
 
+Scope of v1 (recorded so the subset is a decision, not an accident): v1
+enforces the fields the headline invariants ride on. It intentionally does
+NOT yet check `known_issue` sub-fields (`matched_session_id`,
+`prior_resolution`) beyond their `validation` tag, and it accepts any string
+for a hypothesis `status` (only `"live"` is counted toward the anchoring
+invariant — an unknown status shrinks the live set and so fails *loud* via
+`ledger.min_live_hypotheses`, never silently passes). Design §5.4 defers the
+full field schemas to `skills/investigation/references/schemas.md` (slice 6);
+this validator tightens as that lands.
+
 Python 3.9-compatible, stdlib only.
 """
 
@@ -274,12 +284,15 @@ def main(argv=None):
         sys.stderr.write("usage: bb-validate [FILE]  (or document on stdin)\n")
         return 2
     try:
+        # ValueError catches UnicodeDecodeError (a non-UTF-8 file) alongside
+        # OSError — both are read failures, exit 2, never the exit-1 that means
+        # "violations found" to a scripted caller branching on the code.
         if argv:
             with open(argv[0], encoding="utf-8") as f:
                 raw = f.read()
         else:
             raw = sys.stdin.read()
-    except OSError as exc:
+    except (OSError, ValueError) as exc:
         sys.stderr.write("bb-validate: cannot read input (%s)\n" % exc)
         return 2
     try:
@@ -287,7 +300,13 @@ def main(argv=None):
     except ValueError as exc:
         sys.stderr.write("bb-validate: input is not JSON (%s)\n" % exc)
         return 2
-    violations = validate(doc)
+    try:
+        violations = validate(doc)
+    except Exception as exc:
+        # An internal validator bug must never masquerade as exit 1 (violations)
+        # or exit 0 (valid). Correctness helper: fail loud, fail as usage-error.
+        sys.stderr.write("bb-validate: internal error (%s)\n" % exc)
+        return 2
     for violation in violations:
         sys.stdout.write(json.dumps(violation, sort_keys=True) + "\n")
     return 1 if violations else 0
