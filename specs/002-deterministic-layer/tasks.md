@@ -12,8 +12,8 @@
 
 ## Phase 1: Setup
 
-- [ ] T001 Create shipped-tree skeleton per plan.md: `hooks/` (empty `hooks.json`), `bin/`, fixture directories `tests/fixtures/{misbehaviors,benign,faults,outcomes,tripwire,markers,sessions,validate,fingerprint}/`
-- [ ] T002 [P] Add `tests/unit/test_stdlib_boundary.py`: walks `hooks/` + `bin/`, asserts stdlib-only imports (SC-006; extends slice-1 packaging boundary); passes trivially on the empty skeleton and gates everything after
+- [X] T001 Create shipped-tree skeleton per plan.md: `hooks/` (empty `hooks.json`), `bin/`, fixture directories `tests/fixtures/{misbehaviors,benign,faults,outcomes,tripwire,markers,sessions,validate,fingerprint}/`
+- [X] T002 [P] Add `tests/unit/test_stdlib_boundary.py`: walks `hooks/` + `bin/`, asserts stdlib-only imports (SC-006; extends slice-1 packaging boundary); passes trivially on the empty skeleton and gates everything after
 
 ## Phase 2: Foundational (blocking all stories)
 
