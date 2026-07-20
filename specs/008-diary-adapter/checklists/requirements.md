@@ -41,3 +41,14 @@
   freshest-wins on inconsistency, configurable read depth, malformed-template
   fallback, template location at plan time) recorded in Assumptions.
 - Items validated against spec.md as written on 2026-07-20; all pass.
+- Re-validated 2026-07-20 after converge-review round 1 (two-lens review; all findings
+  fixed, none defended): FR-007's coverage list now includes the FR-005 label
+  pass-through and FR-003 input-signature tests (closing the SC-001 gap); FR-005's
+  drafting inputs enumerated per the slice-6 precedent (computed close-time values,
+  pre-upload artifact content — never the not-yet-written row); slice-7 added to the
+  dependency-status assumption; interface bridged (write_entry ≡ append_entry, url ≡
+  link) with error-envelope surfacing; content pinned as the extraction surface;
+  labeling attribution tightened to slice-5 FR-007; append-only/no-creation and
+  concrete-store abstraction pins flagged; citation fixes (FR-4/4b, deferral list,
+  contract-tested short-read behavior). All items re-checked against the updated
+  file and pass.
