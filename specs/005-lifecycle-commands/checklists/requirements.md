@@ -48,3 +48,8 @@
   FR-001; checkpoint-zero rides the open append; SC-006 restated structurally;
   dashboards added to the catalog fetch; PRD citation list completed. All items
   re-checked against the updated file and pass.
+- Round 2 re-verified all 13 fixes against file text (none regressed); round 3 closed
+  the two residuals — the crashed-open Assumptions bullet aligned with the rewritten
+  FR-001/edge-case mechanism, and the row-write blocking clause scoped to transient
+  failure (ownership displacement goes read-only instead) — plus FR-3 added to the
+  PRD citation list.
