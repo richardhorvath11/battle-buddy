@@ -1,0 +1,12 @@
+{
+  "name": "npm-install-force",
+  "note": "--force alone is not a verification skip; the class anchors to push/TLS/hook bypasses",
+  "hook_payload": {
+    "hook_event_name": "PreToolUse",
+    "tool_name": "Bash",
+    "tool_input": {
+      "command": "npm install --force"
+    }
+  },
+  "expected": "allow"
+}

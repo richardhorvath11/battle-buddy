@@ -1,0 +1,32 @@
+{
+  "name": "valid-ledger-triage-seeded-single-hypothesis",
+  "note": "outside the invariant window one hypothesis is fine",
+  "document": {
+    "schema": "bb.ledger.v1",
+    "seq": 4,
+    "phase": "triage-seeded",
+    "hypotheses": [
+      {
+        "id": "h1",
+        "statement": "hypothesis h1",
+        "provenance": "triage",
+        "status": "live",
+        "confidence": 0.5,
+        "evidence_for": [
+          {
+            "url": "https://grafana.example.com/d/abc?from=1&to=2",
+            "excerpt": "p99 latency 4.2s"
+          }
+        ],
+        "evidence_against": [],
+        "validation": "VALIDATED"
+      }
+    ],
+    "services_touched": [
+      "svc-a"
+    ],
+    "tool_call_count": 37,
+    "at": "2026-07-20T03:41:00Z"
+  },
+  "expected_rules": []
+}

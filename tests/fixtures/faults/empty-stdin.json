@@ -1,0 +1,7 @@
+{
+  "name": "empty-stdin",
+  "description": "no payload delivered",
+  "stdin": "",
+  "expected": "allow",
+  "expect_diagnostic": true
+}

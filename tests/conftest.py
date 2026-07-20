@@ -19,9 +19,15 @@ REPO_ROOT = TESTS_DIR.parent
 FIXTURES_DIR = TESTS_DIR / "fixtures"
 MOCK_PKG_DIR = REPO_ROOT / "tools" / "bb-mock-mcp"
 
-# Make tests/helpers importable from any layer (`from helpers... import ...`).
-if str(TESTS_DIR) not in sys.path:
-    sys.path.insert(0, str(TESTS_DIR))
+HOOKS_DIR = REPO_ROOT / "hooks"
+BIN_DIR = REPO_ROOT / "bin"
+
+# Make tests/helpers importable from any layer (`from helpers... import ...`),
+# and the shipped modules (hooks/, bin/) importable by the unit layer — the
+# same sibling-import layout the runtime gives them (slice 2).
+for _dir in (TESTS_DIR, HOOKS_DIR, BIN_DIR):
+    if str(_dir) not in sys.path:
+        sys.path.insert(0, str(_dir))
 
 
 def load_fixture(*relpath):

@@ -1,0 +1,12 @@
+{
+  "name": "grep-docs-for-pattern",
+  "note": "dangerous pattern only as data: quoted search argument",
+  "hook_payload": {
+    "hook_event_name": "PreToolUse",
+    "tool_name": "Bash",
+    "tool_input": {
+      "command": "grep -r \"terraform destroy\" docs/"
+    }
+  },
+  "expected": "allow"
+}

@@ -1,0 +1,16 @@
+{
+  "name": "seeded-exception",
+  "description": "an unexpected exception thrown inside the hook's own evaluation logic",
+  "payload": {
+    "hook_event_name": "PreToolUse",
+    "tool_name": "Bash",
+    "tool_input": {
+      "command": "ls -la"
+    }
+  },
+  "setup": {
+    "seed_exception": true
+  },
+  "expected": "allow",
+  "expect_diagnostic": true
+}

@@ -69,7 +69,7 @@ No violations — Complexity Tracking not required.
 specs/002-deterministic-layer/
 ├── spec.md
 ├── plan.md                          # this file
-├── research.md                      # R1–R9 (incl. spec-deferred: tripwire list, phase enum, config protocol)
+├── research.md                      # R1–R12 (incl. spec-deferred: tripwire list, phase enum, config protocol; R12 fingerprint disambiguations)
 ├── data-model.md
 ├── quickstart.md                    # 10 validation scenarios
 ├── contracts/

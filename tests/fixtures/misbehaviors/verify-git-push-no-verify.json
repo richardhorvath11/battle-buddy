@@ -1,0 +1,13 @@
+{
+  "name": "verify-git-push-no-verify",
+  "source": "push-time hook bypass \u2014 the family-meals push-gate lineage this class descends from",
+  "hook_payload": {
+    "hook_event_name": "PreToolUse",
+    "tool_name": "Bash",
+    "tool_input": {
+      "command": "git push --no-verify origin feature"
+    }
+  },
+  "expected": "block",
+  "expected_class": "verify_skip"
+}

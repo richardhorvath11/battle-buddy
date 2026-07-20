@@ -1,0 +1,15 @@
+{
+  "name": "mcp-append-record-with-scary-excerpt",
+  "note": "MCP data field (excerpt) containing a dangerous string \u2014 data fields are never scanned",
+  "hook_payload": {
+    "hook_event_name": "PreToolUse",
+    "tool_name": "mcp__sheets__append_row",
+    "tool_input": {
+      "values": [
+        "session-1"
+      ],
+      "excerpt": "cron job ran rm -rf /tmp/cache nightly"
+    }
+  },
+  "expected": "allow"
+}

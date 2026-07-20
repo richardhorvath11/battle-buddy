@@ -12,14 +12,14 @@
 
 ## Phase 1: Setup
 
-- [ ] T001 Create shipped-tree skeleton per plan.md: `hooks/` (empty `hooks.json`), `bin/`, fixture directories `tests/fixtures/{misbehaviors,benign,faults,outcomes,tripwire,markers,sessions,validate,fingerprint}/`
-- [ ] T002 [P] Add `tests/unit/test_stdlib_boundary.py`: walks `hooks/` + `bin/`, asserts stdlib-only imports (SC-006; extends slice-1 packaging boundary); passes trivially on the empty skeleton and gates everything after
+- [X] T001 Create shipped-tree skeleton per plan.md: `hooks/` (empty `hooks.json`), `bin/`, fixture directories `tests/fixtures/{misbehaviors,benign,faults,outcomes,tripwire,markers,sessions,validate,fingerprint}/`
+- [X] T002 [P] Add `tests/unit/test_stdlib_boundary.py`: walks `hooks/` + `bin/`, asserts stdlib-only imports (SC-006; extends slice-1 packaging boundary); passes trivially on the empty skeleton and gates everything after
 
 ## Phase 2: Foundational (blocking all stories)
 
-- [ ] T003 Implement `hooks/_config.py` ConfigView per research R6 (turn cap default 15, bindings, config-presence; malformed ⇒ absent) + table-driven tests in `tests/unit/test_config_view.py` — every hook consumes this
-- [ ] T004 Implement `hooks/_state.py` — the local-state protocol helpers consumed by all three hooks: flock-guarded `counters.json` (atomic seq assignment; per-actor turn counts checked-at-Pre / incremented-at-Post per protocol finding-A resolution), trace append (append-only, appender never reads), 10-line tail read for consumers, marker read, actor-key derivation from transcript_path (R10), `agents.json` role lookup — matching `contracts/local-state-protocol.md` exactly. **First, a cheap runtime probe (fixture-recorded): confirm the hook payload's `transcript_path` is distinct per agent instance (subagent vs main); if not, R10's actor key needs a different signal — record the finding before building on it.** Write `tests/unit/test_local_state_protocol.py` with one test per protocol-doc assertion (FR-013 acceptance), including the parallel-append concurrency case (multiprocessing writers → unique, gap-free-absent-crash, monotonic seq per R11)
-- [ ] T005 [P] Author the fault corpus `tests/fixtures/faults/*.json` (malformed stdin, truncated JSON, unreadable state dir, seeded exception trigger) + shared fail-open runner `tests/helpers/failopen.py` asserting allow/proceed + visible diagnostics (SC-007) — reused by every hook's test file
+- [X] T003 Implement `hooks/_config.py` ConfigView per research R6 (turn cap default 15, bindings, config-presence; malformed ⇒ absent) + table-driven tests in `tests/unit/test_config_view.py` — every hook consumes this
+- [X] T004 Implement `hooks/_state.py` — the local-state protocol helpers consumed by all three hooks: flock-guarded `counters.json` (atomic seq assignment; per-actor turn counts checked-at-Pre / incremented-at-Post per protocol finding-A resolution), trace append (append-only, appender never reads), 10-line tail read for consumers, marker read, actor-key derivation from transcript_path (R10), `agents.json` role lookup — matching `contracts/local-state-protocol.md` exactly. **First, a cheap runtime probe (fixture-recorded): confirm the hook payload's `transcript_path` is distinct per agent instance (subagent vs main); if not, R10's actor key needs a different signal — record the finding before building on it.** Write `tests/unit/test_local_state_protocol.py` with one test per protocol-doc assertion (FR-013 acceptance), including the parallel-append concurrency case (multiprocessing writers → unique, gap-free-absent-crash, monotonic seq per R11)
+- [X] T005 [P] Author the fault corpus `tests/fixtures/faults/*.json` (malformed stdin, truncated JSON, unreadable state dir, seeded exception trigger) + shared fail-open runner `tests/helpers/failopen.py` asserting allow/proceed + visible diagnostics (SC-007) — reused by every hook's test file
 
 **Checkpoint**: protocol pinned and tested; config + state helpers green
 
@@ -28,10 +28,10 @@
 **Goal**: Four deny classes, corpus-gated, fail-open
 **Independent Test**: two-corpus run + fault corpus, no agent involved (spec US1)
 
-- [ ] T006 [US1] Implement `hooks/guardrail_deny.py`: DENY_CLASSES table (destructive_filesystem, destructive_infra, verify_skip pattern classes), stdin→verdict flow, fail-open wrapper, block messages naming the class, and on every block append the `denied:guardrail:<class>` trace line via `_state.py` (protocol: one line per tool call incl. blocked ones); register in `hooks/hooks.json` (PreToolUse)
-- [ ] T007 [US1] Add the credential_scan class with its context rule: `error:auth` within the protocol's 10-line trace window (reads via `_state.py` tail; degrades to pattern-only when no trace exists per spec Assumption)
-- [ ] T008 [P] [US1] Author the misbehavior corpus `tests/fixtures/misbehaviors/*.json` — ≥3 source-annotated fixtures per deny class (documented real-world agentic misbehaviors) — and the benign corpus `tests/fixtures/benign/*.json` per the US1 AS-2 membership rule (incl. quoted `rm -rf` in commit message, URL containing dangerous string)
-- [ ] T009 [US1] Write `tests/unit/test_guardrail_deny.py`: iterate both corpora (SC-001), context-rule cases (auth window present/absent/stale), fault corpus (fail-open), block-message content
+- [X] T006 [US1] Implement `hooks/guardrail_deny.py`: DENY_CLASSES table (destructive_filesystem, destructive_infra, verify_skip pattern classes), stdin→verdict flow, fail-open wrapper, block messages naming the class, and on every block append the `denied:guardrail:<class>` trace line via `_state.py` (protocol: one line per tool call incl. blocked ones); register in `hooks/hooks.json` (PreToolUse)
+- [X] T007 [US1] Add the credential_scan class with its context rule: `error:auth` within the protocol's 10-line trace window (reads via `_state.py` tail; degrades to pattern-only when no trace exists per spec Assumption)
+- [X] T008 [P] [US1] Author the misbehavior corpus `tests/fixtures/misbehaviors/*.json` — ≥3 source-annotated fixtures per deny class (documented real-world agentic misbehaviors) — and the benign corpus `tests/fixtures/benign/*.json` per the US1 AS-2 membership rule (incl. quoted `rm -rf` in commit message, URL containing dangerous string)
+- [X] T009 [US1] Write `tests/unit/test_guardrail_deny.py`: iterate both corpora (SC-001), context-rule cases (auth window present/absent/stale), fault corpus (fail-open), block-message content
 
 **Checkpoint**: US1 deliverable — the misbehavior gate is live in CI
 
@@ -40,9 +40,9 @@
 **Goal**: Schema + semantic invariants, one-pass machine-readable errors
 **Independent Test**: violation corpus classified 100% correctly (spec US2)
 
-- [ ] T010 [US2] Implement `bin/bb_validate.py` + `bin/bb-validate` CLI shim: version-tag dispatch (`bb.verdict.v1`, `bb.ledger.v1`), schema shape checks, semantic invariants (validation status on non-fresh; ≥3 live + ≥1 fresh when `phase` ∈ {evidence-gathering, deep-dive} per R9; `{url, excerpt}` evidence), one-pass JSON-lines violation output, exit codes 0/1/2, input never modified
-- [ ] T011 [P] [US2] Author `tests/fixtures/validate/*.json`: ≥1 violating document per schema rule and per semantic invariant, multi-violation document, valid verdict + ledger documents, non-JSON input, `schema_valid: false` pre-flagged document (validates like any other)
-- [ ] T012 [US2] Write `tests/unit/test_validate.py`: corpus classification (SC-004), one-pass completeness on the multi-violation document, byte-identity of valid inputs, decisive termination on garbage
+- [X] T010 [US2] Implement `bin/bb_validate.py` + `bin/bb-validate` CLI shim: version-tag dispatch (`bb.verdict.v1`, `bb.ledger.v1`), schema shape checks, semantic invariants (validation status on non-fresh; ≥3 live + ≥1 fresh when `phase` ∈ {evidence-gathering, deep-dive} per R9; `{url, excerpt}` evidence), one-pass JSON-lines violation output, exit codes 0/1/2, input never modified
+- [X] T011 [P] [US2] Author `tests/fixtures/validate/*.json`: ≥1 violating document per schema rule and per semantic invariant, multi-violation document, valid verdict + ledger documents, non-JSON input, `schema_valid: false` pre-flagged document (validates like any other)
+- [X] T012 [US2] Write `tests/unit/test_validate.py`: corpus classification (SC-004), one-pass completeness on the multi-violation document, byte-identity of valid inputs, decisive termination on garbage
 
 **Checkpoint**: Constitution VI has its enforcement mechanism
 
@@ -51,9 +51,9 @@
 **Goal**: One implementation, versioned rules, golden corpus
 **Independent Test**: corpus on both matrix ends + rule-change tripwire (spec US3)
 
-- [ ] T013 [US3] Implement `bin/bb_fingerprint.py` + `bin/bb-fingerprint` CLI shim: §5.2 normalization (lowercase/trim/collapse; alert-type volatile-token placeholders: UUID, hex≥8, int≥3, ISO timestamp, hostname/IP), sha256 16-hex truncation, `bb.fp.v1` version in output metadata, deterministic flagged outputs for empty/all-volatile inputs
-- [ ] T014 [P] [US3] Author `tests/fixtures/fingerprint/golden.json`: unicode, messy whitespace, each volatile-token type, near-collisions, empty/all-volatile edge cases — the executable form of the rules
-- [ ] T015 [US3] Write `tests/unit/test_fingerprint.py`: golden corpus 100% (runs on both CI matrix versions by virtue of the slice-1 workflow), determinism across repeated calls, seeded rule-change failure demo (SC-003)
+- [X] T013 [US3] Implement `bin/bb_fingerprint.py` + `bin/bb-fingerprint` CLI shim: §5.2 normalization (lowercase/trim/collapse; alert-type volatile-token placeholders: UUID, hex≥8, int≥3, ISO timestamp, hostname/IP), sha256 16-hex truncation, `bb.fp.v1` version in output metadata, deterministic flagged outputs for empty/all-volatile inputs
+- [X] T014 [P] [US3] Author `tests/fixtures/fingerprint/golden.json`: unicode, messy whitespace, each volatile-token type, near-collisions, empty/all-volatile edge cases — the executable form of the rules
+- [X] T015 [US3] Write `tests/unit/test_fingerprint.py`: golden corpus 100% (runs on both CI matrix versions by virtue of the slice-1 workflow), determinism across repeated calls, seeded rule-change failure demo (SC-003)
 
 **Checkpoint**: all three P1 stories deliverable
 

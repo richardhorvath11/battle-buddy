@@ -1,0 +1,12 @@
+{
+  "name": "sslverify-true-is-fine",
+  "note": "enabling TLS verification must not trip the sslVerify=false pattern",
+  "hook_payload": {
+    "hook_event_name": "PreToolUse",
+    "tool_name": "Bash",
+    "tool_input": {
+      "command": "git -c http.sslVerify=true clone https://x.example.com/r.git"
+    }
+  },
+  "expected": "allow"
+}

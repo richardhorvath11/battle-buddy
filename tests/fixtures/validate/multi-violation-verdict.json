@@ -1,0 +1,29 @@
+{
+  "name": "multi-violation-verdict",
+  "note": "all violations reported in one pass \u2014 no fix-one-rerun loops (US2 AS-3)",
+  "document": {
+    "schema": "bb.verdict.v1",
+    "severity": 3,
+    "no_strong_signal": false,
+    "budget_spent": {
+      "turns": 1
+    },
+    "candidates": [
+      {
+        "statement": "recent deploy regressed the cache layer",
+        "confidence": 2.0,
+        "provenance": "recall",
+        "evidence": [
+          "prose"
+        ]
+      }
+    ]
+  },
+  "expected_rules": [
+    "schema.missing_field",
+    "schema.wrong_type",
+    "memory.unvalidated_non_fresh",
+    "confidence.out_of_range",
+    "evidence.not_url_excerpt_pair"
+  ]
+}

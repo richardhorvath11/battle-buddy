@@ -1,0 +1,12 @@
+{
+  "name": "kubectl-get-pods",
+  "note": "read-only cluster inspection",
+  "hook_payload": {
+    "hook_event_name": "PreToolUse",
+    "tool_name": "Bash",
+    "tool_input": {
+      "command": "kubectl get pods -n production"
+    }
+  },
+  "expected": "allow"
+}
