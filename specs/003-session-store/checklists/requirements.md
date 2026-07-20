@@ -40,3 +40,7 @@
   value, candidate cap, mutable-field set) are pinned as informed defaults from the
   design and recorded in Assumptions for reviewer visibility.
 - Items validated against spec.md as written on 2026-07-20; all pass.
+- Re-validated 2026-07-20 after converge-review round 1 (18 findings fixed, 1 defended):
+  the FR-002 mutable-set contradiction and the "open status" ambiguity that made the
+  "testable and unambiguous" item unsupportable are resolved in the spec text; all items
+  re-checked against the updated file and pass.
