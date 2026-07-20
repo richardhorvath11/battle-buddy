@@ -1,16 +1,23 @@
 <!--
-Sync Impact Report
+Sync Impact Report — 1.0.1 (2026-07-19)
 - Version change: 1.0.0 → 1.0.1 (PATCH: corrected slice-spec location from `.specify/` to
   `specs/` — spec-kit's actual scaffold layout; PR #1 review finding)
-- Previous: (template) → 1.0.0 (initial ratification)
+- Modified principles: none (Development Workflow section path fix only)
+- Added/removed sections: none
+- Templates re-validated for 1.0.1:
+  ✅ .specify/templates/plan-template.md — already uses `specs/`; compatible
+  ✅ .specify/templates/spec-template.md — no path references; compatible
+  ✅ .specify/templates/tasks-template.md — already uses `specs/`; compatible
+- Companion updates in same PR: AGENTS.md (source-docs table + Allowed path tier → `specs/`)
+- Follow-up TODOs: none
+
+Sync Impact Report — 1.0.0 (2026-07-19, initial ratification)
+- Version change: (template) → 1.0.0
 - Modified principles: n/a (initial adoption)
 - Added sections: Core Principles (I–VIII), Platform Constraints, Development Workflow, Governance
 - Removed sections: none
-- Templates requiring updates:
-  ✅ .specify/templates/plan-template.md — generic "Constitution Check" gate; compatible, gates derive from this file
-  ✅ .specify/templates/spec-template.md — no constitution-specific slots; compatible
-  ✅ .specify/templates/tasks-template.md — test-first task ordering aligns with Principle VIII
-- Follow-up TODOs: none
+- Templates validated: plan-template.md ("Constitution Check" gate derives from this file),
+  spec-template.md, tasks-template.md (test-first ordering aligns with Principle VIII) — all compatible
 - Source documents: oncall-harness-requirements.md (PRD v0.9), bb-technical-design.md (design v1.2)
 -->
 

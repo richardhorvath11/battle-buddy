@@ -40,6 +40,7 @@ A contributor implementing or integrating against the operation contract (design
 2. **Given** a call that violates the contract (unknown operation, missing required field, malformed record), **When** it reaches the mock, **Then** the mock rejects it with an error naming the violated expectation, rather than silently accepting or coercing it.
 3. **Given** a test scenario performing writes across capabilities in a prescribed order, **When** the scenario completes, **Then** the mock's write log reproduces the exact operation sequence so ordering invariants can be asserted.
 4. **Given** two simulated actors writing to the same record, **When** their operations interleave, **Then** the mock preserves both actors' operations in the log and final state deterministically, so ownership-conflict behavior can be tested.
+5. **Given** the mock with no operations yet invoked, **When** a test enumerates its per-capability tool-schema surface, **Then** every required operation's name and input/output shape is discoverable without invoking it, sufficient for a binding-resolution test to match operations to tools (FR-011).
 
 ---
 
@@ -64,7 +65,7 @@ A contributor preparing agent-behavior tests (later slices) finds a fixture layo
 - A test layer directory exists but contains zero tests: verify surfaces this visibly and passes (same green-but-loud rule as Story 1 AS-3) — never a silent green, never a hard failure for emptiness alone.
 - The mock is asked for state it never stored (unknown record, unknown artifact link): it returns a not-found outcome distinguishable from an error in the mock itself.
 - Write-log queries during an in-progress scenario: the log reflects all operations completed so far, in order.
-- Very large record payloads: the design's cell-size guard (design §5.4, D-3: ~45k chars, with overflow diverted by the *caller* to an artifact pointer) is caller-side convention, not store behavior — so the mock emulates the store-side limit (rejecting an oversized single field the way the real store would) to make the caller's overflow handling testable in later slices.
+- Very large record payloads: the design's cell-size guard (design §5.4, D-3: ~45k chars, with overflow diverted by the *caller* to an artifact pointer) is caller-side convention, not store behavior — so the mock emulates a store-side limit by rejecting any single field above the D-3 guard threshold (45,000 characters), making the caller's overflow handling testable in later slices. (This rejection is deliberate extra-contractual emulation of the real store, not a §7.1 contract rule.)
 
 ## Requirements *(mandatory)*
 
@@ -74,13 +75,13 @@ A contributor preparing agent-behavior tests (later slices) finds a fixture layo
 - **FR-002**: Both layers MUST be hermetic: no network access, no credentials, no external services required or contacted. *(Design §10)*
 - **FR-003**: `bb-mock-mcp` MUST implement every required operation of every required capability in the operation contract — storage (`append_record`, `read_records(filter)`, `update_record(fields)`), artifacts (`put_file → link`), diary (`append_entry → link`, `read_recent(n)`), and alerting (`get_alert(id)`, `list_alert_history(filter)`) — with behavior matching the contract's documented semantics. *(Design §7.1; the enumeration here mirrors the contract and the contract wins if they ever diverge)*
 - **FR-004**: The mock MUST reject contract-violating calls with errors that name the violated expectation. *(Story 2; the mock is the contract's executable specification)*
-- **FR-011**: The mock MUST expose an inspectable per-capability tool-schema surface (operation names and input/output shapes discoverable without invoking them), so that binding resolution and doctor-style conformance probing (design §7.2, §10) are hermetically testable against it. *(Design §10 layer 2 explicitly lists binding resolution and the `/setup` create-vs-validate paths as hermetic targets)*
 - **FR-005**: The mock MUST record every write operation in an inspectable, ordered write log scoped per test. *(Design §10 — ordering assertions)*
 - **FR-006**: The mock's full state MUST be inspectable by test code after (and during) a run without going through the contract operations themselves. *(Artifact-assertion requirement)*
 - **FR-007**: The unit layer MUST support table-driven fixture tests for pure functions of the form (input payload, local state) → (exit code, output), matching how the deterministic-layer components are specified. *(Design §10 layer 1)*
 - **FR-008**: The scaffold MUST establish the fixture layout and seed-loading path for scenario tests, including at least one synthetic incident seed and an assertion entry point that validates seeded mock state. *(Story 3)*
 - **FR-009**: Continuous integration MUST run both layers on every proposed change and block merge on failure. *(Design §10: "CI: layers 1–2 on every PR"; §1 build order)*
 - **FR-010**: The mock and all test tooling MUST be dev-only artifacts, excluded from anything shipped to responders — verified mechanically by a packaging check that the shipped plugin bundle enumerates no test, mock, or tooling paths. *(Constitution I, Platform Constraints; see SC-007)*
+- **FR-011**: The mock MUST expose an inspectable per-capability tool-schema surface (operation names and input/output shapes discoverable without invoking them), so that binding resolution and doctor-style conformance probing (design §7.2, §10) are hermetically testable against it. *(Design §10 layer 2 explicitly lists binding resolution and the `/setup` create-vs-validate paths as hermetic targets; Story 2 AS-5)*
 
 ### Key Entities
 
