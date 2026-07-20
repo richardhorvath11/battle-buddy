@@ -40,7 +40,12 @@
   value, candidate cap, mutable-field set) are pinned as informed defaults from the
   design and recorded in Assumptions for reviewer visibility.
 - Items validated against spec.md as written on 2026-07-20; all pass.
-- Re-validated 2026-07-20 after converge-review round 1 (18 findings fixed, 1 defended):
+- Re-validated 2026-07-20 after converge-review round 1 (17 findings fixed, 1 defended):
   the FR-002 mutable-set contradiction and the "open status" ambiguity that made the
   "testable and unambiguous" item unsupportable are resolved in the spec text; all items
   re-checked against the updated file and pass.
+- Round 2 re-verified all 17 fixes against the file text (none regressed); round 3
+  applied the four round-2 residuals — close-flow scoping of the write-ordering claim
+  (US2 AS-1/SC-002), the US4 "open status" wording residual, the §9 rehydrate-source
+  consequence added to the checkpoint-history reconciliation flag, and this note's
+  fixed-count correction.
