@@ -191,3 +191,15 @@ executable rule (`bb.fp.v1`); the design §5.2 rules-home file
 (`skills/session-store/references/fingerprint.md`) lands with slice 3 and will cite this
 entry. **Alternative rejected**: implementing §5.2 literally without pinning order/edges —
 leaves the fingerprint under-specified exactly where silent drift breaks recall.
+
+## R13 — FR-004 "visible in diagnostics" means hook stderr
+
+**Decision** (interpretation confirmed with the maintainer during slice-2 review): the
+FR-004 requirement that a fail-open (or degraded/recovery) event be "visible in
+diagnostics" is satisfied by writing to the **hook's stderr** — the conventional Claude
+Code hook diagnostic channel, captured in debug/verbose logs and the transcript. It does
+**not** require a responder-facing surface (`systemMessage` JSON output or a
+`.bb-session/` log file) in v1. All fail-open, counter-recovery, fsync-failure, and
+degraded-mode notices in this slice write to stderr accordingly. **Alternative deferred**:
+a responder-visible diagnostics surface — reconsidered only if operational experience
+shows stderr-in-debug-logs is insufficient for post-incident review.
