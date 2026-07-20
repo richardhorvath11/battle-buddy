@@ -41,3 +41,17 @@
   entities ignored) each recorded in Assumptions with what the design does and
   doesn't say.
 - Items validated against spec.md as written on 2026-07-20; all pass.
+- Re-validated 2026-07-20 after converge-review round 1 (two-lens review; all findings
+  fixed, none defended). The blocking finding — hermetic pure-function tests with no
+  named executable — is resolved by pinning the dev-only test-side reference encoding
+  as the CI instrument (rules-coherence gate) with agent compliance bounded out to the
+  scenario harness, per the slice-6 boundary. Also fixed: literal annotation keys
+  restored to FR-002 (the oncall-harness/* namespace and vendor prefixes are the
+  integration contract); fixture-catalog-repo existence honestly stated (created by
+  this slice; scaffold uses tests/fixtures/, not §10's scenarios sketch);
+  code-capability gap pinned (contract v1 has no code ops — generic references, tests
+  on fixture files); linkage-annotation dangling rows resolved as adapter-internal
+  metadata; kind added to the minimal subset; substring direction pinned; lexicographic
+  duplicate tie-break; SC-005 allowlist and SC-006 made mechanical; briefing-notes
+  behaviors retagged informed defaults; fix-up offer content made an FR deliverable.
+  All items re-checked against the updated file and pass.
