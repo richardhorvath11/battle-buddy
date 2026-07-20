@@ -1,0 +1,12 @@
+{
+  "name": "marker-open-confirmed-never-closed",
+  "description": "open write confirmed but /close was skipped - the canonical D-11 case; presence is the trigger regardless of open_write_confirmed (spec US5 AS-2, FR-011)",
+  "marker": {
+    "protocol": "bb.local.v1",
+    "session_id": "page-ALERT-456-2026-07-20",
+    "source_id": "ALERT-456",
+    "opened_at": "2026-07-20T10:00:00+00:00",
+    "open_write_confirmed": true
+  },
+  "expected_warning": true
+}

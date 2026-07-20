@@ -73,9 +73,9 @@
 **Goal**: Unpersisted-record detection, transcript staging, config warning
 **Independent Test**: four marker states + transcript + config fixtures (spec US5)
 
-- [ ] T021 [US5] Implement `hooks/session_guard.py`: **SessionEnd** marker check (present ⇒ warn with remedial instruction; deletion = cleared per protocol — SessionEnd not Stop, so a legitimately-open session isn't nagged every turn, per protocol doc's event-binding note), transcript copy to `staging/` with degrade-to-notice, SessionStart config-presence warning (FR-015, non-blocking); register both events in `hooks.json`
-- [ ] T022 [P] [US5] Author `tests/fixtures/markers/*.json`: absent / open-unconfirmed / open-confirmed-never-closed / cleared, plus transcript-present/missing/unreadable and config-present/absent payloads
-- [ ] T023 [US5] Write `tests/unit/test_session_guard.py`: warnings on exactly the two present states (US5 Independent Test), staging behavior, FR-015 warning, fault corpus (fail-open)
+- [X] T021 [US5] Implement `hooks/session_guard.py`: **SessionEnd** marker check (present ⇒ warn with remedial instruction; deletion = cleared per protocol — SessionEnd not Stop, so a legitimately-open session isn't nagged every turn, per protocol doc's event-binding note), transcript copy to `staging/` with degrade-to-notice, SessionStart config-presence warning (FR-015, non-blocking); register both events in `hooks.json`
+- [X] T022 [P] [US5] Author `tests/fixtures/markers/*.json`: absent / open-unconfirmed / open-confirmed-never-closed / cleared, plus transcript-present/missing/unreadable and config-present/absent payloads
+- [X] T023 [US5] Write `tests/unit/test_session_guard.py`: warnings on exactly the two present states (US5 Independent Test), staging behavior, FR-015 warning, fault corpus (fail-open)
 
 ## Phase 8: Polish & Cross-Cutting
 

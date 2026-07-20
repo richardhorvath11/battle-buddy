@@ -1,0 +1,6 @@
+{
+  "name": "config-absent",
+  "description": "no battleBuddy block - non-blocking run-from-the-workspace-repo warning (FR-015, design 2.1)",
+  "config_present": false,
+  "expected_warning": true
+}
