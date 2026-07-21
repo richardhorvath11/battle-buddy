@@ -633,7 +633,10 @@ def check_versions(config, plugin_version):
             }
         )
 
-    found_schema_version = (config.get("store") or {}).get("schemaVersion")
+    store_block = config.get("store")
+    found_schema_version = (
+        store_block.get("schemaVersion") if isinstance(store_block, dict) else None
+    )
     if found_schema_version == _EXPECTED_SCHEMA_VERSION:
         checks.append(
             {

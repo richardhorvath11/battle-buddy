@@ -380,3 +380,14 @@ def test_shell_skip_never_reds_an_assembled_report():
     )
 
     assert report["outcome"] == "green"
+
+
+def test_check_versions_tolerates_non_dict_store_block():
+    # Converge round 1: a malformed (non-dict) store sub-block must degrade to
+    # a version-check fail, never raise (loud-not-crashed discipline).
+    config = {"configVersion": "bb.config.v1", "store": "not-a-dict"}
+
+    checks = doctor_flows.check_versions(config, "0.4.0")
+
+    schema_check = next(c for c in checks if c["id"] == "version.store_schema")
+    assert schema_check["status"] == "fail"

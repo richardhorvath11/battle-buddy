@@ -175,7 +175,7 @@ a session; an onboarding wizard must not destroy state over a typo).
 | Observed state | Mode |
 |---|---|
 | No config block | **team** — full sequence (resolve → store create/validate → artifact root → diary/catalog prompts → config write → scaffold → doctor + smoke test) |
-| Config block present (well-formed) but a team-scope artifact missing (store header, scaffold file) | **team-partial** — create only the missing pieces through the *committed* binding map (no fresh resolution); validate the rest with zero writes |
+| Config block present (well-formed) but the store header missing | **team-partial** — create only the missing pieces through the *committed* binding map (no fresh resolution); the resumption also re-creates any missing scaffold file; validate the rest with zero writes |
 | Config block present; this responder's probes fail or stamp missing/stale | **responder** — provision tokens, verify probes under this responder's credentials, write stamp; creates no team resources |
 | Everything green | **already-set-up** — validate + report only; zero mutating operations |
 | Config block present but malformed | **repair** — surfaced explicitly (above); never team mode |

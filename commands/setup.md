@@ -31,6 +31,7 @@ checks a stored "done" flag:
 | Observed state | Mode |
 |---|---|
 | No config block | **team** — full sequence below |
+| Config block present (well-formed) but the store header missing | **team-partial** — create only what is missing, through the already-committed binding map; validate the rest with zero writes |
 | Config block present; this responder's probes fail, or the local stamp is missing/stale | **responder** — provision and verify this responder only |
 | Everything green | **already-set-up** — validate and report, zero writes |
 | Config block present but malformed | **repair** — surfaced explicitly, never treated as absent |

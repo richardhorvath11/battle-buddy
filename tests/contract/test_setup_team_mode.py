@@ -370,9 +370,11 @@ def test_derive_mode_everything_green_is_already_set_up(tmp_path):
 
 
 # ---------------------------------------------------------------------------
-# Loud-failure guardrails: header creation and the smoke test both refuse to
-# run without a resolved storage binding (SC-003 "through the resolved
-# storage binding" as a hard guarantee, not a hope)
+# Loud-failure guardrails (SC-003 "through the resolved storage binding" as a
+# hard guarantee, not a hope). Header creation is exercised through team_mode
+# (it fails at step (b), before the smoke test is ever reached); smoke_test's
+# own guardrails are exercised directly below, since inside team_mode a
+# missing binding reds the run earlier.
 # ---------------------------------------------------------------------------
 
 
@@ -384,3 +386,56 @@ def test_header_creation_without_storage_binding_fails_loudly(mock_mcp, tmp_path
 
     with pytest.raises(RuntimeError):
         setup_flows.team_mode(mock_mcp, workspace, roster, {}, PLUGIN_VERSION)
+
+
+def test_smoke_test_without_storage_binding_raises(mock_mcp):
+    with pytest.raises(RuntimeError):
+        setup_flows.smoke_test(mock_mcp, {}, "battle-buddy/", "2026-07-21")
+
+
+def _full_bindings():
+    return dict(doctor_fixtures.required_bindings())
+
+
+def test_smoke_test_mutating_op_error_is_loud_and_specific(mock_mcp):
+    # A binding that resolved fine but whose tool errors at runtime is
+    # exactly the case the smoke test exists to catch (the probes could only
+    # schema-match mutating ops). Fail the artifacts capability -> put_file
+    # errors -> the failure names that path specifically.
+    failing = doctor_fixtures.FailingProbeInjector(mock_mcp, "artifacts")
+
+    outcome = setup_flows.smoke_test(
+        failing, _full_bindings(), "battle-buddy/", "2026-07-21"
+    )
+
+    assert outcome["green"] is False
+    assert "put_file failed" in outcome["failure"]
+
+
+def test_smoke_test_readback_error_is_loud_and_specific(mock_mcp):
+    # Error only on storage.read_records (append must succeed first), so the
+    # read-back error-envelope branch is the one that fires.
+    class _ReadbackFails:
+        def __init__(self, wrapped):
+            self._wrapped = wrapped
+
+        def invoke(self, capability, op, payload):
+            if capability == "storage" and op == "read_records":
+                return {
+                    "error": {
+                        "op": op,
+                        "code": "invalid_input",
+                        "message": "simulated read-back outage",
+                    }
+                }
+            return self._wrapped.invoke(capability, op, payload)
+
+        def __getattr__(self, name):
+            return getattr(self._wrapped, name)
+
+    outcome = setup_flows.smoke_test(
+        _ReadbackFails(mock_mcp), _full_bindings(), "battle-buddy/", "2026-07-21"
+    )
+
+    assert outcome["green"] is False
+    assert "read_records failed: simulated read-back outage" == outcome["failure"]

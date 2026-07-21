@@ -538,6 +538,14 @@ def smoke_test(mock, bindings, artifact_root, opened_date):
     trace.append(
         {"op": "storage.read_records", "via_binding": readback_tool, "result": readback}
     )
+    if "error" in readback:
+        # Loud-and-specific discipline, same as every other smoke path: name
+        # the failing op and the store's own error message.
+        return _smoke_outcome(
+            session_id, trace, False,
+            "read_records failed: {}".format(readback["error"].get("message")),
+        )
+
     rows = readback.get("records", [])
     row_after = rows[0] if rows else None
     confirmed = len(rows) == 1 and row_after.get("session_id") == session_id
