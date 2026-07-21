@@ -91,7 +91,7 @@ the real validator (SC-004).
 the same rules — `test_schemas_reference.py` (Phase 2) plus the matrix and ordering
 gates below, all hermetic.
 
-- [ ] T005 [US1] Fill `skills/investigation/SKILL.md` core sections: **validation
+- [x] T005 [US1] Fill `skills/investigation/SKILL.md` core sections: **validation
       discipline as the first section after the overview** (recalled sessions and
       triage candidates are hypotheses; provenance `triage`|`recall`|`fresh`; every
       non-`fresh` hypothesis VALIDATED/INVALIDATED against current-incident evidence
@@ -108,19 +108,19 @@ gates below, all hermetic.
       FR-004, research R10); and the reference routing (briefing format per
       `references/briefing.md`; retrieval per `references/retrieval.md`'s pointer —
       FR-005)
-- [ ] T006 [P] [US1] Write `skills/investigation/references/briefing.md`: briefing
+- [x] T006 [P] [US1] Write `skills/investigation/references/briefing.md`: briefing
       format guidance — every claim deep-linked with `{url, excerpt}` evidence (the
       testable property; section order/wording is presentation guidance per spec
       Assumptions); the causal-field discipline (root-cause and contributing-factor
       statements in briefings and ledger syntheses are explicitly-labeled proposals,
       never promoted to fact without a human decision — FR-005, Constitution V)
-- [ ] T007 [P] [US1] Write `skills/investigation/references/retrieval.md` as the
+- [x] T007 [P] [US1] Write `skills/investigation/references/retrieval.md` as the
       pointer document (research R1): names
       `skills/session-store/references/retrieval.md` as the normative home of the
       three-stage retrieval flow, states what an investigation agent consumes from it
       (candidate rows enter as `recall`-provenance hypotheses), restates nothing
       normatively
-- [ ] T008 [US1] Write `tests/unit/test_anchoring_matrix.py` (research R5 — unit
+- [x] T008 [US1] Write `tests/unit/test_anchoring_matrix.py` (research R5 — unit
       layer: pure validator behavior, runs on the py3.9 floor beside
       `test_validate.py`; converge finding): both invariant phases × {2 live ⇒
       `ledger.min_live_hypotheses` present; 3 live none fresh ⇒
@@ -131,7 +131,7 @@ gates below, all hermetic.
       `hypothesis-generation`) accept sparse and empty ledgers (empty =
       `hypotheses: []`, the required field present); `resolution` non-invariant
       (SC-004, FR-002)
-- [ ] T009 [US1] Write `tests/contract/test_investigation_prose.py` (research R12)
+- [x] T009 [US1] Write `tests/contract/test_investigation_prose.py` (research R12)
       initial module: the SC-005 naming scan over `skills/investigation/**/*.md` and
       `agents/*.md` via rglob (import the public merged `DENY_PATTERNS` from
       `test_command_capability_naming.py` and `FENCE_RE` from
