@@ -19,7 +19,6 @@ trial-and-error).
 
 import json
 
-import pytest
 
 from conftest import fixture_path
 from helpers import store_flows

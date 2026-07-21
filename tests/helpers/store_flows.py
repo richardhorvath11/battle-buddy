@@ -586,7 +586,15 @@ def write_checkpoint(mock, state_dir, session_id, candidates, responder, seq):
         put_result = mock.invoke(
             "artifacts", "put_file", {"name": artifact_name, "content": serialized}
         )
-        link = put_result.get("link")
+        if "error" in put_result:
+            # Never write a null/dangling overflow pointer into the cell — a
+            # rejected overflow upload fails loudly (the checkpoint's link
+            # must exist immediately; SKILL.md "Cell guard").
+            raise RuntimeError(
+                "overflow put_file rejected for %s: %r"
+                % (artifact_name, put_result["error"])
+            )
+        link = put_result["link"]
         cell_value = _serialize_checkpoint({"overflow": link, "seq": seq})
 
     update_result = mock.invoke(
@@ -646,6 +654,14 @@ def read_latest_checkpoint(mock, session_id):
     parsed = json.loads(cell_value)
     if isinstance(parsed, dict) and "overflow" in parsed:
         file_result = mock.invoke("artifacts", "get_file", {"link": parsed["overflow"]})
+        if "error" in file_result:
+            # A dangling overflow pointer is a documented failure, not a
+            # KeyError (SKILL.md "Cell guard": readers MUST follow the link —
+            # so a link that doesn't resolve must fail loudly and clearly).
+            raise RuntimeError(
+                "overflow link did not resolve for %s: %r"
+                % (session_id, file_result["error"])
+            )
         return json.loads(file_result["content"])
     return parsed
 
@@ -753,19 +769,31 @@ def merge_duplicates(mock, source_id):
                 }
             )
 
-    mock.invoke(
+    fold_result = mock.invoke(
         "storage",
         "update_record",
         {"session_id": canonical_id, "fields": {"links": folded_links}},
     )
+    if "error" in fold_result:
+        # Never report a merge as done when the fold-in write bounced — a
+        # silent half-merge would leave the duplicate authoritative-looking.
+        raise RuntimeError(
+            "merge fold-in update_record rejected for %s: %r"
+            % (canonical_id, fold_result["error"])
+        )
 
     superseded_ids = []
     for dup in duplicates:
-        mock.invoke(
+        supersede_result = mock.invoke(
             "storage",
             "update_record",
             {"session_id": dup["session_id"], "fields": {"status": "superseded"}},
         )
+        if "error" in supersede_result:
+            raise RuntimeError(
+                "merge supersede update_record rejected for %s: %r"
+                % (dup["session_id"], supersede_result["error"])
+            )
         superseded_ids.append(dup["session_id"])
 
     return {"canonical_id": canonical_id, "superseded_ids": superseded_ids}

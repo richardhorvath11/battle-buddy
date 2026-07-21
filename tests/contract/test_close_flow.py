@@ -22,7 +22,6 @@ update never lands, so the read-back finds nothing to confirm).
 
 import json
 
-import pytest
 
 from helpers import store_flows
 

@@ -14,7 +14,9 @@ triage re-invocation). §5.4's checkpoint-history wording corrected — the arti
 operation set has no append; history accumulates session-locally (local-state protocol
 `staging/checkpoints.jsonl`) and uploads at close. §9's mid-investigation rehydrate row
 drops the remote `checkpoints.jsonl` fallback, which exists only after close;
-mid-session resume rides `latest_checkpoint` and overflow links.
+mid-session resume rides `latest_checkpoint` and overflow links. The cell-guard value
+is pinned at exactly 45,000 characters with at-guard fitting the cell (§5.4 and the
+D-3 decision row; formerly "~45k"), matching the slice-3 spec's cell-guard Assumption.
 
 **Changes in 1.2.1:** Diary `read_recent(n)` ordering documented in §6.2 — entries return most
 recent first (interface commitment: adapters over oldest-first stores reverse on read). Surfaced
