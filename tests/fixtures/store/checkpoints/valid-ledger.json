@@ -1,0 +1,57 @@
+{
+  "schema": "bb.ledger.v1",
+  "seq": 4,
+  "phase": "deep-dive",
+  "hypotheses": [
+    {
+      "id": "h1",
+      "statement": "cache layer regression from recent deploy",
+      "provenance": "triage",
+      "status": "live",
+      "confidence": 0.6,
+      "evidence_for": [
+        {
+          "url": "https://grafana.example.com/d/abc?from=1&to=2",
+          "excerpt": "p99 latency 4.2s"
+        }
+      ],
+      "evidence_against": [],
+      "validation": "VALIDATED"
+    },
+    {
+      "id": "h2",
+      "statement": "known prior incident with the same signature",
+      "provenance": "recall",
+      "status": "live",
+      "confidence": 0.5,
+      "evidence_for": [
+        {
+          "url": "https://grafana.example.com/d/def?from=3&to=4",
+          "excerpt": "matches prior sev2 pattern"
+        }
+      ],
+      "evidence_against": [],
+      "validation": "INVALIDATED"
+    },
+    {
+      "id": "h3",
+      "statement": "network partition between checkout and payments",
+      "provenance": "fresh",
+      "status": "live",
+      "confidence": 0.4,
+      "evidence_for": [
+        {
+          "url": "https://grafana.example.com/d/ghi?from=5&to=6",
+          "excerpt": "elevated retransmits on checkout-api"
+        }
+      ],
+      "evidence_against": []
+    }
+  ],
+  "services_touched": [
+    "checkout-api",
+    "payments-api"
+  ],
+  "tool_call_count": 42,
+  "at": "2026-07-20T09:20:00Z"
+}

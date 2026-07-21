@@ -1,0 +1,6 @@
+{
+  "configVersion": "bb.config.v1",
+  "pluginPin": "0.4.0",
+  "store": {
+    "url": "https://store.example/team-sessions",
+    "schemaVersion":

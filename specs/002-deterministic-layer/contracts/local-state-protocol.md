@@ -127,6 +127,17 @@ registration. **Fallback when an actor is unregistered: no turn cap applies (fai
 local and uploaded names differ; this mapping is part of the protocol). Missing
 transcript ⇒ logged notice, no failure.
 
+`staging/checkpoints.jsonl` — one JSON line appended per checkpoint at
+checkpoint-write time by the session-store skill's checkpoint conventions (slice 3);
+uploaded at close under the artifact name `checkpoints.jsonl` (design §5.3/§5.4).
+Recorded here as an **additive** `staging/` entry per this protocol's versioning duty —
+**no version bump**, the same standard already applied to the `denied:*` outcome
+extension above: the addition changes no existing file's format and no existing
+consumer's parse. The accumulation is forced local-first because the artifact contract
+has no append operation; `staging/` is already this protocol's "files awaiting
+close-time upload" area, so the checkpoint history belongs here rather than inventing a
+second local-state root.
+
 ## Hook event bindings (which component touches what, when)
 
 | Event | guardrail_deny.py | tool_trace.py | session_guard.py |

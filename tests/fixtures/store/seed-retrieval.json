@@ -1,0 +1,459 @@
+{
+  "records": [
+    {
+      "session_id": "incident-CKO-101-2026-07-10",
+      "session_type": "incident",
+      "status": "closed",
+      "fingerprint": "db8a1453831f3e99",
+      "catalog_resolved": true,
+      "alert_signature": "checkout-api: high latency",
+      "services": [
+        "checkout-api"
+      ],
+      "severity": "sev2",
+      "started_at": "2026-07-10T09:00:00+00:00"
+    },
+    {
+      "session_id": "test-CKO-101-2026-07-11",
+      "session_type": "test",
+      "status": "open",
+      "fingerprint": "db8a1453831f3e99",
+      "catalog_resolved": true,
+      "alert_signature": "checkout-api: high latency",
+      "services": [
+        "checkout-api"
+      ],
+      "severity": "sev2",
+      "started_at": "2026-07-11T09:00:00+00:00"
+    },
+    {
+      "session_id": "incident-CKO-101-2026-07-12",
+      "session_type": "incident",
+      "status": "superseded",
+      "fingerprint": "db8a1453831f3e99",
+      "catalog_resolved": true,
+      "alert_signature": "checkout-api: high latency",
+      "services": [
+        "checkout-api"
+      ],
+      "severity": "sev2",
+      "started_at": "2026-07-12T09:00:00+00:00"
+    },
+    {
+      "session_id": "incident-CKO-102-2026-07-13",
+      "session_type": "incident",
+      "status": "closed",
+      "fingerprint": "220c1a2ebe3fdc5b",
+      "catalog_resolved": true,
+      "services": [
+        "checkout-api"
+      ],
+      "alert_signature": "checkout-api: connection pool exhausted",
+      "severity": "sev5"
+    },
+    {
+      "session_id": "incident-PAY-202-2026-07-05",
+      "session_type": "incident",
+      "status": "closed",
+      "fingerprint": "736cb24c63c7a290",
+      "catalog_resolved": false,
+      "alert_signature": "payments-api: elevated errors",
+      "services": [
+        "payments-api"
+      ],
+      "severity": "sev3",
+      "started_at": "2026-07-05T09:00:00+00:00"
+    },
+    {
+      "session_id": "incident-ORD-301-2026-07-06",
+      "session_type": "incident",
+      "status": "closed",
+      "fingerprint": "08a9dc0f156bf950",
+      "catalog_resolved": true,
+      "alert_signature": "totally-unrelated-signature-A",
+      "services": [
+        "orders-api",
+        "legacy-orders"
+      ],
+      "severity": "sev4",
+      "started_at": "2026-07-06T09:00:00+00:00"
+    },
+    {
+      "session_id": "incident-UNR-302-2026-07-06",
+      "session_type": "incident",
+      "status": "closed",
+      "fingerprint": "def80ac7ff531ee5",
+      "catalog_resolved": true,
+      "alert_signature": "orders-api: timeout burst",
+      "services": [
+        "unrelated-svc-1"
+      ],
+      "severity": "sev4",
+      "started_at": "2026-07-06T10:00:00+00:00"
+    },
+    {
+      "session_id": "incident-UNR-303-2026-07-06",
+      "session_type": "incident",
+      "status": "closed",
+      "fingerprint": "52389cd95fd4711b",
+      "catalog_resolved": true,
+      "alert_signature": "totally-unrelated-signature-B",
+      "services": [
+        "unrelated-svc-2"
+      ],
+      "severity": "sev1",
+      "started_at": "2026-07-06T11:00:00+00:00"
+    },
+    {
+      "session_id": "test-ORD-304-2026-07-06",
+      "session_type": "test",
+      "status": "open",
+      "fingerprint": "14b1d1a55cd23681",
+      "catalog_resolved": true,
+      "alert_signature": "unrelated-C",
+      "services": [
+        "orders-api"
+      ],
+      "severity": "sev4",
+      "started_at": "2026-07-06T12:00:00+00:00"
+    },
+    {
+      "session_id": "incident-UNR-305-2026-07-06",
+      "session_type": "incident",
+      "status": "superseded",
+      "fingerprint": "e4ea62186a24f37f",
+      "catalog_resolved": true,
+      "alert_signature": "unrelated-D",
+      "services": [
+        "unrelated-svc-3"
+      ],
+      "severity": "sev1",
+      "started_at": "2026-07-06T13:00:00+00:00"
+    },
+    {
+      "session_id": "incident-CAP-01-2026-07-01",
+      "session_type": "incident",
+      "status": "closed",
+      "fingerprint": "a19f6df0f04ca246",
+      "catalog_resolved": true,
+      "alert_signature": "cap-fanout-signature-1",
+      "services": [
+        "cap-svc"
+      ],
+      "severity": "sev5",
+      "started_at": "2026-07-01T00:01:00+00:00"
+    },
+    {
+      "session_id": "incident-CAP-02-2026-07-01",
+      "session_type": "incident",
+      "status": "closed",
+      "fingerprint": "fae4788b481e4c16",
+      "catalog_resolved": true,
+      "alert_signature": "cap-fanout-signature-2",
+      "services": [
+        "cap-svc"
+      ],
+      "severity": "sev5",
+      "started_at": "2026-07-01T00:02:00+00:00"
+    },
+    {
+      "session_id": "incident-CAP-03-2026-07-01",
+      "session_type": "incident",
+      "status": "closed",
+      "fingerprint": "5c16abf7432b8544",
+      "catalog_resolved": true,
+      "alert_signature": "cap-fanout-signature-3",
+      "services": [
+        "cap-svc"
+      ],
+      "severity": "sev5",
+      "started_at": "2026-07-01T00:03:00+00:00"
+    },
+    {
+      "session_id": "incident-CAP-04-2026-07-01",
+      "session_type": "incident",
+      "status": "closed",
+      "fingerprint": "e73e05b5ae93fcd4",
+      "catalog_resolved": true,
+      "alert_signature": "cap-fanout-signature-4",
+      "services": [
+        "cap-svc"
+      ],
+      "severity": "sev5",
+      "started_at": "2026-07-01T00:04:00+00:00"
+    },
+    {
+      "session_id": "incident-CAP-05-2026-07-01",
+      "session_type": "incident",
+      "status": "closed",
+      "fingerprint": "4ba5202f7ee338f2",
+      "catalog_resolved": true,
+      "alert_signature": "cap-fanout-signature-5",
+      "services": [
+        "cap-svc"
+      ],
+      "severity": "sev5",
+      "started_at": "2026-07-01T00:05:00+00:00"
+    },
+    {
+      "session_id": "incident-CAP-06-2026-07-01",
+      "session_type": "incident",
+      "status": "closed",
+      "fingerprint": "945b4a0a29f41ff8",
+      "catalog_resolved": true,
+      "alert_signature": "cap-fanout-signature-6",
+      "services": [
+        "cap-svc"
+      ],
+      "severity": "sev5",
+      "started_at": "2026-07-01T00:06:00+00:00"
+    },
+    {
+      "session_id": "incident-CAP-07-2026-07-01",
+      "session_type": "incident",
+      "status": "closed",
+      "fingerprint": "a1563fa00ebbb1f1",
+      "catalog_resolved": true,
+      "alert_signature": "cap-fanout-signature-7",
+      "services": [
+        "cap-svc"
+      ],
+      "severity": "sev5",
+      "started_at": "2026-07-01T00:07:00+00:00"
+    },
+    {
+      "session_id": "incident-CAP-08-2026-07-01",
+      "session_type": "incident",
+      "status": "closed",
+      "fingerprint": "0bfffc971ec8c00f",
+      "catalog_resolved": true,
+      "alert_signature": "cap-fanout-signature-8",
+      "services": [
+        "cap-svc"
+      ],
+      "severity": "sev5",
+      "started_at": "2026-07-01T00:08:00+00:00"
+    },
+    {
+      "session_id": "incident-CAP-09-2026-07-01",
+      "session_type": "incident",
+      "status": "closed",
+      "fingerprint": "a26a947c741907ab",
+      "catalog_resolved": true,
+      "alert_signature": "cap-fanout-signature-9",
+      "services": [
+        "cap-svc"
+      ],
+      "severity": "sev5",
+      "started_at": "2026-07-01T00:09:00+00:00"
+    },
+    {
+      "session_id": "incident-CAP-10-2026-07-01",
+      "session_type": "incident",
+      "status": "closed",
+      "fingerprint": "70d61f6e5dc565db",
+      "catalog_resolved": true,
+      "alert_signature": "cap-fanout-signature-10",
+      "services": [
+        "cap-svc"
+      ],
+      "severity": "sev5",
+      "started_at": "2026-07-01T00:10:00+00:00"
+    },
+    {
+      "session_id": "incident-CAP-11-2026-07-01",
+      "session_type": "incident",
+      "status": "closed",
+      "fingerprint": "32a3feda8a1a00c1",
+      "catalog_resolved": true,
+      "alert_signature": "cap-fanout-signature-11",
+      "services": [
+        "cap-svc"
+      ],
+      "severity": "sev5",
+      "started_at": "2026-07-01T00:11:00+00:00"
+    },
+    {
+      "session_id": "incident-CAP-12-2026-07-01",
+      "session_type": "incident",
+      "status": "closed",
+      "fingerprint": "6ecb6dab90dc8aad",
+      "catalog_resolved": true,
+      "alert_signature": "cap-fanout-signature-12",
+      "services": [
+        "cap-svc"
+      ],
+      "severity": "sev5",
+      "started_at": "2026-07-01T00:12:00+00:00"
+    },
+    {
+      "session_id": "incident-CAP-13-2026-07-01",
+      "session_type": "incident",
+      "status": "closed",
+      "fingerprint": "bc8dc1665461698a",
+      "catalog_resolved": true,
+      "alert_signature": "cap-fanout-signature-13",
+      "services": [
+        "cap-svc"
+      ],
+      "severity": "sev5",
+      "started_at": "2026-07-01T00:13:00+00:00"
+    },
+    {
+      "session_id": "incident-CAP-14-2026-07-01",
+      "session_type": "incident",
+      "status": "closed",
+      "fingerprint": "3a9ea8e7f33d46e8",
+      "catalog_resolved": true,
+      "alert_signature": "cap-fanout-signature-14",
+      "services": [
+        "cap-svc"
+      ],
+      "severity": "sev5",
+      "started_at": "2026-07-01T00:14:00+00:00"
+    },
+    {
+      "session_id": "incident-CAP-15-2026-07-01",
+      "session_type": "incident",
+      "status": "closed",
+      "fingerprint": "1cc857f0012816ae",
+      "catalog_resolved": true,
+      "alert_signature": "cap-fanout-signature-15",
+      "services": [
+        "cap-svc"
+      ],
+      "severity": "sev5",
+      "started_at": "2026-07-01T00:15:00+00:00"
+    },
+    {
+      "session_id": "incident-CAP-16-2026-07-01",
+      "session_type": "incident",
+      "status": "closed",
+      "fingerprint": "2c5a9be040e6086e",
+      "catalog_resolved": true,
+      "alert_signature": "cap-fanout-signature-16",
+      "services": [
+        "cap-svc"
+      ],
+      "severity": "sev5",
+      "started_at": "2026-07-01T00:16:00+00:00"
+    },
+    {
+      "session_id": "incident-CAP-17-2026-07-01",
+      "session_type": "incident",
+      "status": "closed",
+      "fingerprint": "e9020e53bd91786e",
+      "catalog_resolved": true,
+      "alert_signature": "cap-fanout-signature-17",
+      "services": [
+        "cap-svc"
+      ],
+      "severity": "sev5",
+      "started_at": "2026-07-01T00:17:00+00:00"
+    },
+    {
+      "session_id": "incident-CAP-18-2026-07-01",
+      "session_type": "incident",
+      "status": "closed",
+      "fingerprint": "efb5b9667d7519c3",
+      "catalog_resolved": true,
+      "alert_signature": "cap-fanout-signature-18",
+      "services": [
+        "cap-svc"
+      ],
+      "severity": "sev5",
+      "started_at": "2026-07-01T00:18:00+00:00"
+    },
+    {
+      "session_id": "incident-CAP-19-2026-07-01",
+      "session_type": "incident",
+      "status": "closed",
+      "fingerprint": "e02e0a67a133f485",
+      "catalog_resolved": true,
+      "alert_signature": "cap-fanout-signature-19",
+      "services": [
+        "cap-svc"
+      ],
+      "severity": "sev5",
+      "started_at": "2026-07-01T00:19:00+00:00"
+    },
+    {
+      "session_id": "incident-CAP-20-2026-07-01",
+      "session_type": "incident",
+      "status": "closed",
+      "fingerprint": "cda8272e597a05be",
+      "catalog_resolved": true,
+      "alert_signature": "cap-fanout-signature-20",
+      "services": [
+        "cap-svc"
+      ],
+      "severity": "sev5",
+      "started_at": "2026-07-01T00:20:00+00:00"
+    },
+    {
+      "session_id": "incident-CAP-21-2026-07-01",
+      "session_type": "incident",
+      "status": "closed",
+      "fingerprint": "fb002bfd91d7a29e",
+      "catalog_resolved": true,
+      "alert_signature": "cap-fanout-signature-21",
+      "services": [
+        "cap-svc"
+      ],
+      "severity": "sev5",
+      "started_at": "2026-07-01T00:21:00+00:00"
+    },
+    {
+      "session_id": "incident-CAP-22-2026-07-01",
+      "session_type": "incident",
+      "status": "closed",
+      "fingerprint": "b5d0a9660533e77c",
+      "catalog_resolved": true,
+      "alert_signature": "cap-fanout-signature-22",
+      "services": [
+        "cap-svc"
+      ],
+      "severity": "sev5",
+      "started_at": "2026-07-01T00:22:00+00:00"
+    },
+    {
+      "session_id": "incident-CAP-23-2026-07-01",
+      "session_type": "incident",
+      "status": "closed",
+      "fingerprint": "cb3775bd24afc606",
+      "catalog_resolved": true,
+      "alert_signature": "cap-fanout-signature-23",
+      "services": [
+        "cap-svc"
+      ],
+      "severity": "sev5",
+      "started_at": "2026-07-01T00:23:00+00:00"
+    },
+    {
+      "session_id": "incident-CAP-24-2026-07-01",
+      "session_type": "incident",
+      "status": "closed",
+      "fingerprint": "e47fc65d6fba01af",
+      "catalog_resolved": true,
+      "alert_signature": "cap-fanout-signature-24",
+      "services": [
+        "cap-svc"
+      ],
+      "severity": "sev5",
+      "started_at": "2026-07-01T00:24:00+00:00"
+    },
+    {
+      "session_id": "incident-CAP-25-2026-07-01",
+      "session_type": "incident",
+      "status": "closed",
+      "fingerprint": "1a9cceb7ea021228",
+      "catalog_resolved": true,
+      "alert_signature": "cap-fanout-signature-25",
+      "services": [
+        "cap-svc"
+      ],
+      "severity": "sev5",
+      "started_at": "2026-07-01T00:25:00+00:00"
+    }
+  ]
+}
