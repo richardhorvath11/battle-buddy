@@ -1,0 +1,36 @@
+{
+  "description": "Documented starting MCP roster for a Google-workspace-based team (FR-25a). This is the default roster that passes /doctor out of the box and carries zero architectural privilege — any roster whose connected tools satisfy manifest/capabilities.json's required operation shapes (storage, artifacts, diary, alerting) works exactly as well; battle-buddy skills and commands never hardcode these or any other server name (design §7.2, §3.1 design rule). Swap any entry for another tool that covers the same capability, or add code/observability servers to unlock the optional features manifest/capabilities.json lists. Capability -> server mapping: storage -> storage-google-sheets, artifacts -> artifacts-google-drive, diary -> diary-google-docs, alerting -> alerting-pagerduty. Every credential below is an ${ENV_VAR} reference, resolved from the responder's own shell/CI environment at launch — no literal token, key, or secret belongs in this file or in the workspace repo copy it seeds (FR-007).",
+  "mcpServers": {
+    "storage-google-sheets": {
+      "command": "npx",
+      "args": ["-y", "mcp-gsheets@latest"],
+      "env": {
+        "GOOGLE_PROJECT_ID": "${GOOGLE_PROJECT_ID}",
+        "GOOGLE_APPLICATION_CREDENTIALS": "${GOOGLE_APPLICATION_CREDENTIALS}"
+      }
+    },
+    "artifacts-google-drive": {
+      "command": "npx",
+      "args": ["-y", "@modelcontextprotocol/server-gdrive"],
+      "env": {
+        "GDRIVE_OAUTH_PATH": "${GDRIVE_OAUTH_PATH}",
+        "GDRIVE_CREDENTIALS_PATH": "${GDRIVE_CREDENTIALS_PATH}"
+      }
+    },
+    "diary-google-docs": {
+      "command": "npx",
+      "args": ["-y", "@a-bonus/google-docs-mcp"],
+      "env": {
+        "GOOGLE_CLIENT_ID": "${GOOGLE_CLIENT_ID}",
+        "GOOGLE_CLIENT_SECRET": "${GOOGLE_CLIENT_SECRET}"
+      }
+    },
+    "alerting-pagerduty": {
+      "command": "uvx",
+      "args": ["pagerduty-mcp"],
+      "env": {
+        "PAGERDUTY_USER_API_KEY": "${PAGERDUTY_USER_API_KEY}"
+      }
+    }
+  }
+}
