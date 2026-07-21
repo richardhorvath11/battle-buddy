@@ -1,0 +1,14 @@
+[
+  {
+    "session_id": "page-ALERT-999-2026-07-17",
+    "session_type": "page",
+    "status": "open",
+    "fingerprint": "c21c0ff68bbae292",
+    "catalog_resolved": true,
+    "alert_signature": "al-billing-queue-backup",
+    "services": ["billing"],
+    "severity": "sev2",
+    "responder": "dave",
+    "started_at": "2026-07-17T15:30:00+00:00"
+  }
+]

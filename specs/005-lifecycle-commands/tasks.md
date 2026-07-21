@@ -23,7 +23,7 @@ primitives). Full open→close simulation (SC-007) lands in Polish once all stor
 
 **Purpose**: The fixture directory this slice introduces.
 
-- [ ] T001 Create `tests/fixtures/lifecycle/` with subdirs `verdicts/` and `seeds/`;
+- [x] T001 Create `tests/fixtures/lifecycle/` with subdirs `verdicts/` and `seeds/`;
       add a fixture transcript source file `tests/fixtures/lifecycle/transcript.md`
       (a few markdown turns — the R9 copy source)
 
@@ -36,23 +36,23 @@ R3–R6) — every story's tests drive them.
 
 **⚠️ CRITICAL**: No user story work until this phase is complete.
 
-- [ ] T002 [P] Create `tests/fixtures/lifecycle/verdicts/` fixture verdicts (R3):
+- [x] T002 [P] Create `tests/fixtures/lifecycle/verdicts/` fixture verdicts (R3):
       `valid-known-issue.json` (VALIDATED known_issue + candidates with `{url, excerpt}`
       evidence incl. ≥2 distinct dashboard URLs with one cited most — feeds R16
       top-cited), `valid-no-signal.json` (`no_strong_signal: true`), `invalid-then-
       valid/` pair (re-prompt path), `invalid-twice/` pair (flagged-persist path) —
       invalid docs violating `bb.verdict.v1` in ways `tests/fixtures/validate/` doesn't
       already cover, else reuse that corpus; all valid docs pass the real `bb_validate`
-- [ ] T003 [P] Create `tests/fixtures/lifecycle/catalog.json` (R4): ≥2 fixture services
+- [x] T003 [P] Create `tests/fixtures/lifecycle/catalog.json` (R4): ≥2 fixture services
       (`name`, `owner`, `runbooks`, `dashboards`, `alert_matchers`, `depends_on`), one
       matching the mock's seeded alert `service_hint`, one unmatched (ladder path)
-- [ ] T004 [P] Create `tests/fixtures/lifecycle/seeds/` seed-row fixtures:
+- [x] T004 [P] Create `tests/fixtures/lifecycle/seeds/` seed-row fixtures:
       `join-open-yesterday.json` (open row, same source ID, yesterday-dated
       `session_id`, `latest_checkpoint` set + an overflow variant), `merge-duplicates.json`
       (two open rows sharing a source ID, distinct `started_at`/links/folders),
       `promotion-open-page.json` (open page row), `ownership-displaced.json`
       (row whose `responder` names someone else)
-- [ ] T005 Create `tests/helpers/lifecycle_fixtures.py` (R3–R6): fixture-verdict
+- [x] T005 Create `tests/helpers/lifecycle_fixtures.py` (R3–R6): fixture-verdict
       loaders (single + ordered re-prompt lists); `resolve_service(alert, catalog,
       rung_answers=None)` walking the §5.2 ladder with `catalog_resolved` semantics,
       fingerprinting via the real `bb_fingerprint`; `RecordingShellAdapter`
@@ -80,7 +80,7 @@ marker lifecycle, briefing with deep-linked evidence and shell/degraded branches
 temp local-state dir; assert marker lifecycle, row landing, verdict validation before
 persist, mock write ordering (spec US1).
 
-- [ ] T006 [US1] Write `commands/page.md`: preflight decision table (contracts doc
+- [x] T006 [US1] Write `commands/page.md`: preflight decision table (contracts doc
       order — config stop / repair / confirmed-marker stop / crash-residue rewrite /
       stamp auto-responder / zero-probe proceed), open-flow order (§3.2 + FR-001 incl.
       checkpoint-zero-rides-append and overflow-first), join-vs-separate section
@@ -88,7 +88,7 @@ persist, mock write ordering (spec US1).
       invariants, top-cited navigate, degraded printed links), fail-soft postures
       (alert fetch, shell, catalog ladder), session-ID UTC date pin — capability/
       operation names only (the existing naming gate covers this file by glob)
-- [ ] T007 [US1] Create `tests/helpers/lifecycle_flows.py` — preflight + open:
+- [x] T007 [US1] Create `tests/helpers/lifecycle_flows.py` — preflight + open:
       `preflight(config, state_dir, stamp_path, ...)` per the contracts-doc table,
       reusing `doctor_flows.evaluate_stamp` + `setup_flows.responder_mode` (R11);
       `open_command(mock, state_dir, session_type, source_id, opened_date, verdict_candidates,
@@ -98,14 +98,14 @@ persist, mock write ordering (spec US1).
       overflow-first (R2), history line, read-back → marker confirm, `bb.briefing.v1`
       assembly + navigate/degraded branch (R16), `deep_proposed`/`deep_launched` flags
       (R14); outcome dicts per data-model.md
-- [ ] T008 [P] [US1] Write `tests/contract/test_page_preflight.py`: happy path — zero
+- [x] T008 [P] [US1] Write `tests/contract/test_page_preflight.py`: happy path — zero
       probe calls, write log untouched, no doctor report produced, stamp byte-unchanged
       (SC-002); missing config stops with "run /setup" and zero session artifacts
       (AS-2); malformed config → repair stop; missing/stale stamp → `responder_mode`
       ran then flow proceeds; confirmed marker → stop offering close; unconfirmed
       marker → surfaced, rewritten only on confirmation, untouched on decline (FR-001,
       R8)
-- [ ] T009 [P] [US1] Write `tests/contract/test_open_flow.py`: session-ID format +
+- [x] T009 [P] [US1] Write `tests/contract/test_open_flow.py`: session-ID format +
       row fields + `status: open` (AS-3); marker created `false` → `true` only after
       read-back, write-log ordering (marker precedes append is local, append precedes
       read-back); checkpoint zero rides the append — exactly one `append_record`, no
@@ -116,7 +116,7 @@ persist, mock write ordering (spec US1).
       alert-fetch `not_found` → session still opens degraded (edge, R15); catalog miss
       → ladder rung answer used, `catalog_resolved: false` on the row, briefing notes
       downgrade (edge)
-- [ ] T010 [P] [US1] Write `tests/contract/test_briefing_properties.py`: every claim
+- [x] T010 [P] [US1] Write `tests/contract/test_briefing_properties.py`: every claim
       carries ≥1 `{url, excerpt}` with both non-empty (Constitution IV); top-cited
       dashboard computed per R16 tie rule; shell configured → exactly one
       `navigate_pane` to it; degraded → same links in `printed_links`, zero adapter
@@ -138,17 +138,17 @@ persist, mock write ordering (spec US1).
 inside an open page fixture re-tags the same row — write log shows an update, no second
 row (spec US2).
 
-- [ ] T011 [US2] Write `commands/incident.md`: same open flow by reference to
+- [x] T011 [US2] Write `commands/incident.md`: same open flow by reference to
       `commands/page.md` with incident deltas — `session_type: incident`, deep
       investigation proposed immediately after triage, responder confirmation vs
       `autoLaunchDeep` (additive key, contracts doc), and the promotion path: detect
       open page session via the marker, one `update_record` re-tag, same `session_id`,
       no new marker, deep launch on promotion (FR-003, §3.2/§3.4)
-- [ ] T012 [US2] Extend `tests/helpers/lifecycle_flows.py`: `open_command` incident
+- [x] T012 [US2] Extend `tests/helpers/lifecycle_flows.py`: `open_command` incident
       defaults (`deep_proposed` after triage; `deep_launched` per confirmation/
       `autoLaunchDeep` — R14) and `promote_session(mock, state_dir, ...)` (marker names
       the open session; single re-tag `update_record`; `deep_launched: true`)
-- [ ] T013 [US2] Write `tests/contract/test_incident_flows.py`: fresh incident row
+- [x] T013 [US2] Write `tests/contract/test_incident_flows.py`: fresh incident row
       lands `session_type: incident` with `deep_proposed` (AS-1); confirmation gate —
       `deep_launched` false without confirmation, true with it, true unconfirmed when
       `autoLaunchDeep` (R14); promotion — same `session_id`, write log shows exactly
@@ -170,7 +170,7 @@ capture, timeline derivation, read-back-gated deletion, shell close.
 session; assert write ordering, read-back-then-delete, `diary_pending`, proposal
 labeling, merge leaving one non-superseded row (spec US4).
 
-- [ ] T014 [US4] Write `commands/close.md`: no-session guard (report, zero writes);
+- [x] T014 [US4] Write `commands/close.md`: no-session guard (report, zero writes);
       merge-at-close first + canonical-row rule (R12); draft step — `bb.draft.v1`
       structure, factual autofill vs proposal-labeled causal fields, template-else-
       `read_recent(5)` rendering (R5), approval gate (no writes before `approved`);
@@ -181,7 +181,7 @@ labeling, merge leaving one non-superseded row (spec US4).
       displacement (R13), transient row-write retry (bounded, injector-driven; close
       blocks on row-write success) vs displacement distinction (FR-008), read-back → `.bb-session/` deletion, shell `close_workspace` last,
       state restorable, degraded printed message (FR-007–FR-010)
-- [ ] T015 [US4] Extend `tests/helpers/store_flows.py` and
+- [x] T015 [US4] Extend `tests/helpers/store_flows.py` and
       `tests/helpers/lifecycle_flows.py` — close. In `store_flows.close_session`: two
       additive, keyword-only, default-off parameters (R13 mechanism) — `owned_by=None`
       (when set, re-read the row's `responder` immediately before the step-3
@@ -201,7 +201,7 @@ labeling, merge leaving one non-superseded row (spec US4).
       canonical row (`owned_by` + `row_write_retries` set; close blocks on row-write
       success, FR-008), timeline into the update, shell close; outcome dict per
       data-model.md
-- [ ] T016 [P] [US4] Write `tests/contract/test_close_command.py`: draft structure —
+- [x] T016 [P] [US4] Write `tests/contract/test_close_command.py`: draft structure —
       causal values only under `proposals.*` with `"proposal": true`, `factual` free of
       causal keys, zero writes while unapproved (AS-4, SC-006); write-log ordering
       diary → artifacts → row update (AS-1, SC-005); artifact set + names incl.
@@ -214,7 +214,7 @@ labeling, merge leaving one non-superseded row (spec US4).
       timeline 1:1 from staged trace + checkpoint fixtures, timestamped, ordered, no
       transcript-derived events (AS-6, R10); shell `close_workspace` called /
       degraded printed (AS-7); no-session close → zero writes (edge)
-- [ ] T017 [P] [US4] Write `tests/contract/test_close_merge_ownership.py`: seeded
+- [x] T017 [P] [US4] Write `tests/contract/test_close_merge_ownership.py`: seeded
       duplicates → earliest canonical, links + duplicate folder folded, duplicate
       `superseded`, exactly one non-superseded row for the source ID, dual-write
       targets the canonical row, closing-session marker cleared on canonical read-back
@@ -235,14 +235,14 @@ appends exactly one distinct row.
 join offer, join rehydration from `latest_checkpoint` + take-over write, and separate
 producing a distinct row only on explicit choice (spec US3).
 
-- [ ] T018 [US3] Extend `tests/helpers/lifecycle_flows.py` — join:
+- [x] T018 [US3] Extend `tests/helpers/lifecycle_flows.py` — join:
       `open_command` surfaces `join_offer` (via `detect_open_session` on the open-time
       read) and **stops before any store write** pending the choice;
       `join_session(mock, state_dir, row, responder, ...)`: rehydrate via
       `read_latest_checkpoint` (overflow followed), take-over write, marker rewritten
       to the joined identity with confirmation = take-over read-back (R7);
       `open_separate(...)`: proceed with the normal append flow on explicit choice
-- [ ] T019 [US3] Write `tests/contract/test_join_separate.py`: seeded yesterday-dated
+- [x] T019 [US3] Write `tests/contract/test_join_separate.py`: seeded yesterday-dated
       open row → join offer surfaced, matching by parsed source ID + non-terminal
       status (never recomputed ID), **zero mutating ops before the choice** (AS-1,
       SC-004); join → rehydrated state equals the seeded `latest_checkpoint` (and the
@@ -257,16 +257,16 @@ producing a distinct row only on explicit choice (spec US3).
 
 ## Phase 7: Polish & Cross-Cutting
 
-- [ ] T020 [P] Write `tests/contract/test_lifecycle_full_sim.py` (SC-007): one full
+- [x] T020 [P] Write `tests/contract/test_lifecycle_full_sim.py` (SC-007): one full
       `/page` open → checkpoint → promotion → `/close` simulation on a temp state dir —
       every artifact assertion from the story suites re-checked end to end, and every
       mock invocation verified to be an operation-contract-v1 op (zero ops outside the
       contract); plus a `/page`→`/close` degraded-mode (no shell) variant
-- [ ] T021 [P] Record the FR → test mapping: extend `specs/005-lifecycle-commands/
+- [x] T021 [P] Record the FR → test mapping: extend `specs/005-lifecycle-commands/
       quickstart.md`'s scenario table if any FR lacks a row (FR-001–FR-013 each mapped
       to ≥1 test — SC-001's checkable record); confirm the naming gate covers the three
       new command docs (run `pytest tests/contract/test_command_capability_naming.py -q`)
-- [ ] T022 Full-suite pass: `make verify`; fix anything surfaced; confirm
+- [x] T022 Full-suite pass: `make verify`; fix anything surfaced; confirm
       `tests/contract` runtime stays in seconds (plan Performance Goals)
 
 ---
