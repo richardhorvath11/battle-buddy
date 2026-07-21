@@ -777,6 +777,16 @@ def test_launch_conditions_names_each_labeled_condition_marker(marker):
 
 
 def test_launch_conditions_names_exactly_three_conditions_never_a_fourth():
+    # Count the labeled condition bullets themselves rather than probing for
+    # a literal "(d)" — a fourth condition labeled any other way must fail
+    # too (converge round-1 mutation finding).
+    labeled = re.findall(
+        r"^- \*\*\([a-z]\)\*\*", LAUNCH_CONDITIONS_SECTION, re.MULTILINE
+    )
+    assert len(labeled) == 3, (
+        "SKILL.md's Launch conditions section carries %d labeled conditions "
+        "— FR-5f pins exactly three" % len(labeled)
+    )
     assert "(d)" not in LAUNCH_CONDITIONS_SECTION, (
         "SKILL.md's Launch conditions section carries a fourth labeled "
         "condition '(d)' — FR-5f pins exactly three"

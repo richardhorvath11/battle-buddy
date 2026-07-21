@@ -103,8 +103,8 @@ def _table_rows(section_text):
         cells = [c.strip() for c in line.strip("|").split("|")]
         if not cells:
             continue
-        if all(re.fullmatch(r"-+", c) for c in cells):
-            continue  # separator row
+        if all(re.fullmatch(r":?-+:?", c) for c in cells):
+            continue  # separator row (plain or alignment-colon variants)
         if cells == ["Capability", "Operations", "Access"]:
             continue  # header row
         yield tuple(cells)

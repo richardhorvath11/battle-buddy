@@ -232,10 +232,18 @@ def test_seeded_non_dict_roles_is_rejected():
     assert any(v.startswith("roles.not_object:") for v in violations)
 
 
+def test_seeded_empty_actor_key_is_rejected():
+    doc = {"protocol": "bb.local.v1", "roles": {"": "triage"}}
+    violations = check_registration_shape(doc)
+    assert any(v.startswith("roles.key.not_nonempty_string:") for v in violations)
+
+
 def test_seeded_non_string_actor_key_is_rejected():
     # JSON object keys are always strings once round-tripped through the
     # file, but the shape check must still reject a non-string key handed
-    # in-memory (e.g. a caller that built the dict programmatically).
-    doc = {"protocol": "bb.local.v1", "roles": {"": "triage"}}
+    # in-memory (e.g. a caller that built the dict programmatically) — this
+    # exercises the isinstance half of the check, the empty-key test above
+    # the non-empty half (converge round-1 finding).
+    doc = {"protocol": "bb.local.v1", "roles": {123: "triage"}}
     violations = check_registration_shape(doc)
     assert any(v.startswith("roles.key.not_nonempty_string:") for v in violations)
