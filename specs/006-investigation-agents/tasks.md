@@ -21,14 +21,14 @@ seam), US4/US5 P2.
 **Purpose**: The two new shipped surfaces every story writes into, registered with the
 packaging boundary.
 
-- [ ] T001 Create `skills/investigation/SKILL.md` skeleton (frontmatter with name +
+- [x] T001 Create `skills/investigation/SKILL.md` skeleton (frontmatter with name +
       when-to-use description; overview stating the skill is loaded by the orchestrator
       and both investigation agents — one skill, different budgets/toolsets per role,
       FR-001; routing table to `references/schemas.md` / `briefing.md` /
       `retrieval.md`; empty section stubs for validation discipline / anchoring guard /
       evidence rules / untrusted data / launch conditions / spawn & role registration)
       and the `skills/investigation/references/` directory
-- [ ] T002 [P] Verify (no edit — research R11, converge finding) that
+- [x] T002 [P] Verify (no edit — research R11, converge finding) that
       `tests/fixtures/packaging/intended-bundle.json`'s existing `agents/**` and
       `skills/**` globs cover both new shipped dirs and
       `tests/unit/test_packaging.py` stays green
@@ -44,7 +44,7 @@ SC-002).
 
 **⚠️ CRITICAL**: No user story work until this phase is complete.
 
-- [ ] T003 Write `skills/investigation/references/schemas.md`: normative
+- [x] T003 Write `skills/investigation/references/schemas.md`: normative
       `bb.verdict.v1` + `bb.ledger.v1` statements per data-model.md's field tables
       (required/optional, types, per-field v1 validation); provenance/validation
       vocabularies; the phase model with invariant-phase scoping (early phases permit
@@ -64,7 +64,7 @@ SC-002).
       invalid prose-only evidence, invalid anchoring-guard breaches (both rules),
       invalid unknown-phase — every documented-invalid naming its rule from
       data-model.md's rule list
-- [ ] T004 Write `tests/contract/test_schemas_reference.py` (research R4): parse every
+- [x] T004 Write `tests/contract/test_schemas_reference.py` (research R4): parse every
       marker+fence pair from schemas.md; `expect=valid` ⇒ `bb_validate.validate()`
       returns zero violations; `expect=invalid` ⇒ every named rule appears among the
       violation rules (membership, never exact-set — multi-rule states are legitimate,
