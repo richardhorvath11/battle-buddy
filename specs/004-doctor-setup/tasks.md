@@ -50,9 +50,11 @@ mechanically equal to operation contract v1.
       op shapes from `mock.describe()` and assigning fixture tool names (R8);
       `FixtureHeaderStore` (ordered `header` cells or `None`, write log; header
       representation = `store_flows.COLUMN_NAMES` + `bb.schema.v1` sentinel — R5);
-      fixture shell adapter (answering / raising / absent — R12); config-block fixture
-      loaders. Scenario rosters as data or builders: full, missing-one-required,
-      multi-match, with-optional, drifted
+      fixture shell adapter (answering / raising / absent — R12); a failing-probe
+      injector wrapping the mock (designated capability's probe returns an error —
+      stands in for responder-credential failures the contract has no auth code for);
+      config-block fixture loaders. Scenario rosters as builders (R8): full,
+      missing-one-required, multi-match, with-optional, drifted
 - [ ] T005 [P] Create `tests/fixtures/doctor/` config-block fixtures: `config-valid.json`
       (full `bb.config.v1` per contracts/doctor-protocol.md incl. protocol-v1 key paths),
       `config-malformed.json` (unparseable), `config-future-version.json`
@@ -131,8 +133,11 @@ paths; run reported green (spec US1).
       report, zero writes) → artifact-root establishment (config record + writability via
       smoke, R5/spec assumption) → diary/catalog prompts (inputs) → config-block write
       (`bb.config.v1`, version field) → `scaffold_workspace(tmpdir)` (four files, R10) →
-      doctor + `smoke_test(mock, bindings)` (`test-bb-setup-<date>` row, append →
-      put_file under `<artifactRoot><session_id>/` → append_entry → read-backs)
+      doctor + `smoke_test(mock, bindings)` (`test-bb-setup-<date>` row appended with
+      `status: closed` — terminal/inert per contracts/doctor-protocol.md → put_file
+      under `<artifactRoot><session_id>/` with returned link recorded on the row →
+      append_entry → record read-back via `read_records` through the storage binding;
+      `get_file` never invoked on the documented path)
 - [ ] T013 [P] [US1] Write `templates/mcp.recommended.json` (the FR-010 sanctioned
       server-name location: default roster covering the four required capabilities,
       tokens as `${ENV_VAR}` refs) and `templates/session-sheet.md` (manual store
@@ -142,8 +147,10 @@ paths; run reported green (spec US1).
       exactly (SC-003 create path); existing-correct store ⇒ zero-write validation;
       mismatched store ⇒ exact mismatch, zero writes, nothing re-created (US1 scenario
       4); config block carries version field; scaffold = exactly four files, env-var-ref
-      discipline, zero upstream content; smoke-test row `session_type: test` exercised
-      all four paths and appears in no retrieval candidate set (SC-004 — drive slice-3
+      discipline, zero upstream content; smoke-test row `session_type: test` +
+      `status: closed` exercised all four paths (record read-back through the storage
+      binding; artifact link recorded on the row — mock `get_file` as extra oracle
+      only) and appears in no retrieval candidate set (SC-004 — drive slice-3
       `store_flows.retrieve_candidates` over the post-smoke store); single-invocation
       green (SC-007)
 - [ ] T015 [US1] Write `commands/setup.md`: mode-derivation table (team / responder /
@@ -172,7 +179,9 @@ invalidated by plugin-version or roster-hash change (spec US3).
       `mcpServers`, env-var refs literal — R3), `write_stamp(path, plugin_version,
       roster_hash)` (`bb.stamp.v1`, written only on green outcome),
       `evaluate_stamp(path, plugin_version, roster_hash)` (stale iff either field
-      differs or file missing/unparseable; `at` never expiry-checked)
+      differs or file missing/unparseable; `at` never expiry-checked); wire
+      stamp-writing into the doctor green-run path (both standalone `/doctor` and
+      US1's team-mode finish call it — FR-005 owner is this task)
 - [ ] T017 [US3] Extend `tests/helpers/setup_flows.py` — responder mode:
       `responder_mode(mock, workspace, plugin_version)` verifying probes under current
       credentials, writing the stamp, creating no team resources; wire into
@@ -186,8 +195,9 @@ invalidated by plugin-version or roster-hash change (spec US3).
 - [ ] T019 [P] [US3] Write `tests/contract/test_setup_responder_mode.py`: mode selected
       by inspection from valid-team/absent-responder state; probe outcomes recorded per
       required op in the report; team write log unchanged (zero mutating ops); stamp
-      written; responder-scope failure (probe fails under this responder) reported
-      distinct from team-scope binding failure (edge case) (US3 scenarios 1–3, FR-008)
+      written; responder-scope failure — driven via T004's failing-probe injector —
+      reported distinct from team-scope binding failure (edge case) (US3 scenarios
+      1–3, FR-008)
 
 **Checkpoint**: `make verify` green — US3 independently delivered.
 
@@ -226,7 +236,10 @@ record, and design-doc reconciliation.
       `templates/session-sheet.md` — no concrete MCP server/tool names;
       `templates/mcp.recommended.json` exempt but asserted valid JSON naming servers for
       all four required capabilities; op names in command prose parse under the
-      `capability.operation` format (FR-010, R13)
+      `capability.operation` format. NOTE: the slice-3 scan's contract-membership op
+      check does not port verbatim — dotted `capability.operation` tokens need their own
+      regex (slice-3's matches only undotted tokens), and optional-half ops (`read_file`
+      etc.) resolve against the manifest, not `contract.json` (FR-010, R13)
 - [ ] T023 [P] Append the FR → test-module mapping record to this file (FR-001–FR-012,
       each naming its exercising module(s)) — the FR-011 traceability artifact
 - [ ] T024 Reconcile design doc: verify §7.2's "diary writable" and "Sheet" phrasing

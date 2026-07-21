@@ -107,9 +107,10 @@ re-parsing schema.md in this slice's tests — rejected: duplicates the SC-006 p
 ## R6 — Benign-probe table
 
 **Decision**: One read-shaped probe per capability, pinned in
-`contracts/doctor-protocol.md`: storage → `read_records({"session_id": "bb-doctor-probe"})`
-(empty result passes); diary → `read_recent(1)`; alerting →
-`list_alert_history({"alert_id": "bb-doctor-probe"})` (empty passes). `artifacts` has no
+`contracts/doctor-protocol.md` with literal operation-contract payloads: storage →
+`read_records` with `{"filter": {"session_id": "bb-doctor-probe"}}` (empty result
+passes); diary → `read_recent` with `{"n": 1}`; alerting → `list_alert_history` with
+`{"filter": {"alert_id": "bb-doctor-probe"}}` (empty passes). `artifacts` has no
 read-shaped entry op (`get_file` needs a pre-existing link), so **all artifacts ops are
 schema-match-only at doctor time**; mutating ops everywhere (`append_record`,
 `update_record`, `put_file`, `append_entry`) are schema-matched at doctor time and

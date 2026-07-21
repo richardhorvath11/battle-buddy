@@ -67,9 +67,11 @@ keep their paths (additive extension). Malformed ⇒ repair case, never absent.
 
 ### Smoke-test session row
 
-`session_id = test-bb-setup-<ISO date>`, `session_type: test` (slice-3 schema; excluded
-from every retrieval stage). Exercises append_record → put_file → append_entry →
-read-backs, all through resolved bindings.
+`session_id = test-bb-setup-<ISO date>`, `session_type: test`, `status: closed`
+(terminal at append — inert; slice-3 excludes `test` rows from every retrieval stage).
+Exercises append_record → put_file → append_entry → record read-back (`read_records`),
+all through resolved bindings; artifact success = returned link recorded on the row
+(`get_file` is harness-only, never part of the documented path).
 
 ### Workspace scaffold (team mode)
 
@@ -90,6 +92,7 @@ what is missing, validate the rest.
 | Roster fixtures (`tool_name → {input, output}`), built from `describe()` | `tests/helpers/doctor_fixtures.py` + `tests/fixtures/doctor/` | Live MCP tool-schema inspection |
 | `FixtureHeaderStore` (`header: [cells] \| None`, write log) | `tests/helpers/doctor_fixtures.py` | Live store header row + sentinel |
 | Fixture shell adapter (answering / raising / absent) | `tests/helpers/doctor_fixtures.py` | slice-9 `bb-shell notify` round-trip |
+| Failing-probe injector (wraps the mock; designated capability's probe returns an error) | `tests/helpers/doctor_fixtures.py` | Responder-credential probe failure (contract has no auth error code — the injector stands in for permission failures) |
 | Fixture catalog repo path (parseable / not) | existing `tests/fixtures/` scenario surface | Catalog repo parseability check |
 | Config-block fixtures (valid, malformed, future-versioned) | `tests/fixtures/doctor/` | Workspace settings states |
 

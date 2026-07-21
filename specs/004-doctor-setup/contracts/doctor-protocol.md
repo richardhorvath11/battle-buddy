@@ -67,11 +67,14 @@ stale entry) — never silently rewritten.
 
 ## Benign-probe table (research R6)
 
-| Capability | Probe (read-shaped) | Passes when |
+Payloads are the exact operation-contract invocation payloads (`read_records` and
+`list_alert_history` take their map under the contract's `filter` key):
+
+| Capability | Probe (read-shaped, literal payload) | Passes when |
 |---|---|---|
-| `storage` | `read_records({"session_id": "bb-doctor-probe"})` | call succeeds; empty result is a pass |
-| `diary` | `read_recent(1)` | call succeeds; shape matches |
-| `alerting` | `list_alert_history({"alert_id": "bb-doctor-probe"})` | call succeeds; empty result is a pass |
+| `storage` | `read_records` ← `{"filter": {"session_id": "bb-doctor-probe"}}` | call succeeds; empty result is a pass |
+| `diary` | `read_recent` ← `{"n": 1}` | call succeeds; shape matches |
+| `alerting` | `list_alert_history` ← `{"filter": {"alert_id": "bb-doctor-probe"}}` | call succeeds; empty result is a pass |
 | `artifacts` | *(none — no read-shaped entry op)* | schema match only at doctor time |
 
 Mutating ops (`append_record`, `update_record`, `put_file`, `append_entry`): schema match
@@ -183,13 +186,18 @@ SC-006 cross-check → `store_flows.COLUMN_NAMES` (research R5).
 
 ## Smoke test (team mode, end of sequence)
 
-A synthetic session, `session_type: test`, session ID `test-bb-setup-<ISO date>` (D-8
-format), exercising exactly four paths through the resolved bindings: record append →
-artifact write (under `<artifactRoot><session_id>/`) → diary append → read-back
-(record + artifact). Slice-3 retrieval conventions permanently exclude `session_type:
-test` rows; accumulation across repeated setups is cosmetic. Smoke-test failure is a
-loud, specific failure of the run (it is the end-to-end exercise of every mutating op the
-probes could only schema-match).
+A synthetic session, `session_type: test`, **`status: closed`** (terminal at append —
+the row is inert, never a live session join-at-open could surface), session ID
+`test-bb-setup-<ISO date>` (D-8 format), exercising exactly four paths through the
+resolved bindings: record append → artifact write (under `<artifactRoot><session_id>/`)
+→ diary append → **record read-back** (`read_records` through the storage binding,
+confirming the appended row). Artifact write success is verified by the returned link
+being recorded on the row — `get_file` is harness surface, not a resolved binding, so
+tests may read the artifact back through the mock as an extra oracle but the documented
+smoke path never invokes it. Slice-3 retrieval conventions permanently exclude
+`session_type: test` rows; accumulation across repeated setups is cosmetic. Smoke-test
+failure is a loud, specific failure of the run (it is the end-to-end exercise of every
+mutating op the probes could only schema-match).
 
 ## Version-seam compatibility (v1)
 

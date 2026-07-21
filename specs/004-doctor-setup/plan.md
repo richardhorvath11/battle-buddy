@@ -149,9 +149,9 @@ tests/contract/
 └── test_command_capability_naming.py# FR-010: naming gate over commands/, manifest/,
                                      #   templates/session-sheet.md; roster template exempt+valid
 tests/fixtures/doctor/
-├── roster-**.json                   # full / missing-storage-op / multi-match / optional
 ├── config-**.json                   # valid / malformed / future-versioned blocks
-└── (catalog fixture reuses the existing scenario fixture surface)
+└── (rosters come from doctor_fixtures.py builders — R8; catalog fixture reuses the
+                                     #   existing scenario fixture surface)
 ```
 
 **Structure Decision**: `commands/`, `manifest/`, `templates/` follow design §3.1's
