@@ -15,14 +15,18 @@ that logic.
 
 This task (T012) delivers ``derive_mode`` (team/repair fully; a reasonable
 responder/already-set-up split — see its docstring) and team mode
-(``team_mode``, ``scaffold_workspace``, ``smoke_test``). Extension points left
-for later tasks:
+(``team_mode``, ``scaffold_workspace``, ``smoke_test``). T016/T017 (US3) add
+the green stamp's wiring: ``team_mode``'s doctor step now writes it via
+``doctor_flows.write_stamp_if_green`` on a green report, and ``responder_mode``
+is now implemented for real (probe checks against the existing team scope,
+optional binding drift re-check, stamp write on green — see its own
+docstring). ``Workspace.probes_ok``/``stamp_state`` remain caller-supplied,
+test-injectable fields — ``derive_mode`` itself is unchanged (see
+``compute_stamp_state`` for the optional real-caller convenience that
+populates ``stamp_state`` from ``doctor_flows.evaluate_stamp``; slice 5's
+`/page` preflight is its real, live caller). Extension points left for later
+tasks:
 
-- T017 (US3) fills in ``responder_mode`` for real and refines how
-  ``Workspace.probes_ok``/``stamp_state`` get populated (today they are
-  caller-supplied fields with defaults; T017 will compute ``stamp_state`` via
-  ``doctor_flows.evaluate_stamp`` once T016 lands that function, and
-  ``probes_ok`` via a real per-responder probe run).
 - T020 (US4) fills in ``validate_existing`` for real (already-set-up
   validation + partial-state resumption + malformed-config repair
   surfacing). Team mode's own store create-or-validate branch (below) is the
@@ -70,6 +74,12 @@ _DEFAULT_TRIAGE_TURN_CAP = 15
 # still gets a deterministic one; tests that DO care pass their own via
 # `inputs["opened_date"]`.
 _DEFAULT_OPENED_DATE = "2026-01-01"
+# Same determinism discipline for the green stamp's diagnostic-only "at"
+# field (contracts/doctor-protocol.md "Green stamp"; T016) — a caller that
+# doesn't care passes nothing and gets this fixed ISO 8601 fallback; tests
+# that DO care pass their own via `inputs["at"]` (team_mode) or the explicit
+# `at` argument (responder_mode).
+_DEFAULT_STAMP_AT = "2026-01-01T00:00:00Z"
 
 
 # ---------------------------------------------------------------------------
@@ -166,10 +176,15 @@ def derive_mode(workspace):
     "config present, no stamp yet" reads as responder, exactly the table's
     "stamp missing or stale" row); otherwise already-set-up.
 
-    T017 extends this by computing ``stamp_state``/``probes_ok`` from real
-    probe/stamp-evaluation calls (``doctor_flows.evaluate_stamp``, once T016
-    lands it) rather than accepting them as bare workspace fields, and by
-    distinguishing partial team state (module docstring; T020's concern too).
+    JUDGMENT CALL (T017): ``stamp_state``/``probes_ok`` stay exactly the
+    bare, caller-supplied ``Workspace`` fields T012 left them as —
+    ``derive_mode`` itself is unchanged. Actually evaluating a real stamp
+    (filesystem read + roster re-hash) is a side-effecting step a real
+    caller performs once and feeds in via ``stamp_state``, not something a
+    pure mode-derivation predicate should do on every call; ``responder_mode``
+    (T017) and the module-level ``compute_stamp_state`` convenience are where
+    ``doctor_flows.evaluate_stamp`` actually gets used. Distinguishing partial
+    team state remains T020's concern.
     """
     config = workspace.config
 
@@ -496,6 +511,9 @@ def _result(
     smoke=None,
     green=False,
     failure=None,
+    stamp_path=None,
+    stamp_wrote=False,
+    roster_hash=None,
 ):
     return {
         "steps": steps,
@@ -507,6 +525,13 @@ def _result(
         "smoke": smoke,
         "green": green,
         "failure": failure,
+        # T016/FR-005: the green-stamp write this doctor step attempted —
+        # `stamp_wrote` is False whenever the doctor report wasn't green,
+        # regardless of what happens afterwards (the smoke test is
+        # team-mode's own additional gate on top of "doctor green").
+        "stamp_path": stamp_path,
+        "stamp_wrote": stamp_wrote,
+        "roster_hash": roster_hash,
     }
 
 
@@ -555,17 +580,28 @@ def team_mode(mock, workspace, roster, inputs, plugin_version, manifest=None):
         header_store/catalog_path/shell_adapter. A non-green report
         short-circuits here (config write and scaffold have already
         happened — a doctor failure at this point is reported, not
-        unwound).
+        unwound). Immediately after assembling the report, this step also
+        calls ``doctor_flows.write_stamp_if_green`` (T016, FR-005) at
+        ``<workspace.tmp_path>/.bb-doctor-stamp.json``, using
+        ``doctor_flows.roster_hash(workspace.roster_file_text)`` (the
+        ``.mcp.json`` text step (f) just wrote) and ``inputs.get("at", ...)``
+        for the diagnostic timestamp — gated on *this* report's own outcome,
+        never on the smoke test below (see the inline comment at the call
+        site for why).
     (h) **Smoke test** (contracts/doctor-protocol.md "Smoke test"):
         ``smoke_test(mock, bindings, artifact_root, opened_date)`` —
         ``inputs.get("opened_date")`` (default a fixed hermetic date, no wall
         clock).
 
     Returns a result dict: ``{"steps", "bindings", "binding_checks",
-    "config", "scaffold_paths", "report", "smoke", "green", "failure"}``.
-    On an early short-circuit (header mismatch, or a non-green doctor
-    report), fields past the failure point are ``None``/absent and
-    ``"green"`` is ``False`` with ``"failure"`` naming why.
+    "config", "scaffold_paths", "report", "smoke", "green", "failure",
+    "stamp_path", "stamp_wrote", "roster_hash"}``. On an early short-circuit
+    (header mismatch, or a non-green doctor report), fields past the failure
+    point are ``None``/absent and ``"green"`` is ``False`` with ``"failure"``
+    naming why. ``stamp_path``/``stamp_wrote``/``roster_hash`` are ``None``/
+    ``False`` on the header-mismatch short-circuit (the doctor step never
+    ran) and reflect the doctor step's own outcome on every other path,
+    independent of the smoke test's own result (T016, FR-005).
     """
     inputs = inputs or {}
     if manifest is None:
@@ -661,13 +697,38 @@ def team_mode(mock, workspace, roster, inputs, plugin_version, manifest=None):
         binding_checks, probe_checks, config_checks, version_checks, shell_check,
         manifest, bindings,
     )
-    steps.append({"step": "doctor", "report": report})
+
+    # --- (g.1) green stamp (contracts/doctor-protocol.md "Green stamp";
+    # FR-005 — this task, T016, is the rule's owner). Gated on *this* doctor
+    # step's own report outcome alone, never on the smoke test below: FR-005
+    # is "a green doctor run", and the doctor report's own outcome rule is
+    # exactly what that means; the smoke test is team-mode's own additional
+    # end-to-end gate layered on top, not part of the stamp's gate. Recorded
+    # onto the existing "doctor" step entry (not a new step) so the
+    # documented eight-step sequence (resolve_bindings .. smoke_test) is
+    # unchanged.
+    roster_hash_value = doctor_flows.roster_hash(workspace.roster_file_text)
+    stamp_path = Path(workspace.tmp_path) / ".bb-doctor-stamp.json"
+    stamp_at = inputs.get("at", _DEFAULT_STAMP_AT)
+    stamp_wrote = doctor_flows.write_stamp_if_green(
+        report, stamp_path, plugin_version, roster_hash_value, stamp_at
+    )
+    steps.append(
+        {
+            "step": "doctor",
+            "report": report,
+            "stamp_path": str(stamp_path),
+            "stamp_wrote": stamp_wrote,
+            "roster_hash": roster_hash_value,
+        }
+    )
 
     if report["outcome"] != "green":
         return _result(
             steps, bindings, binding_checks,
             config=config, scaffold_paths=scaffold_paths, report=report,
             failure="doctor report outcome red — see report['checks'] for detail",
+            stamp_path=stamp_path, stamp_wrote=stamp_wrote, roster_hash=roster_hash_value,
         )
 
     # --- (h) smoke test ------------------------------------------------------------
@@ -680,6 +741,7 @@ def team_mode(mock, workspace, roster, inputs, plugin_version, manifest=None):
         config=config, scaffold_paths=scaffold_paths, report=report, smoke=smoke,
         green=smoke["green"],
         failure=None if smoke["green"] else smoke["failure"],
+        stamp_path=stamp_path, stamp_wrote=stamp_wrote, roster_hash=roster_hash_value,
     )
 
 
@@ -688,13 +750,137 @@ def team_mode(mock, workspace, roster, inputs, plugin_version, manifest=None):
 # ---------------------------------------------------------------------------
 
 
-def responder_mode(mock, workspace, plugin_version):
-    """T017's scope (US3): provision/verify this responder's tokens via
-    probes under their own credentials and write the green stamp, creating no
-    team resources. Not implemented here — ``derive_mode`` already routes a
-    config-present, stamp-missing-or-stale workspace to ``"responder"`` mode;
-    this function is the mode's executable body."""
-    raise NotImplementedError("responder_mode is T017's scope (US3)")
+def responder_mode(mock, workspace, plugin_version, at):
+    """T017 (US3, FR-008): responder-mode `/setup` — verify this responder's
+    own probes under their *current* credentials against the already-existing
+    team scope, and write the local green stamp on success. Creates no team
+    resources whatsoever: ``derive_mode`` already routes a config-present,
+    stamp-missing-or-stale workspace here (team scope — config, store header,
+    bindings — travels with the cloned repo; what's missing is this
+    responder's own scope).
+
+    ``mock``: the MCP surface reachable *under this responder's own
+    credentials* — a plain mock, or a ``doctor_fixtures.FailingProbeInjector``
+    standing in for a responder-credential/permission failure on one
+    capability (spec edge case: "Probe fails under this responder's
+    credentials while the committed binding map is valid"). ``workspace``:
+    the already-committed team scope this mode only ever reads
+    (``workspace.config``, ``workspace.header_store``,
+    ``workspace.catalog_path``, and — see judgment call below —
+    ``workspace.roster``/``workspace.roster_file_text``). ``at``: caller-
+    supplied ISO 8601 timestamp for the stamp (hermetic — no wall clock;
+    mirrors ``team_mode``'s own ``inputs["at"]``).
+
+    Steps, every one of them read-only:
+
+    (a) ``doctor_flows.run_probes(mock)`` — one ``probe``-kind check per
+        required capability, run under *this* responder's credentials. A
+        capability whose credentials are rejected fails here with kind
+        ``"probe"`` — **never** ``"binding"``: this mode never re-resolves
+        bindings at all (they're team scope, already committed; FR-008 only
+        ever asks this mode to provision/verify *this responder's* tokens).
+    (b) JUDGMENT CALL — optional binding drift re-check: bindings are team
+        scope and this mode has no business re-*resolving* them. But the
+        spec edge case above is only observable in a report if that report
+        can show a *still-valid* committed binding map alongside a *failing*
+        responder-scope probe in the same run — so when ``workspace.config``
+        is a dict carrying a ``"bindings"`` map and ``workspace.roster`` is
+        non-empty, this function additionally runs
+        ``doctor_flows.revalidate_bindings`` (drift re-*validation*, never
+        resolution) over the committed map, purely so the report can
+        distinguish the two failure kinds side by side. When either is
+        absent, no ``binding``-kind checks appear at all — never required
+        for this mode to run.
+    (c) ``doctor_flows.check_config(mock, workspace.config,
+        workspace.header_store, workspace.catalog_path)`` — the same store/
+        diary/catalog config checks doctor runs, against the *existing*
+        workspace state (never a create path: ``check_config`` only ever
+        calls ``header_store.read_header()``, never ``create_header``).
+    (d) ``doctor_flows.assemble_report`` over exactly these check families
+        (binding [from (b), maybe empty], probe [from (a)], config [from
+        (c)]) plus empty version checks and no shell check — version-seam
+        and shell-notify are team-scope/doctor concerns this mode doesn't
+        touch (matches the task's own "probe checks + config checks"
+        scope). ``manifest`` is the real shipped
+        ``manifest/capabilities.json`` (mirrors ``team_mode``).
+    (e) On a green report: write the stamp via
+        ``doctor_flows.write_stamp_if_green`` at
+        ``<workspace.tmp_path>/.bb-doctor-stamp.json`` (same location
+        ``team_mode`` uses), hashing ``workspace.roster_file_text`` (the
+        committed ``.mcp.json`` text this responder cloned) — or an
+        empty-roster hash when the workspace carries no roster text at all
+        (a workspace fixture that never set it; ``roster_hash`` treats a
+        missing ``"mcpServers"`` key as an empty map rather than raising).
+
+    Creates no team resources: ``workspace.header_store.create_header`` is
+    never called, ``workspace.config`` is only ever read, ``scaffold_workspace``
+    is never called, and every mock call this function makes
+    (``run_probes``'s/``check_config``'s own calls) is read-shaped — so a
+    caller's ``mock.write_log`` is provably unchanged across a
+    ``responder_mode`` run (US3 "no mutating operation touches team
+    resources").
+
+    Returns ``{"report", "stamp_path", "stamp_wrote", "roster_hash"}``.
+    """
+    manifest = _load_manifest()
+    config = workspace.config
+
+    probe_checks = doctor_flows.run_probes(mock)
+
+    binding_checks = []
+    if isinstance(config, dict) and config.get("bindings") and workspace.roster:
+        binding_checks = doctor_flows.revalidate_bindings(
+            config["bindings"], workspace.roster, manifest
+        )
+
+    config_checks = doctor_flows.check_config(
+        mock, config, workspace.header_store, workspace.catalog_path
+    )
+
+    bindings = config.get("bindings", {}) if isinstance(config, dict) else {}
+    report = doctor_flows.assemble_report(
+        binding_checks, probe_checks, config_checks, [], None, manifest, bindings,
+    )
+
+    roster_text = (
+        workspace.roster_file_text if workspace.roster_file_text is not None else "{}"
+    )
+    roster_hash_value = doctor_flows.roster_hash(roster_text)
+    stamp_path = Path(workspace.tmp_path) / ".bb-doctor-stamp.json"
+    stamp_wrote = doctor_flows.write_stamp_if_green(
+        report, stamp_path, plugin_version, roster_hash_value, at
+    )
+
+    return {
+        "report": report,
+        "stamp_path": stamp_path,
+        "stamp_wrote": stamp_wrote,
+        "roster_hash": roster_hash_value,
+    }
+
+
+def compute_stamp_state(stamp_path, plugin_version, current_roster_hash):
+    """Optional convenience (T016 extension point) for a real caller
+    populating ``Workspace.stamp_state`` — which stays ``derive_mode``'s
+    plain, test-injectable field, exactly as T012 left it; this function is
+    never called by ``derive_mode``/``team_mode``/``responder_mode``
+    themselves. It wraps ``doctor_flows.evaluate_stamp`` and returns just the
+    two-value vocabulary ``derive_mode`` reads (``"fresh"`` / ``"stale"``),
+    discarding the human-readable reason (a caller that wants the reason too
+    should call ``doctor_flows.evaluate_stamp`` directly).
+
+    Slice 5's `/page` preflight is the real, live caller of this path: it
+    reads the on-disk stamp, computes the current roster hash, and uses
+    exactly this fresh/stale result to decide whether to auto-run
+    ``responder_mode``. Nothing in this slice calls it automatically —
+    keeping ``derive_mode`` a pure inspection over whatever
+    ``Workspace.stamp_state`` already holds is what keeps it hermetic and
+    test-injectable.
+    """
+    status, _reason = doctor_flows.evaluate_stamp(
+        stamp_path, plugin_version, current_roster_hash
+    )
+    return status
 
 
 def validate_existing(mock, workspace):

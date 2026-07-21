@@ -12,9 +12,13 @@ citing the doctor-protocol.md section it executes, mirroring
 This task (T006) delivers the resolution core: ``resolve_bindings``,
 ``run_probes``, ``revalidate_bindings``. T008 adds the verification checks
 (``check_config``, ``check_versions``, ``check_shell``) and report assembly
-(``assemble_report`` -> ``bb.doctor.report.v1``).
+(``assemble_report`` -> ``bb.doctor.report.v1``). T016 (US3) adds the green
+stamp (``bb.stamp.v1``): ``roster_hash``, ``write_stamp``/
+``write_stamp_if_green``, ``evaluate_stamp`` (contracts/doctor-protocol.md
+"Green stamp"; FR-005).
 """
 
+import hashlib
 import json
 from pathlib import Path
 
@@ -812,3 +816,136 @@ def assemble_report(
         "reduced_features": reduced_features,
         "migrations": migrations,
     }
+
+
+# ---------------------------------------------------------------------------
+# Green stamp (bb.stamp.v1) (contracts/doctor-protocol.md "Green stamp";
+# spec FR-005, SC-006, US3 scenarios 2-3) — T016
+# ---------------------------------------------------------------------------
+#
+# FR-005 is owned entirely by this section: a green doctor run writes the
+# local, never-committed stamp; both standalone `/doctor` and team-mode's
+# `setup_flows.team_mode` (its doctor step, US1's finish) call
+# ``write_stamp_if_green`` here rather than each re-implementing the gate.
+
+_STAMP_SCHEMA = "bb.stamp.v1"
+
+
+def roster_hash(roster_file_text):
+    """contracts/doctor-protocol.md "Green stamp" -> "Roster hash": the first
+    16 hex characters of a SHA-256 over the canonical JSON serialization
+    (sorted keys, compact ``,``/``:`` separators, UTF-8) of the *parsed*
+    roster file text's ``"mcpServers"`` map.
+
+    ``roster_file_text``: the exact text of a workspace's ``.mcp.json`` (or
+    any roster file sharing that shape) — a ``str``, never a path or an
+    already-parsed dict; this function owns the parse so canonicalization is
+    always computed over the same freshly-loaded structure, never a caller's
+    possibly-differently-ordered in-memory dict.
+
+    ``${ENV_VAR}`` references inside the text are hashed as the literal
+    strings they are — this function never resolves them (no environment
+    access at all), matching the contract's "never a resolved secret".
+    Canonicalization (``sort_keys=True``) makes the hash key-order-insensitive
+    at every nesting level, so two texts differing only in (nested) key order
+    hash identically — the roster's *content*, not its serialization, is what
+    staleness tracks.
+
+    A roster file with no ``"mcpServers"`` key hashes an empty map (``{}``)
+    rather than raising — callers that care to distinguish "no roster at all"
+    do so before calling this function.
+    """
+    parsed = json.loads(roster_file_text)
+    mcp_servers = parsed.get("mcpServers", {}) if isinstance(parsed, dict) else {}
+    canonical = json.dumps(mcp_servers, sort_keys=True, separators=(",", ":"))
+    digest = hashlib.sha256(canonical.encode("utf-8")).hexdigest()
+    return digest[:16]
+
+
+def write_stamp(path, plugin_version, roster_hash_value, at):
+    """contracts/doctor-protocol.md "Green stamp" -> "Shape": writes
+    ``{"schema": "bb.stamp.v1", "at": at, "plugin_version": plugin_version,
+    "roster_hash": roster_hash_value}`` as JSON to ``path``, unconditionally
+    (the green-outcome gate is ``write_stamp_if_green``'s job, not this
+    function's — every caller that only ever wants to write on green should
+    call that one instead).
+
+    ``at``: an ISO 8601 string supplied by the caller (hermetic — this
+    function never reads the wall clock; mirrors how ``store_flows``'s own
+    flows take their dates as explicit inputs). Returns the stamp dict
+    written.
+    """
+    stamp = {
+        "schema": _STAMP_SCHEMA,
+        "at": at,
+        "plugin_version": plugin_version,
+        "roster_hash": roster_hash_value,
+    }
+    Path(path).write_text(
+        json.dumps(stamp, indent=2, sort_keys=True) + "\n", encoding="utf-8"
+    )
+    return stamp
+
+
+def write_stamp_if_green(report, path, plugin_version, roster_hash_value, at):
+    """FR-005's gate: writes the stamp (via ``write_stamp``) iff
+    ``report["outcome"] == "green"``; a non-green report writes nothing.
+    Returns whether it wrote.
+
+    This is the single owner of "only write on green" — both a standalone
+    `/doctor` run and ``setup_flows.team_mode``'s doctor step call exactly
+    this function (never ``write_stamp`` directly) so the gate can never
+    drift between the two call sites.
+    """
+    if report.get("outcome") != "green":
+        return False
+    write_stamp(path, plugin_version, roster_hash_value, at)
+    return True
+
+
+def evaluate_stamp(path, plugin_version, current_roster_hash):
+    """contracts/doctor-protocol.md "Green stamp" -> "Staleness": the sole
+    v1 rules — stale iff the stamp file is missing/unparseable/not
+    ``bb.stamp.v1``-shaped, or ``plugin_version`` differs, or
+    ``roster_hash`` differs from ``current_roster_hash``. ``at`` is
+    diagnostic only and is **never** consulted here — no time-based
+    expiry (a time window would reintroduce 3am probes).
+
+    Returns ``(status, reason)`` where ``status`` is ``"fresh"`` or
+    ``"stale"`` and ``reason`` is a human-readable detail (mirroring this
+    module's ``check``-dict ``detail`` convention, without inventing a third
+    return shape just for this one function).
+    """
+    path = Path(path)
+
+    if not path.exists():
+        return "stale", "stamp file missing at {}".format(path)
+
+    try:
+        text = path.read_text(encoding="utf-8")
+        stamp = json.loads(text)
+    except (OSError, ValueError) as exc:
+        return "stale", "stamp file unparseable at {}: {}".format(path, exc)
+
+    if not isinstance(stamp, dict) or stamp.get("schema") != _STAMP_SCHEMA:
+        found = stamp.get("schema") if isinstance(stamp, dict) else stamp
+        return "stale", "stamp schema mismatch: expected {!r}, found {!r}".format(
+            _STAMP_SCHEMA, found
+        )
+
+    if stamp.get("plugin_version") != plugin_version:
+        return "stale", (
+            "stamp plugin_version {!r} does not match installed plugin "
+            "{!r}".format(stamp.get("plugin_version"), plugin_version)
+        )
+
+    if stamp.get("roster_hash") != current_roster_hash:
+        return "stale", (
+            "stamp roster_hash {!r} does not match current roster_hash "
+            "{!r}".format(stamp.get("roster_hash"), current_roster_hash)
+        )
+
+    return "fresh", (
+        "stamp matches installed plugin_version and current roster_hash "
+        "(at={!r} is diagnostic only, never expiry-checked)".format(stamp.get("at"))
+    )

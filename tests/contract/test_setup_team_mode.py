@@ -218,8 +218,26 @@ def test_scaffold_exactly_four_files_with_expected_shapes(mock_mcp, tmp_path):
     result = setup_flows.team_mode(mock_mcp, workspace, roster, {}, PLUGIN_VERSION)
     assert result["green"] is True
 
+    # Exactly the four *scaffold* files scaffold_workspace itself writes.
+    scaffold_files = set(result["scaffold_paths"].values())
+    assert len(scaffold_files) == 4
+
+    # FR-005 (T016): a green doctor run also writes the local, gitignored,
+    # never-committed `.bb-doctor-stamp.json` runtime dropping at the
+    # workspace root (contracts/doctor-protocol.md "Green stamp") — team_mode
+    # wires this in right after its doctor step reports green. That stamp
+    # sits outside scaffold_workspace's own four-file output (it is never one
+    # of the paths that function returns, and .gitignore already excludes it
+    # from the repo below), so the workspace directory as a whole now holds
+    # the four scaffold files *plus* this one uncommitted stamp — five files,
+    # not four. Updating this expectation (rather than leaving it at 4) is
+    # the narrowly-scoped, justified exception T016 calls for.
     all_files = [p for p in tmp_path.rglob("*") if p.is_file()]
-    assert len(all_files) == 4
+    assert len(all_files) == 5
+    stamp_path = tmp_path / ".bb-doctor-stamp.json"
+    assert stamp_path.exists()
+    assert stamp_path not in scaffold_files
+    assert set(all_files) == scaffold_files | {stamp_path}
 
     settings = json.loads((tmp_path / ".claude" / "settings.json").read_text())
     assert settings["battleBuddy"]["configVersion"] == "bb.config.v1"

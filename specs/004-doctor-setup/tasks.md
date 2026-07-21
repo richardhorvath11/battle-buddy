@@ -174,7 +174,7 @@ artifact slice 5's preflight trusts.
 three-field stamp, team write log unchanged, report records per-op probe outcomes; stamp
 invalidated by plugin-version or roster-hash change (spec US3).
 
-- [ ] T016 [US3] Extend `tests/helpers/doctor_flows.py` — stamp:
+- [x] T016 [US3] Extend `tests/helpers/doctor_flows.py` — stamp:
       `roster_hash(roster_file_contents)` (16-hex SHA-256 over canonical JSON of
       `mcpServers`, env-var refs literal — R3), `write_stamp(path, plugin_version,
       roster_hash)` (`bb.stamp.v1`, written only on green outcome),
@@ -182,17 +182,17 @@ invalidated by plugin-version or roster-hash change (spec US3).
       differs or file missing/unparseable; `at` never expiry-checked); wire
       stamp-writing into the doctor green-run path (both standalone `/doctor` and
       US1's team-mode finish call it — FR-005 owner is this task)
-- [ ] T017 [US3] Extend `tests/helpers/setup_flows.py` — responder mode:
+- [x] T017 [US3] Extend `tests/helpers/setup_flows.py` — responder mode:
       `responder_mode(mock, workspace, plugin_version)` verifying probes under current
       credentials, writing the stamp, creating no team resources; wire into
       `derive_mode` (config present + probes-fail-or-stamp-stale ⇒ responder)
-- [ ] T018 [P] [US3] Write `tests/contract/test_stamp_lifecycle.py`: green run writes
+- [x] T018 [P] [US3] Write `tests/contract/test_stamp_lifecycle.py`: green run writes
       all three fields (SC-006); changed plugin version ⇒ stale; changed roster file ⇒
       hash differs ⇒ stale; unchanged roster ⇒ hash stable across recomputation;
       timestamp difference alone never stale; missing/corrupt file ⇒ stale; stamp path
       is workspace-root `.bb-doctor-stamp.json` and never lands in the scaffold's
       committed file set (FR-005)
-- [ ] T019 [P] [US3] Write `tests/contract/test_setup_responder_mode.py`: mode selected
+- [x] T019 [P] [US3] Write `tests/contract/test_setup_responder_mode.py`: mode selected
       by inspection from valid-team/absent-responder state; probe outcomes recorded per
       required op in the report; team write log unchanged (zero mutating ops); stamp
       written; responder-scope failure — driven via T004's failing-probe injector —
