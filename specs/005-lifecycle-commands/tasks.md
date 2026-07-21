@@ -80,7 +80,7 @@ marker lifecycle, briefing with deep-linked evidence and shell/degraded branches
 temp local-state dir; assert marker lifecycle, row landing, verdict validation before
 persist, mock write ordering (spec US1).
 
-- [ ] T006 [US1] Write `commands/page.md`: preflight decision table (contracts doc
+- [x] T006 [US1] Write `commands/page.md`: preflight decision table (contracts doc
       order — config stop / repair / confirmed-marker stop / crash-residue rewrite /
       stamp auto-responder / zero-probe proceed), open-flow order (§3.2 + FR-001 incl.
       checkpoint-zero-rides-append and overflow-first), join-vs-separate section
@@ -88,7 +88,7 @@ persist, mock write ordering (spec US1).
       invariants, top-cited navigate, degraded printed links), fail-soft postures
       (alert fetch, shell, catalog ladder), session-ID UTC date pin — capability/
       operation names only (the existing naming gate covers this file by glob)
-- [ ] T007 [US1] Create `tests/helpers/lifecycle_flows.py` — preflight + open:
+- [x] T007 [US1] Create `tests/helpers/lifecycle_flows.py` — preflight + open:
       `preflight(config, state_dir, stamp_path, ...)` per the contracts-doc table,
       reusing `doctor_flows.evaluate_stamp` + `setup_flows.responder_mode` (R11);
       `open_command(mock, state_dir, session_type, source_id, opened_date, verdict_candidates,
@@ -98,14 +98,14 @@ persist, mock write ordering (spec US1).
       overflow-first (R2), history line, read-back → marker confirm, `bb.briefing.v1`
       assembly + navigate/degraded branch (R16), `deep_proposed`/`deep_launched` flags
       (R14); outcome dicts per data-model.md
-- [ ] T008 [P] [US1] Write `tests/contract/test_page_preflight.py`: happy path — zero
+- [x] T008 [P] [US1] Write `tests/contract/test_page_preflight.py`: happy path — zero
       probe calls, write log untouched, no doctor report produced, stamp byte-unchanged
       (SC-002); missing config stops with "run /setup" and zero session artifacts
       (AS-2); malformed config → repair stop; missing/stale stamp → `responder_mode`
       ran then flow proceeds; confirmed marker → stop offering close; unconfirmed
       marker → surfaced, rewritten only on confirmation, untouched on decline (FR-001,
       R8)
-- [ ] T009 [P] [US1] Write `tests/contract/test_open_flow.py`: session-ID format +
+- [x] T009 [P] [US1] Write `tests/contract/test_open_flow.py`: session-ID format +
       row fields + `status: open` (AS-3); marker created `false` → `true` only after
       read-back, write-log ordering (marker precedes append is local, append precedes
       read-back); checkpoint zero rides the append — exactly one `append_record`, no
@@ -116,7 +116,7 @@ persist, mock write ordering (spec US1).
       alert-fetch `not_found` → session still opens degraded (edge, R15); catalog miss
       → ladder rung answer used, `catalog_resolved: false` on the row, briefing notes
       downgrade (edge)
-- [ ] T010 [P] [US1] Write `tests/contract/test_briefing_properties.py`: every claim
+- [x] T010 [P] [US1] Write `tests/contract/test_briefing_properties.py`: every claim
       carries ≥1 `{url, excerpt}` with both non-empty (Constitution IV); top-cited
       dashboard computed per R16 tie rule; shell configured → exactly one
       `navigate_pane` to it; degraded → same links in `printed_links`, zero adapter
