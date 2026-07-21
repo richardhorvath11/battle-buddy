@@ -70,14 +70,14 @@ reference, executed as deterministic reads against seeded fixtures (FR-003, FR-0
 `store_flows.retrieve_candidates`, assert candidate sets per stage — no agent, no
 credentials, no network.
 
-- [ ] T005 [P] [US1] Write `skills/session-store/references/fingerprint.md`: normative
+- [x] T005 [P] [US1] Write `skills/session-store/references/fingerprint.md`: normative
       `bb.fp.v1` statement — construction formula, normalization rules matching
       `bin/bb_fingerprint.py` (same rule order), the four-rung service-resolution
       ladder with `catalog_resolved` semantics, never-a-shared-sentinel rule,
       version-bump + re-fingerprint discipline, helper/golden-corpus roles, and ≥2
       worked examples in a fenced block (one catalog-resolved, one rung-4) for the R6
       recomputation check
-- [ ] T006 [P] [US1] Write `skills/session-store/references/retrieval.md`: stage-0
+- [x] T006 [P] [US1] Write `skills/session-store/references/retrieval.md`: stage-0
       exclusions (`session_type: test`, `status: superseded`) applied at every stage;
       stage 1 fingerprint exact-match with `catalog_resolved` downgrade (either row);
       stage 2 keyword overlap on `services`/`alert_signature`/`severity`; stage 3
@@ -86,20 +86,20 @@ credentials, no network.
       client-side over a full read, store-side filter only for stage 1's fingerprint
       equality (contract has field-equality only; converge finding 2); empty result =
       normal fresh-investigation outcome
-- [ ] T007 [P] [US1] Create `tests/fixtures/store/seed-retrieval.json` (mock
+- [x] T007 [P] [US1] Create `tests/fixtures/store/seed-retrieval.json` (mock
       `load_seed` format): exact-fingerprint match row, keyword-overlap-only rows,
       `session_type: test` and `status: superseded` rows that would otherwise match,
       a `catalog_resolved: false` exact-match pair, and >20 keyword-matching rows for
       the cap case
-- [ ] T008 [US1] Implement `retrieve_candidates` in `tests/helpers/store_flows.py`
+- [x] T008 [US1] Implement `retrieve_candidates` in `tests/helpers/store_flows.py`
       executing retrieval.md's stages step-by-step over `read_records` (each step
       cites its skill section), returning the pinned surfacing shape
       `{candidates, classification, truncated, total_matched}` (analysis A1)
-- [ ] T009 [US1] Write `tests/contract/test_retrieval_flow.py`: US1 AS-1–AS-5 plus the
+- [x] T009 [US1] Write `tests/contract/test_retrieval_flow.py`: US1 AS-1–AS-5 plus the
       empty/all-excluded-store edge case (spec Edge Cases), asserting candidate sets,
       downgrade classification, cap truncation surfaced, and exclusions at every stage
       (SC-003)
-- [ ] T010 [US1] Write `tests/contract/test_fingerprint_reference.py`: doc version tag
+- [x] T010 [US1] Write `tests/contract/test_fingerprint_reference.py`: doc version tag
       == `bb_fingerprint.VERSION` == golden-corpus version; every worked example in
       fingerprint.md recomputes exactly through the real helper (research R6, FR-003)
 

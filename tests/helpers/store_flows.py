@@ -147,7 +147,72 @@ def build_row(**fields):
 
 
 # ---------------------------------------------------------------------------
-# Flow functions — implemented by later slice-3 tasks (T008, T012, T017, T021):
-#   open_session, retrieve_candidates, write_checkpoint, take_over,
-#   close_session, merge_duplicates
+# Retrieval (references/retrieval.md, FR-007) — T008 (US1). Remaining flow
+# functions land in later slice-3 tasks (T012, T017, T021): open_session,
+# write_checkpoint, take_over, close_session, merge_duplicates.
 # ---------------------------------------------------------------------------
+
+# retrieval.md "Stage 3 — cap and hand-off": the candidate cap.
+CANDIDATE_CAP = 20
+
+
+def _retrieval_excluded(row):
+    """retrieval.md "Stage 0 — exclusions (apply before every stage's match)"."""
+    return row.get("session_type") == "test" or row.get("status") == "superseded"
+
+
+def retrieve_candidates(
+    mock, fingerprint, catalog_resolved, services, alert_signature, severity
+):
+    """Execute retrieval.md's three-stage flow for an incoming session described
+    by ``fingerprint``/``catalog_resolved`` (from ``bin/bb-fingerprint`` and the
+    service-resolution ladder — the incoming session's row isn't written yet, so
+    these are passed in rather than read back) plus ``services``/``alert_signature``/
+    ``severity``. Returns retrieval.md's surfacing shape: ``{"candidates": [...],
+    "classification": "known_issue" | "candidate" | None, "truncated": bool,
+    "total_matched": int}``.
+    """
+    # retrieval.md "Stage 1 — fingerprint exact match": the one stage allowed a
+    # store-side filter; exclusions still apply client-side to the result.
+    stage1 = mock.invoke(
+        "storage", "read_records", {"filter": {"fingerprint": fingerprint}}
+    )
+    stage1_rows = [r for r in stage1["records"] if not _retrieval_excluded(r)]
+
+    if stage1_rows:
+        # retrieval.md stage 1 "Hit, no downgrade" / "Hit, downgraded": either
+        # side of the match — the incoming session or any surviving matched
+        # row — carrying catalog_resolved: false downgrades the classification.
+        downgraded = (not catalog_resolved) or any(
+            not row.get("catalog_resolved", True) for row in stage1_rows
+        )
+        matched = stage1_rows
+        classification = "candidate" if downgraded else "known_issue"
+    else:
+        # retrieval.md "Stage 2 — keyword overlap (only when stage 1 found
+        # nothing)": full read, client-side exclusions, client-side overlap —
+        # the contract has no server-side keyword filter.
+        all_rows = mock.invoke("storage", "read_records", {})["records"]
+        surviving = [r for r in all_rows if not _retrieval_excluded(r)]
+        incoming_services = set(services or [])
+        matched = [
+            row
+            for row in surviving
+            if (incoming_services & set(row.get("services") or []))
+            or (
+                alert_signature is not None
+                and row.get("alert_signature") == alert_signature
+            )
+            or (severity is not None and row.get("severity") == severity)
+        ]
+        classification = "candidate" if matched else None
+
+    # retrieval.md "Stage 3 — cap and hand-off": first CANDIDATE_CAP matches in
+    # insertion order; truncation stated, never silent.
+    total_matched = len(matched)
+    return {
+        "candidates": matched[:CANDIDATE_CAP],
+        "classification": classification,
+        "truncated": total_matched > CANDIDATE_CAP,
+        "total_matched": total_matched,
+    }
