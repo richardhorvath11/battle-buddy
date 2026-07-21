@@ -158,7 +158,7 @@ cross-checked against the manifest (SC-006 instrument lands here).
 **Independent Test**: `test_agent_toolsets.py` parses the definition's pinned
 properties; verdict examples it references already validate via Phase 2.
 
-- [ ] T010 [US2] Write `agents/triage.md` (research R2 format): frontmatter
+- [x] T010 [US2] Write `agents/triage.md` (research R2 format): frontmatter
       (name + description only); model class fast/cheap with budget-vs-depth rationale,
       configurable via workspace `battleBuddy` config, no key minted (research R3);
       budget section — ≤2-minute wall-clock *target* measured and reported in
@@ -178,13 +178,13 @@ properties; verdict examples it references already validate via Phase 2.
       `no_strong_signal`/`budget_spent` fields — no separate signal invented;
       mid-session re-invocation charter (classify related-to-current vs separate,
       without disturbing a running deep investigation)
-- [ ] T011 [US2] Write `tests/contract/test_agent_toolsets.py` (research R7): toolset
+- [x] T011 [US2] Write `tests/contract/test_agent_toolsets.py` (research R7): toolset
       table parser over `agents/*.md`; every Capability token ∈
       `manifest/capabilities.json` required ∪ optional (loaded dynamically — SC-006);
       triage's capability set exactly `{alerting, code, storage, observability}` and
       every triage row marked read-only; non-vanishing guard (every parsed agent doc
       yields ≥1 capability row)
-- [ ] T012 [US2] Extend `tests/contract/test_investigation_prose.py` with the triage
+- [x] T012 [US2] Extend `tests/contract/test_investigation_prose.py` with the triage
       pinned-property gates: turn-cap section states default 15 + names
       `budgets.triageTurnCap` + attributes enforcement to the deterministic layer
       (US2-AS1); four-question anchors present; truncation-satisfies-FR-5f(a) statement

@@ -334,3 +334,149 @@ def test_retrieval_pointer_states_recall_provenance():
         "retrieval.md does not state the recall-provenance statement for "
         "candidate rows"
     )
+
+
+# ---------------------------------------------------------------------------
+# US2 / T012 — triage agent definition pinned-property gates (FR-006,
+# US2-AS1/AS3/AS4). `agents/triage.md` now exists (T010), so the SC-005 scan
+# above (sections 1) already covers it automatically via `SCAN_TARGETS`'
+# `AGENTS_DIR.glob("*.md")` half — no change needed there. This section adds
+# the triage-specific structural gates: the Budget section's turn-cap +
+# enforcement-attribution + target-vs-enforced distinction, the four fixed
+# questions, the truncation-satisfies-FR-5f(a) statement, and the
+# re-invocation charter. Per tasks.md's serialization note this module's
+# next extension is T014 (deep-investigator).
+# ---------------------------------------------------------------------------
+
+TRIAGE_DOC = AGENTS_DIR / "triage.md"
+TRIAGE_TEXT = TRIAGE_DOC.read_text(encoding="utf-8")
+
+TRIAGE_BUDGET_SECTION = _section(TRIAGE_TEXT, "Budget")
+TRIAGE_QUESTIONS_SECTION = _section(TRIAGE_TEXT, "The four questions")
+TRIAGE_OUTPUT_CONTRACT_SECTION = _section(TRIAGE_TEXT, "Output contract")
+TRIAGE_REINVOCATION_SECTION = _section(TRIAGE_TEXT, "Re-invocation")
+
+
+def test_all_triage_scoped_sections_were_found():
+    for name, section in (
+        ("Budget", TRIAGE_BUDGET_SECTION),
+        ("The four questions", TRIAGE_QUESTIONS_SECTION),
+        ("Output contract", TRIAGE_OUTPUT_CONTRACT_SECTION),
+        ("Re-invocation", TRIAGE_REINVOCATION_SECTION),
+    ):
+        assert section is not None, "agents/triage.md has no `## %s` section" % name
+
+
+# --- Budget gates (US2-AS1): default 15, the config key, enforcement
+# attributed to the hook/deterministic layer, and the target-vs-enforced
+# distinction — never a self-enforcement claim. ---------------------------
+
+
+def test_triage_budget_names_the_default_turn_cap():
+    # "default 15" (not a bare "15") binds the number to its meaning, so an
+    # incidental 15 elsewhere in the section can never phantom-satisfy this.
+    assert "default 15" in TRIAGE_BUDGET_SECTION, (
+        "agents/triage.md's Budget section does not name the default turn "
+        "cap (expected the phrase 'default 15')"
+    )
+
+
+def test_triage_budget_names_the_config_key():
+    assert "budgets.triageTurnCap" in TRIAGE_BUDGET_SECTION, (
+        "agents/triage.md's Budget section does not name the "
+        "`budgets.triageTurnCap` configuration key"
+    )
+
+
+def test_triage_budget_attributes_enforcement_to_the_hook():
+    lowered = TRIAGE_BUDGET_SECTION.lower()
+    assert "hook" in lowered or "deterministic" in lowered, (
+        "agents/triage.md's Budget section does not attribute turn-cap "
+        "enforcement to the hook/deterministic layer"
+    )
+
+
+def test_triage_budget_states_target_never_enforced_distinction():
+    lowered = TRIAGE_BUDGET_SECTION.lower()
+    assert "target" in lowered, (
+        "agents/triage.md's Budget section does not name the wall-clock "
+        "'target'"
+    )
+    assert "never enforced" in lowered or "not enforced" in lowered, (
+        "agents/triage.md's Budget section does not state that the "
+        "wall-clock target is never/not enforced"
+    )
+
+
+# --- Four-questions gate: all four fixed question anchors present. -------
+
+
+@pytest.mark.parametrize(
+    "anchor", ["Known?", "Real?", "What changed?", "Who's affected?"]
+)
+def test_triage_names_the_four_fixed_questions(anchor):
+    # Scoped to the section body: the frontmatter description also lists the
+    # four questions, so a whole-doc scan would keep passing with the section
+    # gutted (review mutation finding).
+    assert anchor in TRIAGE_QUESTIONS_SECTION, (
+        "agents/triage.md's 'The four questions' section does not contain "
+        "the fixed-question anchor %r" % anchor
+    )
+
+
+# --- Truncation gate (US2-AS3): the truncation-satisfies-FR-5f(a) statement,
+# via the verdict's own fields, with no separate signal invented. ---------
+
+
+def test_triage_output_contract_names_no_strong_signal_field():
+    assert "no_strong_signal" in TRIAGE_OUTPUT_CONTRACT_SECTION, (
+        "agents/triage.md's Output contract section does not name the "
+        "`no_strong_signal` field"
+    )
+
+
+def test_triage_output_contract_names_budget_spent_field():
+    assert "budget_spent" in TRIAGE_OUTPUT_CONTRACT_SECTION, (
+        "agents/triage.md's Output contract section does not name the "
+        "`budget_spent` field"
+    )
+
+
+def test_triage_output_contract_names_fr_5f_a():
+    assert (
+        "FR-5f(a)" in TRIAGE_OUTPUT_CONTRACT_SECTION
+        or "5f(a)" in TRIAGE_OUTPUT_CONTRACT_SECTION
+    ), (
+        "agents/triage.md's Output contract section does not cite the "
+        "FR-5f(a) launch condition it satisfies via its own fields"
+    )
+
+
+def test_triage_output_contract_states_no_separate_signal_invented():
+    assert "no separate" in TRIAGE_OUTPUT_CONTRACT_SECTION.lower(), (
+        "agents/triage.md's Output contract section does not state that no "
+        "separate escalation signal is invented"
+    )
+
+
+# --- Re-invocation gate (US2-AS4): related-vs-separate classification, and
+# the never-disturb-a-running-deep-investigation clause. ------------------
+
+
+def test_triage_reinvocation_names_related_and_separate():
+    lowered = TRIAGE_REINVOCATION_SECTION.lower()
+    assert "related" in lowered, (
+        "agents/triage.md's Re-invocation section does not name the "
+        "'related' classification"
+    )
+    assert "separate" in lowered, (
+        "agents/triage.md's Re-invocation section does not name the "
+        "'separate' classification"
+    )
+
+
+def test_triage_reinvocation_never_disturbs_deep_investigation():
+    assert "deep investigation" in TRIAGE_REINVOCATION_SECTION.lower(), (
+        "agents/triage.md's Re-invocation section does not name the "
+        "never-disturb-a-running-deep-investigation clause"
+    )
