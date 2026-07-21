@@ -138,17 +138,17 @@ persist, mock write ordering (spec US1).
 inside an open page fixture re-tags the same row — write log shows an update, no second
 row (spec US2).
 
-- [ ] T011 [US2] Write `commands/incident.md`: same open flow by reference to
+- [x] T011 [US2] Write `commands/incident.md`: same open flow by reference to
       `commands/page.md` with incident deltas — `session_type: incident`, deep
       investigation proposed immediately after triage, responder confirmation vs
       `autoLaunchDeep` (additive key, contracts doc), and the promotion path: detect
       open page session via the marker, one `update_record` re-tag, same `session_id`,
       no new marker, deep launch on promotion (FR-003, §3.2/§3.4)
-- [ ] T012 [US2] Extend `tests/helpers/lifecycle_flows.py`: `open_command` incident
+- [x] T012 [US2] Extend `tests/helpers/lifecycle_flows.py`: `open_command` incident
       defaults (`deep_proposed` after triage; `deep_launched` per confirmation/
       `autoLaunchDeep` — R14) and `promote_session(mock, state_dir, ...)` (marker names
       the open session; single re-tag `update_record`; `deep_launched: true`)
-- [ ] T013 [US2] Write `tests/contract/test_incident_flows.py`: fresh incident row
+- [x] T013 [US2] Write `tests/contract/test_incident_flows.py`: fresh incident row
       lands `session_type: incident` with `deep_proposed` (AS-1); confirmation gate —
       `deep_launched` false without confirmation, true with it, true unconfirmed when
       `autoLaunchDeep` (R14); promotion — same `session_id`, write log shows exactly

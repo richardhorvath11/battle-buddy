@@ -638,3 +638,91 @@ def open_command(
         "deep_proposed": deep_proposed,
         "deep_launched": deep_launched,
     }
+
+
+# ---------------------------------------------------------------------------
+# promote_session (contracts/lifecycle-protocol.md "Promotion"; FR-003;
+# data-model.md promote_session outcome shape)
+# ---------------------------------------------------------------------------
+
+
+def promote_session(mock, state_dir):
+    """contracts/lifecycle-protocol.md "Promotion" (FR-003): `/incident`
+    invoked *inside* an already-open page session promotes it in place —
+    exactly one ``storage.update_record`` re-tagging the marker-named
+    session's ``session_type`` to ``"incident"``. Never an append (this is
+    the same session, not a new one) and never a marker rewrite (the marker
+    already names the right session — promotion isn't a join, R7's marker
+    rewrite is a join-only extension this function has no reason to touch).
+    Deep investigation launches unconditionally on promotion — "Deep
+    investigation launches on promotion (FR-5f(b))" (contracts doc), unlike
+    a fresh `/incident`'s confirmation-vs-``autoLaunchDeep`` gate
+    (``open_command``'s ``deep_launched`` above, R14) — so this function
+    takes no confirmation parameter at all.
+
+    ``state_dir``: the local session-state directory — ``marker.json``
+    under it names the session to promote. Read-only: this function never
+    writes it, since the session it names is exactly the one being promoted
+    (contrast ``join_session``'s (US3) marker rewrite onto a *different*
+    session's identity).
+
+    **No marker** — nothing open in this workspace to promote at all. This
+    is a caller-usage/edge condition, not a promotion failure (the spec's
+    Independent Test for this story assumes an already-open page session);
+    no store call of any kind is made. Returns ``{"session_id": None,
+    "retagged": False, "deep_launched": False, "reason": <str>}``.
+
+    **Marker present but the row it names no longer resolves** (the
+    ``update_record`` call itself comes back ``not_found`` — a stale or
+    corrupted local marker): this function does **not** attempt
+    ``store_flows.close_session``'s not-found relocate-by-source-ID scan.
+    That reconciliation exists for close's merge-aware posture, where
+    multiple rows can legitimately share a source ID mid-session; a
+    promotion marker names exactly one session by ID, so a `not_found` here
+    reflects a local-state inconsistency, not a duplicate-row scenario the
+    reconciliation is built to resolve — surfacing the raw error is more
+    honest than guessing at a relocation target. Returns ``{"session_id":
+    <marker's>, "retagged": False, "deep_launched": False, "update_error":
+    <the mock's error envelope>}``.
+
+    On success: ``{"session_id": <marker's>, "retagged": True,
+    "deep_launched": True, "update_result": <mock result>}`` — the
+    data-model.md outcome shape (``session_id``, ``retagged``,
+    ``deep_launched``) plus the raw mock result for callers/tests that want
+    it.
+    """
+    state_dir = Path(state_dir)
+    marker_path = state_dir / "marker.json"
+
+    if not marker_path.exists():
+        return {
+            "session_id": None,
+            "retagged": False,
+            "deep_launched": False,
+            "reason": "no local session marker — nothing open to promote",
+        }
+
+    marker = json.loads(marker_path.read_text(encoding="utf-8"))
+    session_id = marker.get("session_id")
+
+    # The one and only write this function performs: the re-tag.
+    update_result = mock.invoke(
+        "storage",
+        "update_record",
+        {"session_id": session_id, "fields": {"session_type": "incident"}},
+    )
+
+    if "error" in update_result:
+        return {
+            "session_id": session_id,
+            "retagged": False,
+            "deep_launched": False,
+            "update_error": update_result["error"],
+        }
+
+    return {
+        "session_id": session_id,
+        "retagged": True,
+        "deep_launched": True,
+        "update_result": update_result,
+    }
