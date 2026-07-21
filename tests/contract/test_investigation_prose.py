@@ -632,3 +632,104 @@ def test_deep_investigator_dispatch_marks_agent_teams_non_normative():
         "agents/deep-investigator.md's Specialist dispatch section does not "
         "mark agent-teams mode as non-normative"
     )
+
+
+# ---------------------------------------------------------------------------
+# US4 / T018 — specialist agent definition pinned-property gates (FR-008,
+# US4-AS1/AS2). `agents/log-diver.md`, `agents/deploy-analyst.md`, and
+# `agents/dependency-checker.md` now exist (T015/T016/T017), so the SC-005
+# scan above (section 1) already covers all three automatically via
+# `SCAN_TARGETS`'s `AGENTS_DIR.glob("*.md")` half — no change needed there.
+# This section adds the three specialists' structural gates, parametrized
+# over the three docs where natural: the Purpose section's single-purpose
+# anchor, and the Findings contract section's deep-investigator-only anchor,
+# `{url, excerpt}` evidence anchor, and empty-findings-legitimate anchor.
+#
+# US4-AS3 (the agent-teams note in deep-investigator.md is marked future +
+# non-normative) is already covered by
+# `test_deep_investigator_dispatch_marks_agent_teams_non_normative` above
+# (added at T014, before any specialist doc existed) — that gate asserts
+# exactly AS3's three anchors (agent-teams named, "future", "non-normative"/
+# "no design content"), so there is no gap to extend here.
+#
+# Per tasks.md's serialization note this module's next extension is T021
+# (launch conditions + role registration).
+# ---------------------------------------------------------------------------
+
+LOG_DIVER_DOC = AGENTS_DIR / "log-diver.md"
+DEPLOY_ANALYST_DOC = AGENTS_DIR / "deploy-analyst.md"
+DEPENDENCY_CHECKER_DOC = AGENTS_DIR / "dependency-checker.md"
+
+SPECIALIST_DOCS = [LOG_DIVER_DOC, DEPLOY_ANALYST_DOC, DEPENDENCY_CHECKER_DOC]
+SPECIALIST_DOC_IDS = [p.relative_to(REPO_ROOT).as_posix() for p in SPECIALIST_DOCS]
+
+SPECIALIST_TEXT_BY_DOC = {
+    p: p.read_text(encoding="utf-8") for p in SPECIALIST_DOCS
+}
+SPECIALIST_PURPOSE_SECTION_BY_DOC = {
+    p: _section(text, "Purpose") for p, text in SPECIALIST_TEXT_BY_DOC.items()
+}
+SPECIALIST_FINDINGS_SECTION_BY_DOC = {
+    p: _section(text, "Findings contract")
+    for p, text in SPECIALIST_TEXT_BY_DOC.items()
+}
+
+
+@pytest.mark.parametrize("doc_path", SPECIALIST_DOCS, ids=SPECIALIST_DOC_IDS)
+def test_all_specialist_scoped_sections_were_found(doc_path):
+    for name, section in (
+        ("Purpose", SPECIALIST_PURPOSE_SECTION_BY_DOC[doc_path]),
+        ("Findings contract", SPECIALIST_FINDINGS_SECTION_BY_DOC[doc_path]),
+    ):
+        assert section is not None, "%s has no `## %s` section" % (doc_path, name)
+
+
+# --- Purpose gate (US4-AS1): the single-purpose anchor. --------------------
+
+
+@pytest.mark.parametrize("doc_path", SPECIALIST_DOCS, ids=SPECIALIST_DOC_IDS)
+def test_specialist_purpose_names_single_purpose_anchor(doc_path):
+    lowered = SPECIALIST_PURPOSE_SECTION_BY_DOC[doc_path].lower()
+    assert "single" in lowered or "one hypothesis" in lowered, (
+        "%s's Purpose section does not name the single-purpose anchor "
+        "('single' or 'one hypothesis')" % doc_path
+    )
+
+
+# --- Findings contract gates (US4-AS2): deep-investigator-only return,
+# {url, excerpt} evidence shape, empty-findings-is-legitimate. --------------
+
+
+@pytest.mark.parametrize("doc_path", SPECIALIST_DOCS, ids=SPECIALIST_DOC_IDS)
+def test_specialist_findings_contract_names_deep_investigator_only(doc_path):
+    lowered = SPECIALIST_FINDINGS_SECTION_BY_DOC[doc_path].lower()
+    assert "deep investigator" in lowered, (
+        "%s's Findings contract section does not name 'deep investigator'"
+        % doc_path
+    )
+    assert "never" in lowered, (
+        "%s's Findings contract section does not state the never-to-"
+        "orchestrator clause ('never')" % doc_path
+    )
+
+
+@pytest.mark.parametrize("doc_path", SPECIALIST_DOCS, ids=SPECIALIST_DOC_IDS)
+def test_specialist_findings_contract_names_url_excerpt_pair(doc_path):
+    section = SPECIALIST_FINDINGS_SECTION_BY_DOC[doc_path]
+    assert "{url, excerpt}" in _normalize_ws(section), (
+        "%s's Findings contract section does not name the {url, excerpt} "
+        "evidence shape" % doc_path
+    )
+
+
+@pytest.mark.parametrize("doc_path", SPECIALIST_DOCS, ids=SPECIALIST_DOC_IDS)
+def test_specialist_findings_contract_states_empty_is_legitimate(doc_path):
+    lowered = SPECIALIST_FINDINGS_SECTION_BY_DOC[doc_path].lower()
+    assert "empty" in lowered, (
+        "%s's Findings contract section does not name the empty-findings "
+        "case" % doc_path
+    )
+    assert "legitimate" in lowered, (
+        "%s's Findings contract section does not state that an empty "
+        "findings summary is legitimate" % doc_path
+    )

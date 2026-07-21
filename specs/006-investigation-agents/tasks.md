@@ -245,21 +245,21 @@ docs — specialist prose must stay capability-only ("the deploy-history tool", 
 vendor), with any illustrative URLs inside fences (the deny scan strips fences; the
 `mcp__` scan does not, so no literal tool-call strings anywhere, fenced or not).
 
-- [ ] T015 [P] [US4] Write `agents/log-diver.md` (research R2 format): single purpose
+- [x] T015 [P] [US4] Write `agents/log-diver.md` (research R2 format): single purpose
       (log excavation for the dispatched hypothesis); read-only toolset table
       (`observability` — log search); parallel dispatch by the deep investigator;
       findings-summary return to the deep investigator only — never the orchestrator or
       responder — every finding a `{url, excerpt}` evidence entry (prose-only findings
       non-conforming); empty findings summary legitimate
-- [ ] T016 [P] [US4] Write `agents/deploy-analyst.md`: same format — single purpose
+- [x] T016 [P] [US4] Write `agents/deploy-analyst.md`: same format — single purpose
       (deploy-window correlation for service + dependsOn); read-only toolset
       (`code` — commit/deploy history reads); same dispatch, return, evidence, and
       empty-result pins
-- [ ] T017 [P] [US4] Write `agents/dependency-checker.md`: same format — single purpose
+- [x] T017 [P] [US4] Write `agents/dependency-checker.md`: same format — single purpose
       (dependency health along the catalog's dependsOn edges); read-only toolset
       (`code` — catalog reads; `observability` — dependency metrics); same dispatch,
       return, evidence, and empty-result pins
-- [ ] T018 [US4] Extend `tests/contract/test_agent_toolsets.py` (each specialist:
+- [x] T018 [US4] Extend `tests/contract/test_agent_toolsets.py` (each specialist:
       capabilities ⊆ manifest, all rows read-only) and
       `tests/contract/test_investigation_prose.py` (each specialist: single-purpose
       anchor, findings-to-deep-investigator-only anchor, `{url, excerpt}` findings

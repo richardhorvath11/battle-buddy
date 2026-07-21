@@ -317,3 +317,75 @@ def test_deep_investigator_read_rows_are_read_only():
                 "operations %r but Access is %r, expected 'read-only'"
                 % (capability, operations, access)
             )
+
+
+# ---------------------------------------------------------------------------
+# US4 / T018 — specialist toolset gates (FR-008, US4-AS1). Reuses the
+# module-level ``parse_toolset``/``_load_manifest`` helpers and the
+# ``AGENT_DOCS``/``TOOLSET_BY_DOC`` fixtures above rather than re-parsing
+# (module docstring). Capability/operation membership against the manifest
+# (SC-006) and the allowed-Access-value gate are already covered for these
+# three docs by the parametrized checks above — ``AGENT_DOCS`` picks up
+# ``agents/log-diver.md``, ``agents/deploy-analyst.md``, and
+# ``agents/dependency-checker.md`` automatically via the sorted glob, no new
+# test needed for either half. This section adds what's specific to the three
+# specialists: every row is read-only-ONLY (no approval-gated rows anywhere
+# in a specialist toolset — specialists never mutate, unlike the deep
+# investigator's mixed toolset above), and each specialist's exact capability
+# set (FR-008; single-purpose toolsets narrower than triage's or the deep
+# investigator's four-capability read set). No non-vanishing guard in this
+# module pins an exact *count* of agent docs (the finalized nine-file count
+# lives in test_investigation_prose.py's T022, not here), so there is no
+# count guard to update.
+# ---------------------------------------------------------------------------
+
+LOG_DIVER_DOC = AGENTS_DIR / "log-diver.md"
+DEPLOY_ANALYST_DOC = AGENTS_DIR / "deploy-analyst.md"
+DEPENDENCY_CHECKER_DOC = AGENTS_DIR / "dependency-checker.md"
+
+SPECIALIST_DOCS = [LOG_DIVER_DOC, DEPLOY_ANALYST_DOC, DEPENDENCY_CHECKER_DOC]
+SPECIALIST_DOC_IDS = [p.relative_to(REPO_ROOT).as_posix() for p in SPECIALIST_DOCS]
+
+
+def test_all_three_specialist_docs_are_among_the_parsed_files():
+    for doc in SPECIALIST_DOCS:
+        assert doc in AGENT_DOCS, (
+            "%s is not among the agents/*.md glob results %r" % (doc, AGENT_DOCS)
+        )
+
+
+@pytest.mark.parametrize("doc_path", SPECIALIST_DOCS, ids=SPECIALIST_DOC_IDS)
+def test_specialist_every_toolset_row_is_read_only(doc_path):
+    rows = parse_toolset(doc_path.read_text(encoding="utf-8"))
+    for capability, _operations, access in rows:
+        assert access == "read-only", (
+            "%s's %r Toolset row has Access %r, expected 'read-only' — "
+            "specialists never mutate (FR-008)" % (doc_path, capability, access)
+        )
+
+
+def test_log_diver_capability_set_is_exactly_observability():
+    rows = parse_toolset(LOG_DIVER_DOC.read_text(encoding="utf-8"))
+    capabilities = {capability for capability, _operations, _access in rows}
+    assert capabilities == {"observability"}, (
+        "agents/log-diver.md's Toolset capability set is %r, expected "
+        "exactly {observability}" % sorted(capabilities)
+    )
+
+
+def test_deploy_analyst_capability_set_is_exactly_code():
+    rows = parse_toolset(DEPLOY_ANALYST_DOC.read_text(encoding="utf-8"))
+    capabilities = {capability for capability, _operations, _access in rows}
+    assert capabilities == {"code"}, (
+        "agents/deploy-analyst.md's Toolset capability set is %r, expected "
+        "exactly {code}" % sorted(capabilities)
+    )
+
+
+def test_dependency_checker_capability_set_is_exactly_code_and_observability():
+    rows = parse_toolset(DEPENDENCY_CHECKER_DOC.read_text(encoding="utf-8"))
+    capabilities = {capability for capability, _operations, _access in rows}
+    assert capabilities == {"code", "observability"}, (
+        "agents/dependency-checker.md's Toolset capability set is %r, "
+        "expected exactly {code, observability}" % sorted(capabilities)
+    )
