@@ -196,7 +196,7 @@ join-at-open by source ID + non-terminal status, merge-at-close (FR-009).
 displaced-writer denial, join detection on a seeded yesterday-dated open row,
 merge-at-close producing one canonical + one `superseded` row.
 
-- [ ] T019 [US4] Fill SKILL.md's ownership section: `responder` as ownership token with
+- [x] T019 [US4] Fill SKILL.md's ownership section: `responder` as ownership token with
       `<responder> @ <ISO timestamp>` format; take-over as a single recorded
       `update_record` write; mandatory ownership re-read immediately before every
       checkpoint write — failed check ⇒ no write, session informed, read-only;
@@ -208,14 +208,14 @@ merge-at-close producing one canonical + one `superseded` row.
       `{url, excerpt}` entry appended into canonical `links`, nothing else moves
       (analysis U3), duplicate `status: superseded`;
       race bound: at most one stale checkpoint, store edit history as audit trail
-- [ ] T020 [P] [US4] Create `tests/fixtures/store/seed-ownership.json`: same-source-ID
+- [x] T020 [P] [US4] Create `tests/fixtures/store/seed-ownership.json`: same-source-ID
       rows with yesterday-dated `session_id` in `open` and `handoff` status, a
       terminal-status row that must NOT trigger join, and a duplicate-open pair for
       the merge scenario
-- [ ] T021 [US4] Implement `take_over`, `detect_open_session` (join-at-open read), and
+- [x] T021 [US4] Implement `take_over`, `detect_open_session` (join-at-open read), and
       `merge_duplicates` in `tests/helpers/store_flows.py`; wire the ownership
       pre-read denial path in `write_checkpoint` to return the read-only outcome
-- [ ] T022 [US4] Write `tests/contract/test_ownership.py`: US4 AS-1–AS-4 plus the
+- [x] T022 [US4] Write `tests/contract/test_ownership.py`: US4 AS-1–AS-4 plus the
       cross-day-handoff edge (join found despite differing session ID) and the
       terminal-status non-match; assert the displaced writer performs zero mutating
       ops after take-over (write log) and exactly one non-`superseded` row per source

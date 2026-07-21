@@ -196,16 +196,122 @@ VI):
 Every checkpoint write **re-reads the row's `responder` cell first** — before
 validating or writing anything else. (This is the ownership model's rule; the full
 model — the `responder` token, take-over-as-a-write, join-at-open, merge-at-close —
-lives in the "Session ownership" section below, filled by a later story.) If the cell
+lives in the "Session ownership" section below.) If the cell
 no longer names the writing session's responder, the session has been taken over: no
 write is performed — not the validation-gated document, not the history line — the
 session is told it was taken over, and it goes read-only.
 
 ## Session ownership
 
-_Stub — filled by T019 (US4): the `responder` ownership token, take-over as a single
-write, the mandatory pre-write ownership re-read, join-at-open detection, and
-merge-at-close for duplicates._
+Optimistic ownership (D-18): no lock, lease, or reservation record exists anywhere in
+the store. The whole model rests on one field and a disciplined read-before-write habit
+around it.
+
+### Ownership token — `responder`
+
+The `responder` field (`references/schema.md`'s column table) **is** the ownership
+token, in the format `<responder> @ <ISO timestamp>` — whoever's name and timestamp
+currently sit in that one cell is the session's current owner. There is nothing else to
+check: no separate "owner" column, no lock table, no external coordination.
+
+### Take-over — a write, not a request
+
+Rehydrating an open or handed-off session **is** the take-over: the rehydrating
+responder issues a single `update_record` write setting `responder` to
+`<themselves> @ <now>`. There is no request-then-approve exchange and no "claim"
+operation to call first — whoever's write lands overwrites whoever was there, full
+stop. The previous responder isn't notified synchronously; they find out the way the
+next section describes.
+
+### Pre-write ownership re-read (mandatory before every checkpoint write)
+
+This is the rule the "Checkpoints" section's "Ownership pre-read" step performs and
+forward-cites here: **every checkpoint write** — never any other kind of write; this is
+the scope FR-009 pins — re-reads the row's `responder` cell **immediately before
+writing**, as its very first step, before validation and before touching the local
+history file. If the cell no longer names the writing session's own responder token,
+the session has been displaced:
+
+- the write is **not performed** — not the validation-gated document, not the history
+  line, nothing;
+- the session is told it was taken over, naming the current `responder`; and
+- the session goes **read-only** — every checkpoint write it attempts afterward re-reads
+  the same cell and fails the same check, since a take-over is a durable store write,
+  not a flag that could clear itself.
+
+**Race bound**: at most one stale checkpoint can land after a take-over. Whichever of
+the displaced session's checkpoint writes was already past its own pre-read at the
+instant the take-over's `update_record` landed completes normally (its check already
+passed before the responder cell changed); every write the displaced session attempts
+afterward observes the new `responder` and is denied. The store's edit history is the
+audit trail for reconstructing exactly which write that was (see "Audit trail" below).
+
+### Join-at-open — duplicate detection on the opening read
+
+The read that opens a session already looks for a prior row (`references/retrieval.md`'s
+fingerprint/keyword stages); ownership piggybacks on a read at the same point for a
+second purpose: **duplicate detection**. Before appending a new row, read for an
+existing row on the same source ID whose `status` is non-terminal — `open` or
+`handoff` (`references/schema.md`'s join/rehydrate set). The row-side source ID comes
+from **parsing** the candidate row's `session_id` per `references/schema.md`'s
+source-ID parse rule (strip the leading `{type}-` and the trailing `-{YYYY-MM-DD}`) —
+**never** by recomputing today's `session_id` and comparing it directly. The reason is
+the cross-day case: a session opened yesterday and still open today carries yesterday's
+date baked into its `session_id`, so a same-day recomputed-ID comparison would miss it
+outright and a fresh row would be appended — silently forking one incident's history in
+two. Matching on the parsed source ID plus non-terminal status finds the row regardless
+of which day it was opened. The contract exposes only field-equality filters, so this
+check is a full `read_records` read, filtered client-side — the same shape as
+`references/retrieval.md`'s stage-2 client-side filtering.
+
+When a match is found, the convention surfaces an **explicit join-or-separate choice —
+never a silent duplicate**:
+
+- **Join** (the default, and by far the common case): treat this as the same session —
+  rehydrate from its latest checkpoint ("Checkpoints" -> "One-row-read resume rule") and
+  take over ownership (above). No new row is appended.
+- **Separate**: only when the responder deliberately determines this is genuinely a
+  distinct session that happens to share a source ID (rare) — a new row is appended as
+  normal. If that determination turns out to have been wrong — a true race rather than a
+  deliberate separation — `/close` reconciles it below.
+
+### Merge-at-close — true-race duplicates
+
+Despite join-at-open, two responders can still race closely enough that both append an
+open row for the same source ID before either one's read observes the other's write —
+the tier-0 store has no locking to prevent it (D-18). `/close` is where this gets
+resolved, for whichever of the pair closes: among the same-source-ID, non-terminal
+duplicates, the row with the **earliest `started_at`** is canonical; every other row is
+a duplicate to fold in and retire.
+
+The fold-in shape is exact, and nothing else moves:
+
+- every entry in the duplicate row's `links` is appended into the canonical row's
+  `links`;
+- the duplicate row's `artifacts_folder_url` — its own artifact folder, holding
+  whatever it accumulated before the merge — is wrapped as one more `{url, excerpt}`
+  entry (the `excerpt` naming it as the duplicate's artifacts folder) and appended into
+  the canonical row's `links` alongside them.
+
+Nothing else moves in either direction: the canonical row's own `root_cause`,
+`resolution`, `timeline`, and every other field stay exactly as the canonical session
+produced them — the duplicate is a fork whose evidence is preserved, not a second
+source of truth to reconcile field-by-field.
+
+The duplicate row is then `update_record`d to `status: superseded` — **never deleted**
+(the contract has no delete operation; nothing in this store is ever deleted).
+`status: superseded` is exactly the value `references/retrieval.md`'s stage-0
+exclusions drop at every stage, so the superseded row stops surfacing as a retrieval
+candidate immediately, while remaining in the store — and in the store's edit history —
+as the complete record of how the race happened.
+
+### Audit trail
+
+Every ownership write — every take-over, and every merge's `status: superseded` — is an
+`update_record` call, and every mutating call is durably recorded in the store's own
+edit history. Optimistic ownership carries no separate audit log because it doesn't
+need one: the store's history already is that record. Tier 1's server replaces all of
+this with real transactions.
 
 ## Artifact layout
 

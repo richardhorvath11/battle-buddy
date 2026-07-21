@@ -648,3 +648,124 @@ def read_latest_checkpoint(mock, session_id):
         file_result = mock.invoke("artifacts", "get_file", {"link": parsed["overflow"]})
         return json.loads(file_result["content"])
     return parsed
+
+
+# ---------------------------------------------------------------------------
+# Session ownership (SKILL.md "Session ownership", FR-009, D-18) — T021 (US4).
+# ---------------------------------------------------------------------------
+
+
+def take_over(mock, session_id, new_responder):
+    """SKILL.md "Session ownership" -> "Take-over — a write, not a request".
+
+    Take-over is a single mutating write: ``update_record`` sets ``responder``
+    to ``new_responder`` unconditionally — there is no precondition check here
+    (that belongs to ``write_checkpoint``'s pre-write re-read, not to the
+    take-over write itself; a take-over always wins). The row is read first
+    only to report who gets displaced, not to gate the write — ``read_records``
+    is non-mutating, so this function still performs exactly one write-log
+    entry.
+
+    Returns ``{"session_id", "previous_responder", "new_responder",
+    "update_result"}``.
+    """
+    existing = mock.invoke(
+        "storage", "read_records", {"filter": {"session_id": session_id}}
+    )
+    rows = existing["records"]
+    previous_responder = rows[0].get("responder") if rows else None
+
+    update_result = mock.invoke(
+        "storage",
+        "update_record",
+        {"session_id": session_id, "fields": {"responder": new_responder}},
+    )
+
+    return {
+        "session_id": session_id,
+        "previous_responder": previous_responder,
+        "new_responder": new_responder,
+        "update_result": update_result,
+    }
+
+
+def detect_open_session(mock, source_id):
+    """SKILL.md "Session ownership" -> "Join-at-open — duplicate detection on
+    the opening read".
+
+    Full ``read_records`` read (the contract has no source-ID field to filter
+    on server-side), filtered client-side: a row matches when its ``status``
+    is non-terminal (``NON_TERMINAL_STATUSES`` — ``open``/``handoff``) AND its
+    ``session_id`` parses (``parse_source_id``, schema.md's rule) to
+    ``source_id``. A row whose ``session_id`` doesn't fit the parse shape at
+    all is simply not a candidate, never an error (mirrors
+    ``close_session``'s not-found relocation scan).
+
+    Returns the matching rows, in insertion order — the join-or-separate
+    candidates. Also the scan ``merge_duplicates`` (below) reuses to find
+    same-source non-terminal duplicates.
+    """
+    all_rows = mock.invoke("storage", "read_records", {})["records"]
+    return [
+        row
+        for row in all_rows
+        if row.get("status") in NON_TERMINAL_STATUSES
+        and _safe_parse_source_id(row.get("session_id")) == source_id
+    ]
+
+
+def merge_duplicates(mock, source_id):
+    """SKILL.md "Session ownership" -> "Merge-at-close — true-race duplicates".
+
+    Finds every non-terminal row sharing ``source_id`` (``detect_open_session``).
+    Fewer than two such rows means there's nothing to merge — returns ``None``,
+    no writes performed. Otherwise the row with the earliest ``started_at`` is
+    canonical; every other row is a duplicate:
+
+    - each duplicate's ``links`` entries, plus its ``artifacts_folder_url``
+      wrapped as ``{"url": <folder url>, "excerpt": "artifacts folder of
+      <dup session_id>"}``, are appended (in duplicate order) into the
+      canonical row's own ``links`` via one ``update_record`` — nothing else
+      moves;
+    - each duplicate is separately ``update_record``d to ``status:
+      superseded`` — never deleted (the contract has no delete operation).
+
+    Returns ``{"canonical_id", "superseded_ids"}``.
+    """
+    candidates = detect_open_session(mock, source_id)
+    if len(candidates) < 2:
+        return None
+
+    ordered = sorted(candidates, key=lambda row: row["started_at"])
+    canonical = ordered[0]
+    duplicates = ordered[1:]
+    canonical_id = canonical["session_id"]
+
+    folded_links = list(canonical.get("links") or [])
+    for dup in duplicates:
+        folded_links.extend(dup.get("links") or [])
+        folder_url = dup.get("artifacts_folder_url")
+        if folder_url:
+            folded_links.append(
+                {
+                    "url": folder_url,
+                    "excerpt": "artifacts folder of {}".format(dup["session_id"]),
+                }
+            )
+
+    mock.invoke(
+        "storage",
+        "update_record",
+        {"session_id": canonical_id, "fields": {"links": folded_links}},
+    )
+
+    superseded_ids = []
+    for dup in duplicates:
+        mock.invoke(
+            "storage",
+            "update_record",
+            {"session_id": dup["session_id"], "fields": {"status": "superseded"}},
+        )
+        superseded_ids.append(dup["session_id"])
+
+    return {"canonical_id": canonical_id, "superseded_ids": superseded_ids}
