@@ -257,16 +257,16 @@ producing a distinct row only on explicit choice (spec US3).
 
 ## Phase 7: Polish & Cross-Cutting
 
-- [ ] T020 [P] Write `tests/contract/test_lifecycle_full_sim.py` (SC-007): one full
+- [x] T020 [P] Write `tests/contract/test_lifecycle_full_sim.py` (SC-007): one full
       `/page` open → checkpoint → promotion → `/close` simulation on a temp state dir —
       every artifact assertion from the story suites re-checked end to end, and every
       mock invocation verified to be an operation-contract-v1 op (zero ops outside the
       contract); plus a `/page`→`/close` degraded-mode (no shell) variant
-- [ ] T021 [P] Record the FR → test mapping: extend `specs/005-lifecycle-commands/
+- [x] T021 [P] Record the FR → test mapping: extend `specs/005-lifecycle-commands/
       quickstart.md`'s scenario table if any FR lacks a row (FR-001–FR-013 each mapped
       to ≥1 test — SC-001's checkable record); confirm the naming gate covers the three
       new command docs (run `pytest tests/contract/test_command_capability_naming.py -q`)
-- [ ] T022 Full-suite pass: `make verify`; fix anything surfaced; confirm
+- [x] T022 Full-suite pass: `make verify`; fix anything surfaced; confirm
       `tests/contract` runtime stays in seconds (plan Performance Goals)
 
 ---

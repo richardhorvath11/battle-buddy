@@ -25,7 +25,7 @@ pytest tests/contract/test_lifecycle_full_sim.py -q   # the SC-007 end-to-end si
 | US1 AS-5 / FR-006 | `test_briefing_properties.py` | every claim `{url, excerpt}`; navigate-pane vs printed links |
 | US2 AS-1/AS-2, SC-003 | `test_incident_flows.py` | incident defaults, deep proposal/auto-launch, promotion = update not append |
 | US3 AS-1–3, SC-004 | `test_join_separate.py` | no writes before choice; join = rehydrate + take-over + marker rewrite; separate = exactly one new row |
-| US4 AS-1–4/6, SC-005/SC-006 | `test_close_command.py` | draft structure (causal-only-under-proposals), dual-write order via write log, `diary_pending`, read-back-then-delete, transcript capture, timeline 1:1 from trace+checkpoints |
+| US4 AS-1–4/6, SC-005/SC-006 | `test_close_command.py` | draft structure (causal-only-under-proposals), dual-write order via write log, `diary_pending`, transient row-write retry (FR-008), read-back-then-delete, transcript capture, timeline 1:1 from trace+checkpoints |
 | US4 AS-5/AS-7, edges — merge, ownership, no session | `test_close_merge_ownership.py` | one non-superseded row after merge; displaced close goes read-only; no-marker close writes nothing |
 | SC-007 — full open→close | `test_lifecycle_full_sim.py` | end-to-end artifact assertions; zero ops outside operation contract v1 |
 | FR-011 naming gate | `test_command_capability_naming.py` (existing) | new `commands/*.md` auto-covered by glob |
