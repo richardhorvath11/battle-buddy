@@ -480,3 +480,155 @@ def test_triage_reinvocation_never_disturbs_deep_investigation():
         "agents/triage.md's Re-invocation section does not name the "
         "never-disturb-a-running-deep-investigation clause"
     )
+
+
+# ---------------------------------------------------------------------------
+# US3 / T014 — deep-investigator agent definition pinned-property gates
+# (FR-007, US3-AS1/AS2/AS3). `agents/deep-investigator.md` now exists (T013),
+# so the SC-005 scan above (section 1) already covers it automatically via
+# `SCAN_TARGETS`'s `AGENTS_DIR.glob("*.md")` half — no change needed there.
+# This section adds the deep-investigator-specific structural gates: the
+# Checkpointing section's validator-gate + session-store-conventions
+# anchors, the Seeding section's provenance/carried-forward-mark/
+# fresh-before-deep-dive/re-validation anchors, the Ledger-ownership
+# section's ledger-updates-only + raw-findings-forbidden anchors, and the
+# Specialist-dispatch section's agent-teams non-normative anchor. Per
+# tasks.md's serialization note this module's next extension is T018 (the
+# three specialists).
+# ---------------------------------------------------------------------------
+
+DEEP_INVESTIGATOR_DOC = AGENTS_DIR / "deep-investigator.md"
+DEEP_INVESTIGATOR_TEXT = DEEP_INVESTIGATOR_DOC.read_text(encoding="utf-8")
+
+DEEP_CHECKPOINTING_SECTION = _section(DEEP_INVESTIGATOR_TEXT, "Checkpointing")
+DEEP_SEEDING_SECTION = _section(DEEP_INVESTIGATOR_TEXT, "Seeding")
+DEEP_LEDGER_OWNERSHIP_SECTION = _section(
+    DEEP_INVESTIGATOR_TEXT, "Ledger ownership and synthesis"
+)
+DEEP_DISPATCH_SECTION = _section(DEEP_INVESTIGATOR_TEXT, "Specialist dispatch")
+
+
+def test_all_deep_investigator_scoped_sections_were_found():
+    for name, section in (
+        ("Checkpointing", DEEP_CHECKPOINTING_SECTION),
+        ("Seeding", DEEP_SEEDING_SECTION),
+        ("Ledger ownership and synthesis", DEEP_LEDGER_OWNERSHIP_SECTION),
+        ("Specialist dispatch", DEEP_DISPATCH_SECTION),
+    ):
+        assert section is not None, (
+            "agents/deep-investigator.md has no `## %s` section" % name
+        )
+
+
+# --- Checkpointing gates (US3-AS1): validator gate cited (bb-validate/
+# validator, re-prompt, schema_valid) + session-store conventions cited —
+# never a direct unvalidated write. -----------------------------------------
+
+
+def test_deep_investigator_checkpointing_cites_the_validator_gate():
+    lowered = DEEP_CHECKPOINTING_SECTION.lower()
+    assert "bb-validate" in DEEP_CHECKPOINTING_SECTION or "validator" in lowered, (
+        "agents/deep-investigator.md's Checkpointing section does not cite "
+        "bb-validate/the validator"
+    )
+    assert "re-prompt" in lowered, (
+        "agents/deep-investigator.md's Checkpointing section does not cite "
+        "the one-re-prompt-then-persist-flagged gate"
+    )
+    assert "schema_valid" in DEEP_CHECKPOINTING_SECTION, (
+        "agents/deep-investigator.md's Checkpointing section does not name "
+        "the `schema_valid` flag persisted on a second validation failure"
+    )
+
+
+def test_deep_investigator_checkpointing_cites_session_store_conventions():
+    assert "session-store" in DEEP_CHECKPOINTING_SECTION.lower(), (
+        "agents/deep-investigator.md's Checkpointing section does not cite "
+        "the session-store skill's checkpoint conventions"
+    )
+
+
+# --- Seeding gates (US3-AS2): provenance `triage`, marks carried forward,
+# ≥1-fresh-before-deep-dive, and re-validation required. --------------------
+
+
+def test_deep_investigator_seeding_names_triage_provenance():
+    assert "`triage`" in DEEP_SEEDING_SECTION, (
+        "agents/deep-investigator.md's Seeding section does not name "
+        "provenance `triage`"
+    )
+
+
+def test_deep_investigator_seeding_states_marks_carry_forward():
+    assert "VALIDATED" in DEEP_SEEDING_SECTION, (
+        "agents/deep-investigator.md's Seeding section does not name the "
+        "VALIDATED/INVALIDATED mark"
+    )
+    lowered = DEEP_SEEDING_SECTION.lower()
+    assert "carries" in lowered or "carry" in lowered, (
+        "agents/deep-investigator.md's Seeding section does not state that "
+        "seeding carries the mark forward"
+    )
+
+
+def test_deep_investigator_seeding_states_fresh_before_deep_dive():
+    lowered = DEEP_SEEDING_SECTION.lower()
+    assert "fresh" in lowered and "before" in lowered, (
+        "agents/deep-investigator.md's Seeding section does not state the "
+        "at-least-one-fresh-before-deep-dive rule"
+    )
+
+
+def test_deep_investigator_seeding_states_revalidation_requirement():
+    assert "re-valid" in DEEP_SEEDING_SECTION.lower(), (
+        "agents/deep-investigator.md's Seeding section does not state the "
+        "re-validation-against-current-incident-evidence requirement"
+    )
+
+
+# --- Ledger-ownership gates (US3-AS3): ledger-updates-only reporting to the
+# orchestrator, raw findings forbidden. --------------------------------------
+
+
+def test_deep_investigator_ledger_ownership_states_updates_only_to_orchestrator():
+    lowered = DEEP_LEDGER_OWNERSHIP_SECTION.lower()
+    assert "ledger update" in lowered, (
+        "agents/deep-investigator.md's Ledger ownership and synthesis "
+        "section does not name 'ledger update(s)'"
+    )
+    assert "orchestrator" in lowered, (
+        "agents/deep-investigator.md's Ledger ownership and synthesis "
+        "section does not name the orchestrator"
+    )
+
+
+def test_deep_investigator_ledger_ownership_forbids_raw_findings_upward():
+    lowered = DEEP_LEDGER_OWNERSHIP_SECTION.lower()
+    assert "raw" in lowered, (
+        "agents/deep-investigator.md's Ledger ownership and synthesis "
+        "section does not name 'raw' findings"
+    )
+    assert "forbidden" in lowered or "never" in lowered, (
+        "agents/deep-investigator.md's Ledger ownership and synthesis "
+        "section does not forbid relaying raw findings upward"
+    )
+
+
+# --- Specialist-dispatch gate: agent-teams future mode is explicitly
+# non-normative (FR-008's note lands here per tasks.md T013). --------------
+
+
+def test_deep_investigator_dispatch_marks_agent_teams_non_normative():
+    lowered = DEEP_DISPATCH_SECTION.lower()
+    assert "agent-teams" in lowered or "agent teams" in lowered, (
+        "agents/deep-investigator.md's Specialist dispatch section does not "
+        "name agent-teams mode"
+    )
+    assert "future" in lowered, (
+        "agents/deep-investigator.md's Specialist dispatch section does not "
+        "mark agent-teams mode as future work"
+    )
+    assert "non-normative" in lowered or "no design content" in lowered, (
+        "agents/deep-investigator.md's Specialist dispatch section does not "
+        "mark agent-teams mode as non-normative"
+    )

@@ -234,3 +234,86 @@ def test_triage_every_toolset_row_is_read_only():
             "agents/triage.md's %r Toolset row has Access %r, expected "
             "'read-only'" % (capability, access)
         )
+
+
+# ---------------------------------------------------------------------------
+# US3 / T014 — deep-investigator toolset gates (FR-007, US3-AS4). Reuses the
+# module-level ``parse_toolset``/``_load_manifest`` helpers and the
+# ``AGENT_DOCS``/``TOOLSET_BY_DOC`` fixtures above rather than re-parsing
+# (module docstring). Capability-token and operation-token membership against
+# the manifest (SC-006) is already covered for this doc by the parametrized
+# checks above — ``AGENT_DOCS`` picks up ``agents/deep-investigator.md``
+# automatically via the sorted glob, no new test needed for that half. This
+# section adds what's specific to a *mixed* toolset: both read-only and
+# approval-gated rows present, every mutating row's Access exactly
+# ``approval-gated`` (never a bare "write"), and every read row exactly
+# ``read-only``. Per tasks.md's serialization note this module's next
+# extension is T018 (the three specialists).
+# ---------------------------------------------------------------------------
+
+DEEP_INVESTIGATOR_DOC = AGENTS_DIR / "deep-investigator.md"
+
+# Capability manifest operations that mutate store state (append_record and
+# update_record for storage, put_file for artifacts, append_entry for the
+# diary) — the only operations a Toolset row may legitimately pair with
+# ``approval-gated`` access. Every other declared operation (read_records,
+# get_alert, list_alert_history, read_file, search, list_commits,
+# query_metrics, search_logs, read_recent) is a read, and must pair with
+# ``read-only``.
+MUTATING_OPERATIONS = {"append_record", "update_record", "put_file", "append_entry"}
+
+# Every agent doc's Toolset Access column must be one of these two values —
+# no bare "write" access anywhere, across every agent doc, not only the deep
+# investigator's (FR-007: "every mutation is approval-gated").
+ALLOWED_ACCESS_VALUES = {"read-only", "approval-gated"}
+
+
+def test_deep_investigator_doc_is_among_the_parsed_files():
+    assert DEEP_INVESTIGATOR_DOC in AGENT_DOCS, (
+        "agents/deep-investigator.md is not among the agents/*.md glob "
+        "results %r" % AGENT_DOCS
+    )
+
+
+@pytest.mark.parametrize("doc_path", AGENT_DOCS, ids=AGENT_DOC_IDS)
+def test_every_toolset_row_access_is_an_allowed_value(doc_path):
+    for capability, _operations, access in TOOLSET_BY_DOC[doc_path]:
+        assert access in ALLOWED_ACCESS_VALUES, (
+            "%s's %r Toolset row has Access %r, expected one of %r — no "
+            "bare 'write' access is permitted anywhere"
+            % (doc_path, capability, access, sorted(ALLOWED_ACCESS_VALUES))
+        )
+
+
+def test_deep_investigator_has_both_read_only_and_approval_gated_rows():
+    rows = parse_toolset(DEEP_INVESTIGATOR_DOC.read_text(encoding="utf-8"))
+    access_values = {access for _capability, _operations, access in rows}
+    assert "read-only" in access_values, (
+        "agents/deep-investigator.md's Toolset table has no read-only row"
+    )
+    assert "approval-gated" in access_values, (
+        "agents/deep-investigator.md's Toolset table has no approval-gated "
+        "row"
+    )
+
+
+def test_deep_investigator_mutating_rows_are_approval_gated():
+    rows = parse_toolset(DEEP_INVESTIGATOR_DOC.read_text(encoding="utf-8"))
+    for capability, operations, access in rows:
+        if set(operations) & MUTATING_OPERATIONS:
+            assert access == "approval-gated", (
+                "agents/deep-investigator.md's %r row grants a mutating "
+                "operation among %r but Access is %r, expected "
+                "'approval-gated'" % (capability, operations, access)
+            )
+
+
+def test_deep_investigator_read_rows_are_read_only():
+    rows = parse_toolset(DEEP_INVESTIGATOR_DOC.read_text(encoding="utf-8"))
+    for capability, operations, access in rows:
+        if not (set(operations) & MUTATING_OPERATIONS):
+            assert access == "read-only", (
+                "agents/deep-investigator.md's %r row grants only read "
+                "operations %r but Access is %r, expected 'read-only'"
+                % (capability, operations, access)
+            )

@@ -204,7 +204,7 @@ gated checkpoints, seeding, fresh-before-deep-dive, ledger-updates-only reportin
 **Independent Test**: Pinned-property inspection via the two test modules; its ledger
 examples (seeded-from-triage included) already validate via Phase 2.
 
-- [ ] T013 [US3] Write `agents/deep-investigator.md` (research R2 format): frontier
+- [x] T013 [US3] Write `agents/deep-investigator.md` (research R2 format): frontier
       model class (configurable, research R3), open budget; wide toolset table —
       capability-named reads, every mutating row marked approval-gated (the guardrail
       layers stay between the agent and any change — FR-007, Constitution III); ledger
@@ -222,7 +222,7 @@ examples (seeded-from-triage included) already validate via Phase 2.
       null-result handling (empty findings summary is legitimate; recorded against the
       hypothesis, no blind re-dispatch — spec edge case); all-recalled-INVALIDATED
       continuation (invalidation is a success of the discipline — spec edge case)
-- [ ] T014 [US3] Extend `tests/contract/test_agent_toolsets.py` (deep investigator:
+- [x] T014 [US3] Extend `tests/contract/test_agent_toolsets.py` (deep investigator:
       capabilities ⊆ manifest; mutating rows marked approval-gated; read rows
       capability-named) and `tests/contract/test_investigation_prose.py` (checkpoint
       section cites the validation gate + slice-3 conventions — US3-AS1; seeding
