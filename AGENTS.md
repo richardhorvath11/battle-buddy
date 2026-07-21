@@ -1,6 +1,6 @@
 # AGENTS.md
 
-_Last Verified: 2026-07-19_
+_Last Verified: 2026-07-21_
 
 Single source of truth for any coding agent in this repo. Read this end-to-end before
 touching anything; it routes — it does not restate. Tool-specific overlays (`CLAUDE.md`)
@@ -10,8 +10,10 @@ only add narrow extras on top.
 
 **battle-buddy** — an open-source on-call agent harness: a Claude Code plugin that gives
 responders agent-led incident investigation with compounding institutional memory.
-**Status: pre-implementation.** The repo currently holds the governing documents and the
-spec-kit scaffold; component code lands slice-by-slice (see Build order below).
+**Status: slices 1–4 landed** (see Build order below). Shipped plugin surfaces so far:
+`bin/` (`bb-fingerprint`, `bb-validate`), `hooks/` (guardrails), `commands/` (`/doctor`,
+`/setup`), `manifest/capabilities.json`, `skills/session-store`, `templates/`. Dev-only,
+never shipped: `tools/bb-mock-mcp`, `tests/`, `pyproject.toml`.
 
 ## Source documents (read in this order for context)
 
@@ -31,7 +33,13 @@ Traceability runs **PRD FR → design § → slice spec → code + tests**.
 make verify          # THE gate: hermetic unit + contract test layers (design §10)
 make test-unit       # layer 1 only: hooks/helpers as pure functions
 make test-contract   # layer 2 only: against bb-mock-mcp
+pytest tests/contract/test_doctor_checks.py -q            # single file
+pytest tests/unit/test_validate.py::test_name -q          # single test
 ```
+
+CI (`.github/workflows/verify.yml`) invokes the same make targets — unit on py3.9
+(shipped-code floor, design D-1) and py3.12, contract on py3.12 only. Shared test flow
+helpers live in `tests/helpers/`; contract fixtures under `tests/fixtures/`.
 
 Spec-kit drives feature flow: `/speckit-specify` → `/speckit-plan` → `/speckit-tasks` →
 `/speckit-implement` (optional: `/speckit-clarify`, `/speckit-analyze`, `/speckit-checklist`).
@@ -50,18 +58,19 @@ Assumptions).
 
 | Tier | Paths | Notes |
 |---|---|---|
-| **Allowed** | future plugin dirs (`commands/`, `agents/`, `skills/`, `hooks/`, `bin/`, `manifest/`, `templates/`), `tests/`, `tools/`, docs, `specs/**` | Default. Still subject to the constitution |
+| **Allowed** | plugin dirs (`commands/`, `skills/`, `hooks/`, `bin/`, `manifest/`, `templates/`, future `agents/`), `tests/`, `tools/`, docs, `specs/**` | Default. Still subject to the constitution |
 | **Restricted** (call it out in the PR) | `.specify/memory/constitution.md` (semver bump + Sync Impact Report per Governance); `Makefile`; `.claude/settings.json`; `.specify/templates/*` | Governance and gate surface — change deliberately |
 | **Upstream-managed** | `.specify/scripts/**`, `.specify/extensions/**`, `.claude/skills/speckit-*` | spec-kit vendored files; update via `specify` upgrades, don't hand-edit |
 
 ## Build order (design §1) and slice map
 
-Spike 0 (Google roster conformance) → **slice 1** test scaffold + `bb-mock-mcp` →
-**2** deterministic layer (hooks + `bb-fingerprint` + `bb-validate`) → **3** session-store
-conventions → **4** `/doctor` + `/setup` → **5** lifecycle commands → **6** agent model +
-investigation skill → **7** catalog adapter → **8** diary adapter → **9** shell adapter
-(`bb-shell` + cmux). Slices 7–9 parallelize once 1–2 exist. Each slice cites its design
-sections in its spec.
+Spike 0 (Google roster conformance) → **slice 1** test scaffold + `bb-mock-mcp` (✅) →
+**2** deterministic layer (hooks + `bb-fingerprint` + `bb-validate`) (✅) → **3**
+session-store conventions (✅) → **4** `/doctor` + `/setup` (✅) → **5** lifecycle
+commands (next) → **6** agent model + investigation skill → **7** catalog adapter →
+**8** diary adapter → **9** shell adapter (`bb-shell` + cmux). Slices 7–9 parallelize
+once 1–2 exist. Each slice cites its design sections in its spec; landed slices live
+under `specs/00N-*/`.
 
 ## Hard invariants
 
