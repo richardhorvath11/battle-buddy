@@ -233,7 +233,7 @@ the local→uploaded name mapping, row-discoverable links, regenerability (FR-00
 **Independent Test**: Run the documented upload conventions against the mock artifact
 store; assert folder-qualified names, the mapping, and links resolving via `get_file`.
 
-- [ ] T023 [US5] Fill SKILL.md's artifact-layout section: `battle-buddy/<session_id>/`
+- [x] T023 [US5] Fill SKILL.md's artifact-layout section: `battle-buddy/<session_id>/`
       folder path expressed as the folder-qualified `put_file` name; the four artifact
       names (`transcript.md`, `tool-trace.jsonl`, `checkpoints.jsonl`, `report.md`);
       the local `trace.jsonl` → uploaded `tool-trace.jsonl` mapping restated as owned
@@ -241,7 +241,7 @@ store; assert folder-qualified names, the mapping, and links resolving via `get_
       per-artifact links); report = pure rendering of row + artifacts, regenerable
       because evidence is `{url, excerpt}` (execution of report generation + timeline
       derivation deferred to slice 5, documented as such)
-- [ ] T024 [US5] Write `tests/contract/test_artifact_layout.py`: US5 AS-1–AS-3 —
+- [x] T024 [US5] Write `tests/contract/test_artifact_layout.py`: US5 AS-1–AS-3 —
       uploads land under the session's folder path with the four names asserted by
       presence, not folder exclusivity — overflow `checkpoint-<seq>.json` files may
       coexist (driven through `close_session`), the `trace.jsonl` → `tool-trace.jsonl`

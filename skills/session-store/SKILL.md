@@ -315,5 +315,98 @@ this with real transactions.
 
 ## Artifact layout
 
-_Stub — filled by T023 (US5): the per-session folder path, the four canonical artifact
-names, the local-name-to-uploaded-name mapping, and row-discoverability of artifacts._
+### Per-session folder — a path prefix, not a folder operation
+
+Every artifact for a session lives under one folder-qualified `put_file` name
+prefix: `battle-buddy/<session_id>/<artifact-name>`. The operation contract has no
+folder-creation or folder-listing op — only `put_file`/`get_file` for artifacts — so
+this prefix, baked into every uploaded name, **is** the folder convention; nothing
+separately creates or reserves it. The close flow's step 2 (see "Open and close
+flow" -> "Close — pinned write order") is where this prefix is applied to every
+staged file, and the checkpoint overflow path (see "Checkpoints" -> "Cell guard")
+applies the same prefix to `checkpoint-<seq>.json`.
+
+### The four documented artifacts — asserted by presence, not exclusivity
+
+Once the close flow's uploads land, every session's folder holds:
+
+- `transcript.md` — the full session transcript.
+- `tool-trace.jsonl` — one JSON object per tool call.
+- `checkpoints.jsonl` — the full checkpoint history.
+- `report.md` — the investigation report (see "The report" below).
+
+These four names are the canonical set the folder is defined to hold — but the
+folder is not exclusive to them. A checkpoint that overflowed the cell guard
+mid-session writes its own `checkpoint-<seq>.json` file under the same
+folder-qualified prefix, at write time, independent of and prior to close (see
+"Checkpoints" -> "Cell guard"); one or more of these may legitimately coexist
+alongside the four canonical files. Confirming "the folder holds the four
+documented artifacts" is therefore always a **presence** check — do these four
+names exist under the prefix — never an **exclusivity** check — are these the
+only names present; overflow files are expected company, not a conformance
+violation.
+
+### Local name -> uploaded name mapping (owned by the local-state protocol)
+
+The mapping from a locally staged file to its uploaded artifact name is owned by
+the slice-2 local-state protocol (`bb.local.v1`,
+`specs/002-deterministic-layer/contracts/local-state-protocol.md`'s `staging/`
+section) — restated here for convenience, not redefined:
+
+| Local (staged under `.bb-session/`) | Uploaded artifact name |
+|---|---|
+| `staging/transcript.md` | `transcript.md` |
+| `trace.jsonl` | `tool-trace.jsonl` |
+| `staging/checkpoints.jsonl` | `checkpoints.jsonl` |
+
+`report.md` has no local-staged counterpart — it is generated fresh at close (see
+"The report" below), never staged and uploaded like the other three. "Open and
+close flow" -> "Close — pinned write order" step 2 is the normative statement of
+when this mapping is applied.
+
+### Provenance: captured, not recalled
+
+The transcript and the tool trace are captured **deterministically by slice-2's
+hooks during the session, never recalled from an agent's memory at close**
+(design §5.3): the tool-trace hook appends every tool call — across every agent,
+subagents included — to the local trace file as it happens, and the session-guard
+hook copies the runtime's own transcript at session end. An agent paraphrasing its
+own transcript from context would be exactly the lossy path an audit log must not
+take (Constitution IV — every evidence entry is a `{url, excerpt}` pair, never
+prose alone). By the time the close flow runs, both files already exist locally in
+full; the close flow's only job for them is the `put_file` **upload** ("Open and
+close flow" -> "Close — pinned write order" step 2) — it never generates, edits, or
+summarizes their content.
+
+### Row discoverability
+
+The folder and its contents are discoverable from the store without touching local
+state at all:
+
+- `artifacts_folder_url` on the row (the close-time field group,
+  `references/schema.md`) carries the folder path itself.
+- Each artifact that uploaded successfully gets its own `{url, excerpt}` entry
+  appended to the row's `links` ("Open and close flow" -> "Close — pinned write
+  order" step 2, and "Artifact failure (per file)" — a failed upload's link is
+  simply absent from `links`, not a broken entry).
+
+Together, a reader holding only the row can locate the folder
+(`artifacts_folder_url`) and every individual artifact's link (`links`) — no
+directory-listing operation is needed or exists.
+
+### The report — a rendering, not a source
+
+`report.md` is purely a **rendering of the row plus its artifacts** — it
+introduces no fact that isn't already in the row's fields or one of the other
+three artifacts. Because every evidence entry the row and checkpoints carry is a
+`{url, excerpt}` pair, never prose alone (Constitution IV), the report is
+regenerable at any later time from nothing but the row and the artifacts it points
+to — the same regenerability property "Row discoverability" above establishes.
+`timeline` (part of the close-time field group) is the one field this skill flags
+with its own derivation rule: it is always produced mechanically from the tool
+trace plus the checkpoint history, never from prose recall of the transcript
+("Open and close flow" -> "Timeline derivation").
+
+Report generation and timeline derivation are normative rules documented by this
+slice; the generation logic itself is out of scope here and **executes in slice
+5**.
