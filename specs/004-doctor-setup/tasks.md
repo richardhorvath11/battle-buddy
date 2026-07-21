@@ -23,7 +23,7 @@ and test tasks are paired inside each story; a story's checkpoint is `make verif
 **Purpose**: The bundle directories this slice is first to populate, and the new runtime
 dropping's ignore line.
 
-- [ ] T001 Create `commands/`, `manifest/`, `templates/`, `tests/fixtures/doctor/`
+- [x] T001 Create `commands/`, `manifest/`, `templates/`, `tests/fixtures/doctor/`
       directories; add `.bb-doctor-stamp.json` to `.gitignore` under the runtime-droppings
       section (research R2)
 
@@ -37,16 +37,16 @@ mechanically equal to operation contract v1.
 
 **⚠️ CRITICAL**: No user story work until this phase is complete.
 
-- [ ] T002 Write `manifest/capabilities.json` (`bb.capabilities.v1`): required half
+- [x] T002 Write `manifest/capabilities.json` (`bb.capabilities.v1`): required half
       projected from `tools/bb-mock-mcp/contract.json` (storage/artifacts/diary/alerting
       ops with input/output shapes; `artifacts.get_file` excluded as test-only —
       contracts/doctor-protocol.md), optional half from design §7.1 (`code`:
       `read_file`/`list_commits`/`search`; `observability`: `query_metrics`/`search_logs`)
       with shapes and `enables` lists (R7)
-- [ ] T003 [P] Write `tests/contract/test_capability_manifest.py`: schema field, required
+- [x] T003 [P] Write `tests/contract/test_capability_manifest.py`: schema field, required
       half ≡ contract.json capability/op/shape fidelity (both directions), `get_file`
       absent, optional ops + exact `enables` lists present (FR-001)
-- [ ] T004 [P] Create `tests/helpers/doctor_fixtures.py`: roster-fixture builder pulling
+- [x] T004 [P] Create `tests/helpers/doctor_fixtures.py`: roster-fixture builder pulling
       op shapes from `mock.describe()` and assigning fixture tool names (R8);
       `FixtureHeaderStore` (ordered `header` cells or `None`, write log; header
       representation = `store_flows.COLUMN_NAMES` + `bb.schema.v1` sentinel — R5);
@@ -55,7 +55,7 @@ mechanically equal to operation contract v1.
       stands in for responder-credential failures the contract has no auth code for);
       config-block fixture loaders. Scenario rosters as builders (R8): full,
       missing-one-required, multi-match, with-optional, drifted
-- [ ] T005 [P] Create `tests/fixtures/doctor/` config-block fixtures: `config-valid.json`
+- [x] T005 [P] Create `tests/fixtures/doctor/` config-block fixtures: `config-valid.json`
       (full `bb.config.v1` per contracts/doctor-protocol.md incl. protocol-v1 key paths),
       `config-malformed.json` (unparseable), `config-future-version.json`
       (`configVersion`/`store.schemaVersion` bumped for seam tests)
