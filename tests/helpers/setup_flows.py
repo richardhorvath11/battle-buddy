@@ -21,17 +21,37 @@ the green stamp's wiring: ``team_mode``'s doctor step now writes it via
 is now implemented for real (probe checks against the existing team scope,
 optional binding drift re-check, stamp write on green — see its own
 docstring). ``Workspace.probes_ok``/``stamp_state`` remain caller-supplied,
-test-injectable fields — ``derive_mode`` itself is unchanged (see
-``compute_stamp_state`` for the optional real-caller convenience that
-populates ``stamp_state`` from ``doctor_flows.evaluate_stamp``; slice 5's
-`/page` preflight is its real, live caller). Extension points left for later
-tasks:
+test-injectable fields (see ``compute_stamp_state`` for the optional
+real-caller convenience that populates ``stamp_state`` from
+``doctor_flows.evaluate_stamp``; slice 5's `/page` preflight is its real,
+live caller).
 
-- T020 (US4) fills in ``validate_existing`` for real (already-set-up
-  validation + partial-state resumption + malformed-config repair
-  surfacing). Team mode's own store create-or-validate branch (below) is the
-  only validation *this* task needs — a full standalone idempotence pass
-  belongs to T020, not here.
+T020 (US4, idempotence) delivers the remaining three modes' real
+implementations, plus one addition to ``derive_mode`` itself:
+
+- ``derive_mode`` gains a **team-partial** row, inserted *before* the
+  responder check: a config-present workspace whose ``roster`` is non-empty
+  but whose store header is still missing routes here rather than to
+  responder or already-set-up (contracts/doctor-protocol.md "Setup mode
+  derivation"'s "Partial team state" note). See the function's own docstring
+  for why this is gated on a non-empty roster — it's what keeps every
+  T012/T017 responder/already-set-up test green unchanged.
+- ``validate_existing`` — the **already-set-up** path: read-only,
+  doctor-style validation (config, version, probe, optional binding-drift,
+  shell checks) assembled into a ``bb.doctor.report.v1``-shaped summary;
+  deliberately never refreshes the green stamp (see its own docstring for
+  why that's responder scope, not this path's).
+- ``resume_partial`` — the **team-partial** path: creates only whichever
+  team-scope artifact is genuinely missing (currently: the store header,
+  through the config's already-committed ``storage.append_record`` binding
+  — never a fresh resolution — and any scaffold file absent from
+  ``workspace.tmp_path``), validates whatever's already present, and closes
+  with the same read-only validation ``validate_existing`` performs.
+- ``repair_report`` — the **repair** path: names the malformed config's
+  parse error via ``doctor_flows._check_config_wellformed`` and performs no
+  operation whatsoever — team mode must never run over a malformed config,
+  no matter how empty the rest of the workspace looks (the spec edge case's
+  exact trap).
 """
 
 import json
@@ -166,25 +186,55 @@ def derive_mode(workspace):
     """contracts/doctor-protocol.md "Setup mode derivation": inspection only,
     never a stored done-flag (FR-006).
 
-    Fully implemented here: **team** (no config block) and **repair**
-    (config present but malformed — never treated as absent, contracts/
-    doctor-protocol.md "Malformed config block"). The **responder** /
-    **already-set-up** split is implemented to a reasonable T012 depth: a
-    config-present workspace is responder mode whenever
-    ``workspace.probes_ok`` is false or ``workspace.stamp_state`` isn't
-    ``"fresh"`` (which — given ``stamp_state``'s ``"missing"`` default — means
-    "config present, no stamp yet" reads as responder, exactly the table's
-    "stamp missing or stale" row); otherwise already-set-up.
+    Fully implemented here: **team** (no config block), **repair** (config
+    present but malformed — never treated as absent, contracts/
+    doctor-protocol.md "Malformed config block"), **team-partial** (T020,
+    US4 scenario 2), and the **responder** / **already-set-up** split.
 
-    JUDGMENT CALL (T017): ``stamp_state``/``probes_ok`` stay exactly the
-    bare, caller-supplied ``Workspace`` fields T012 left them as —
-    ``derive_mode`` itself is unchanged. Actually evaluating a real stamp
-    (filesystem read + roster re-hash) is a side-effecting step a real
-    caller performs once and feeds in via ``stamp_state``, not something a
-    pure mode-derivation predicate should do on every call; ``responder_mode``
-    (T017) and the module-level ``compute_stamp_state`` convenience are where
-    ``doctor_flows.evaluate_stamp`` actually gets used. Distinguishing partial
-    team state remains T020's concern.
+    **team-partial** (T020): contracts/doctor-protocol.md's "Partial team
+    state (e.g. config present, store header missing) does only what is
+    missing" note, refined into its own mode row so a caller dispatches to
+    ``resume_partial`` rather than ``responder_mode``/``validate_existing``.
+    The check: ``workspace.roster`` is non-empty AND
+    ``workspace.header_store.read_header()`` is ``None``.
+
+    JUDGMENT CALL — gated on a non-empty roster: a bare
+    ``Workspace(config=...)`` built for a T012/T017-era responder/
+    already-set-up test never populates ``roster`` (it defaults to ``{}``) —
+    that's simply "no roster information supplied to this call," not "the
+    team's store header is genuinely missing." Without a roster there is
+    nothing ``resume_partial`` could create the header *through* anyway
+    (creating it "through the config's already-committed storage binding"
+    presumes a roster that binding was resolved against in the first place)
+    — so an empty roster conservatively falls through to the existing
+    responder/already-set-up split exactly as T012/T017 left it. This is
+    precisely what keeps
+    ``test_derive_mode_config_present_stamp_missing_is_responder`` (T012)
+    and the "valid team scope" responder-mode tests (T017) green unchanged:
+    both either supply no roster or supply one whose header is already
+    present, so neither ever satisfies this new check.
+
+    A malformed config is checked *before* team-partial and always wins —
+    "config present but malformed" must never be read as "config present,
+    team-scope artifact missing" (see ``repair_report``).
+
+    Below team-partial, the **responder** / **already-set-up** split is
+    unchanged from T012/T017: a config-present workspace is responder mode
+    whenever ``workspace.probes_ok`` is false or ``workspace.stamp_state``
+    isn't ``"fresh"`` (which — given ``stamp_state``'s ``"missing"``
+    default — means "config present, no stamp yet" reads as responder,
+    exactly the table's "stamp missing or stale" row); otherwise
+    already-set-up.
+
+    JUDGMENT CALL (T017, restated): ``stamp_state``/``probes_ok`` stay
+    exactly the bare, caller-supplied ``Workspace`` fields T012 left them
+    as — ``derive_mode`` never evaluates a real stamp itself. Actually
+    evaluating one (filesystem read + roster re-hash) is a side-effecting
+    step a real caller performs once and feeds in via ``stamp_state``, not
+    something a pure mode-derivation predicate should do on every call;
+    ``responder_mode`` (T017) and the module-level ``compute_stamp_state``
+    convenience are where ``doctor_flows.evaluate_stamp`` actually gets
+    used.
     """
     config = workspace.config
 
@@ -195,8 +245,15 @@ def derive_mode(workspace):
         # Malformed (e.g. a caught json.JSONDecodeError passed straight
         # through — doctor_flows.check_config's own convention). A repair
         # case, never "no config" — team mode must never re-create resources
-        # over a typo.
+        # over a typo. Checked before team-partial: malformed always wins.
         return "repair"
+
+    if workspace.roster and workspace.header_store.read_header() is None:
+        # T020: config present, a roster to resolve/create against exists,
+        # and the store header is genuinely missing — team-partial, never
+        # responder/already-set-up (contracts/doctor-protocol.md "Partial
+        # team state").
+        return "team-partial"
 
     if (not workspace.probes_ok) or workspace.stamp_state != "fresh":
         return "responder"
@@ -883,10 +940,281 @@ def compute_stamp_state(stamp_path, plugin_version, current_roster_hash):
     return status
 
 
-def validate_existing(mock, workspace):
-    """T020's scope (US4 idempotence): validate every existing team-scope
-    resource (store header, config, bindings, stamp) with zero writes, and
-    surface a malformed config block as an explicit repair case rather than
-    re-creating over it. Not implemented here — team_mode's own store
-    create-or-validate branch (b) is the only validation this task needs."""
-    raise NotImplementedError("validate_existing is T020's scope (US4)")
+def _read_only_validation_report(mock, workspace, plugin_version):
+    """Shared read-only doctor-style validation, used by both
+    ``validate_existing`` (already-set-up) and ``resume_partial``'s closing
+    step (team-partial): config checks (well-formedness, store header,
+    diary, catalog — ``doctor_flows.check_config``), the version-seam checks
+    (``check_versions``), the read-shaped probes (``run_probes``), the
+    optional binding-drift re-check (``revalidate_bindings`` — included only
+    when ``workspace.config`` carries a ``"bindings"`` map and
+    ``workspace.roster`` is non-empty, exactly ``responder_mode``'s (T017)
+    own judgment call), and the shell round-trip/skip (``check_shell``),
+    assembled into one ``bb.doctor.report.v1``-shaped report
+    (``assemble_report``).
+
+    Every function this calls is read-only per its own doctor_flows
+    docstring — this helper never writes anything (no header create, no
+    config write, no scaffold write, no stamp write). Factored out once both
+    T020 entry points needed the identical assembly.
+    """
+    manifest = _load_manifest()
+    config = workspace.config
+
+    config_checks = doctor_flows.check_config(
+        mock, config, workspace.header_store, workspace.catalog_path
+    )
+    version_checks = doctor_flows.check_versions(config, plugin_version)
+    probe_checks = doctor_flows.run_probes(mock)
+
+    binding_checks = []
+    if isinstance(config, dict) and config.get("bindings") and workspace.roster:
+        binding_checks = doctor_flows.revalidate_bindings(
+            config["bindings"], workspace.roster, manifest
+        )
+
+    shell_check = doctor_flows.check_shell(config, workspace.shell_adapter)
+
+    bindings = config.get("bindings", {}) if isinstance(config, dict) else {}
+    return doctor_flows.assemble_report(
+        binding_checks, probe_checks, config_checks, version_checks, shell_check,
+        manifest, bindings,
+    )
+
+
+def validate_existing(mock, workspace, plugin_version):
+    """T020 (US4 scenario 1, FR-009): the **already-set-up** path — every
+    existing team-scope resource is validated with zero writes, and the
+    result is a doctor-style summary report, in exactly the
+    ``bb.doctor.report.v1`` shape a standalone `/doctor` run produces
+    (contracts/doctor-protocol.md "Doctor report").
+
+    Delegates the entire check assembly to ``_read_only_validation_report``
+    (config/version/probe/optional-binding-drift/shell), so this function
+    itself never calls ``workspace.header_store.create_header``, never
+    writes ``workspace.config``, never calls ``scaffold_workspace``, and
+    never runs ``smoke_test`` — the caller's ``mock.write_log`` and
+    ``workspace.header_store.write_log`` are provably unchanged across a run
+    (SC-005).
+
+    JUDGMENT CALL — no stamp refresh: a green ``validate_existing`` run
+    deliberately does **not** call ``doctor_flows.write_stamp_if_green``.
+    Stamp freshness is responder scope (FR-005/FR-008), owned by
+    ``responder_mode`` — and ``derive_mode`` already only ever reaches
+    "already-set-up" once ``workspace.stamp_state == "fresh"``, so by
+    construction there is nothing here that needs refreshing. Re-stamping on
+    every already-set-up validation run would blur the boundary between
+    team-scope validation (this function) and responder-scope stamp
+    ownership (``responder_mode``), and would advance the stamp's ``at``
+    field on a run that touched nothing — undermining its own "diagnostic,
+    never expiry-checked" contract the moment anything ever mistook stamp
+    recency for validation recency.
+
+    Returns ``{"mode": "already-set-up", "report": report, "green": bool}``.
+    """
+    report = _read_only_validation_report(mock, workspace, plugin_version)
+    return {
+        "mode": "already-set-up",
+        "report": report,
+        "green": report["outcome"] == "green",
+    }
+
+
+def resume_partial(mock, workspace, roster, inputs, plugin_version):
+    """T020 (US4 scenario 2, contracts/doctor-protocol.md "Partial team
+    state"): the **team-partial** resumption path — the config block is
+    already present and well-formed (a malformed config never reaches here;
+    ``derive_mode`` checks that first, and always routes it to
+    ``repair_report`` instead), but at least one other team-scope artifact
+    is genuinely missing. Creates ONLY the missing piece(s); everything
+    already present is validated, never re-created.
+
+    Currently-recognized team-scope artifacts (contracts/doctor-protocol.md
+    "Store header create-vs-validate" + "Workspace scaffold"):
+
+    (a) **Store header** — create-or-validate, exactly team_mode's own
+        branch (b), with one deliberate difference: the storage binding used
+        to create it comes from ``workspace.config["bindings"]`` — the
+        config's already-committed team-scope binding map — **never** a
+        fresh ``doctor_flows.resolve_bindings`` call. The binding map is
+        team scope and already exists in this state (that is exactly what
+        "config present" means here); re-resolving it would be a second,
+        possibly-diverging resolution of something already committed, not a
+        resumption of what's actually missing.
+    (b) **Scaffold files** — each of the four ``scaffold_workspace`` files
+        under ``workspace.tmp_path`` is created only if absent (using the
+        same per-file content ``scaffold_workspace`` itself would write,
+        built from this same ``config``/``roster``) and left untouched if
+        already present. ``scaffold_workspace`` itself has no partial-write
+        mode — every call rewrites all four unconditionally — so this
+        duplicates its per-file content generation rather than calling it
+        outright; that is what lets an already-present file survive a
+        resumption completely untouched.
+
+    JUDGMENT CALL — "config block absent-fields" is out of scope for this
+    task: a well-formed config dict missing one of contracts/
+    doctor-protocol.md's documented keys is not checked or repaired here.
+    Reaching this function at all already implies ``isinstance(config,
+    dict)`` (a malformed config routes to ``repair_report`` before
+    ``derive_mode`` ever considers team-partial), and no spec scenario,
+    fixture, or existing test pins what a partially-populated-but-
+    well-formed config dict looks like — inventing a repair shape for it
+    here would be speculative, untested surface. The two artifacts above are
+    the ones US4 scenario 2's own example ("config present, store header
+    missing") and contracts/doctor-protocol.md's "Workspace scaffold"
+    section actually pin.
+
+    Closes with ``_read_only_validation_report`` — the identical read-only,
+    doctor-style validation ``validate_existing`` performs — so the returned
+    report is directly comparable to ``validate_existing``'s. Never runs
+    ``smoke_test``: that is team_mode's own full-sequence finish, not a
+    resumption's, and the spec-pinned scenario this task targets explicitly
+    excludes it.
+
+    ``roster``: the current roster surface (mirrors ``team_mode``'s own
+    explicit ``roster`` argument); also recorded onto ``workspace.roster``.
+    ``inputs``: accepted for signature symmetry with ``team_mode``; nothing
+    here currently reads it — there is no create-vs-validate *choice* left
+    to make once the binding is already committed.
+
+    Returns ``{"mode": "team-partial", "steps", "report", "green"}``. Never
+    calls ``doctor_flows.resolve_bindings``, never writes
+    ``workspace.config``, never calls ``smoke_test``.
+    """
+    inputs = inputs or {}
+    config = workspace.config
+    if not isinstance(config, dict):
+        raise RuntimeError(
+            "resume_partial requires an already-well-formed config block — "
+            "a malformed config always routes to repair_report, never here "
+            "(contracts/doctor-protocol.md 'Malformed config block')"
+        )
+
+    workspace.roster = roster
+    bindings = config.get("bindings", {})
+    steps = []
+
+    # --- store header: create ONLY if missing, through the COMMITTED
+    # (never freshly re-resolved) binding ---------------------------------
+    header = workspace.header_store.read_header()
+    if header is None:
+        storage_tool = bindings.get("storage.append_record")
+        if storage_tool is None:
+            raise RuntimeError(
+                "cannot create the store header: the committed config "
+                "carries no storage.append_record binding entry — "
+                "resume_partial only ever creates through an "
+                "already-committed team-scope binding, never a fresh "
+                "resolution (contracts/doctor-protocol.md 'Setup mode "
+                "derivation' partial-team-state note)"
+            )
+        created_header = workspace.header_store.create_header(
+            doctor_fixtures.EXPECTED_HEADER
+        )
+        steps.append(
+            {
+                "step": "store_header",
+                "action": "create",
+                "via_binding": storage_tool,
+                "header": created_header,
+            }
+        )
+    else:
+        header_check = doctor_flows._check_store_header(workspace.header_store)
+        steps.append(
+            {"step": "store_header", "action": "validate", "check": header_check}
+        )
+
+    # --- scaffold: create only the files genuinely missing from tmp_path --
+    created_files = []
+    validated_files = []
+    if workspace.tmp_path is not None:
+        tmp_path = Path(workspace.tmp_path)
+        settings_path = tmp_path / ".claude" / "settings.json"
+        mcp_path = tmp_path / ".mcp.json"
+        readme_path = tmp_path / "README.md"
+        gitignore_path = tmp_path / ".gitignore"
+
+        if settings_path.exists():
+            validated_files.append(".claude/settings.json")
+        else:
+            settings_path.parent.mkdir(parents=True, exist_ok=True)
+            settings_path.write_text(
+                json.dumps({"battleBuddy": config}, indent=2, sort_keys=True) + "\n",
+                encoding="utf-8",
+            )
+            created_files.append(".claude/settings.json")
+
+        if mcp_path.exists():
+            workspace.roster_file_text = mcp_path.read_text(encoding="utf-8")
+            validated_files.append(".mcp.json")
+        else:
+            mcp_text = (
+                json.dumps(
+                    {"mcpServers": _mcp_servers_from_roster(roster)},
+                    indent=2,
+                    sort_keys=True,
+                )
+                + "\n"
+            )
+            mcp_path.write_text(mcp_text, encoding="utf-8")
+            workspace.roster_file_text = mcp_text
+            created_files.append(".mcp.json")
+
+        if readme_path.exists():
+            validated_files.append("README.md")
+        else:
+            readme_path.write_text(_README_TEMPLATE, encoding="utf-8")
+            created_files.append("README.md")
+
+        if gitignore_path.exists():
+            validated_files.append(".gitignore")
+        else:
+            gitignore_path.write_text(
+                "\n".join(_GITIGNORE_LINES) + "\n", encoding="utf-8"
+            )
+            created_files.append(".gitignore")
+
+    steps.append(
+        {"step": "scaffold", "created": created_files, "validated": validated_files}
+    )
+
+    # --- close with the same read-only validation validate_existing uses --
+    report = _read_only_validation_report(mock, workspace, plugin_version)
+    steps.append({"step": "doctor", "report": report})
+
+    return {
+        "mode": "team-partial",
+        "steps": steps,
+        "report": report,
+        "green": report["outcome"] == "green",
+    }
+
+
+def repair_report(workspace):
+    """T020 (US4, edge case "Malformed config block"): the **repair** path —
+    a malformed config block is surfaced explicitly, naming the exact parse
+    error, and never triggers any team-mode resource creation, no matter how
+    empty the rest of the workspace looks. This is the spec edge case's
+    precise trap: an empty/missing store header here must NOT be read as
+    "team mode's empty store," because the config itself was never readable
+    to begin with — ``derive_mode`` already guarantees a malformed config
+    always routes here, never to ``"team"`` or ``"team-partial"``.
+
+    Reuses ``doctor_flows._check_config_wellformed`` — the exact same
+    malformed-config check ``check_config`` runs as its own first check —
+    rather than re-deriving or re-parsing anything independently, so the
+    parse error named here can never drift from what a standalone `/doctor`
+    run (or ``check_config`` itself) would report for the same malformed
+    config.
+
+    Performs zero operations: reads only ``workspace.config`` (to name its
+    parse error); never touches ``workspace.header_store``,
+    ``workspace.tmp_path``, or any mock — and is clearly not team mode: no
+    resource of any kind is created or validated here.
+
+    Returns ``{"mode": "repair", "check": <the config.wellformed check
+    dict>, "green": False}``.
+    """
+    check = doctor_flows._check_config_wellformed(workspace.config)
+    return {"mode": "repair", "check": check, "green": False}

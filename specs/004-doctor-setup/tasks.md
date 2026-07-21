@@ -211,12 +211,12 @@ partial states do only what's missing; malformed config is repair, never re-crea
 **Independent test**: documented flow twice from the same fixture: second run performs
 zero mutating operations (write log unchanged) and reports already-green (spec US4).
 
-- [ ] T020 [US4] Extend `tests/helpers/setup_flows.py` — validation paths:
+- [x] T020 [US4] Extend `tests/helpers/setup_flows.py` — validation paths:
       `validate_existing(mock, workspace)` (store header, config, bindings, stamp —
       no writes), already-set-up reporting (doctor summary), partial-state resumption
       (each missing team artifact created, present ones validated never re-created),
       malformed-config repair surfacing (never treated as absent — R4)
-- [ ] T021 [US4] Write `tests/contract/test_setup_idempotence.py`: run team mode then
+- [x] T021 [US4] Write `tests/contract/test_setup_idempotence.py`: run team mode then
       re-run ⇒ second run zero mutating ops in write log + already-green report
       (SC-005); partial state (config present, header missing) ⇒ only the header
       created, config untouched (US4 scenario 2); malformed config ⇒ repair case
@@ -231,7 +231,7 @@ zero mutating operations (write log unchanged) and reports already-green (spec U
 **Purpose**: The Constitution VII gate over the new shipped prose, the FR→test mapping
 record, and design-doc reconciliation.
 
-- [ ] T022 [P] Write `tests/contract/test_command_capability_naming.py`: extend the
+- [x] T022 [P] Write `tests/contract/test_command_capability_naming.py`: extend the
       slice-3 naming-scan mechanism over `commands/*.md`, `manifest/capabilities.json`,
       `templates/session-sheet.md` — no concrete MCP server/tool names;
       `templates/mcp.recommended.json` exempt but asserted valid JSON naming servers for
@@ -240,14 +240,14 @@ record, and design-doc reconciliation.
       check does not port verbatim — dotted `capability.operation` tokens need their own
       regex (slice-3's matches only undotted tokens), and optional-half ops (`read_file`
       etc.) resolve against the manifest, not `contract.json` (FR-010, R13)
-- [ ] T023 [P] Append the FR → test-module mapping record to this file (FR-001–FR-012,
+- [x] T023 [P] Append the FR → test-module mapping record to this file (FR-001–FR-012,
       each naming its exercising module(s)) — the FR-011 traceability artifact
-- [ ] T024 Reconcile design doc: verify §7.2's "diary writable" and "Sheet" phrasing
+- [x] T024 Reconcile design doc: verify §7.2's "diary writable" and "Sheet" phrasing
       against the spec's schema-matched/store-neutral pins — if the design needs an
       amendment note (per its §11 decision-log duty), make it in
       `bb-technical-design.md` in this change; otherwise record "no amendment needed"
       in the PR body
-- [ ] T025 Final `make verify` + quickstart walkthrough (every quickstart command runs
+- [x] T025 Final `make verify` + quickstart walkthrough (every quickstart command runs
       as documented); confirm every FR-011 surface listed in the spec has its test
 
 **Checkpoint**: `make verify` green; slice complete.
@@ -277,3 +277,22 @@ MVP = Phases 1–4 (US2 + US1: doctor resolving/verifying and a team reaching gr
 command — the SM-2 seam). US3/US4 complete the responder and idempotence promises; Phase
 7 gates naming and traceability. Verify + commit at every checkpoint; each story stands
 alone green.
+
+---
+
+## FR → test-module mapping (T023; the FR-011 traceability record)
+
+| FR | Exercised by |
+|---|---|
+| FR-001 (capability manifest) | `tests/contract/test_capability_manifest.py` (fidelity vs contract v1 both directions; optional ops + `enables`; `get_file` excluded) |
+| FR-002 (resolution, probes, ambiguity, binding write) | `tests/contract/test_binding_resolution.py` (SC-002 both halves; explicit choice; drift) + `test_doctor_report.py` (ambiguity outcome rules) |
+| FR-003 (per-run checks) | `tests/contract/test_doctor_checks.py` (probe outcomes via report; header exact-mismatch incl. misordered; diary/catalog; version seam; shell ok/fail/skip) |
+| FR-004 (report semantics) | `tests/contract/test_doctor_report.py` (schema; red/green rules incl. optional-ambiguity carve-out; exact reduced-features lists; migrations mirror) |
+| FR-005 (green stamp) | `tests/contract/test_stamp_lifecycle.py` (SC-006; green-gated write; staleness = version/hash only; `at` never expiry-checked; gitignored) |
+| FR-006 (mode by inspection) | `tests/contract/test_setup_team_mode.py` (derive_mode four modes) + `test_setup_idempotence.py` (team-partial/repair discrimination) |
+| FR-007 (team mode) | `tests/contract/test_setup_team_mode.py` (SC-003 create/validate/mismatch; header through storage binding; scaffold file set; SC-004 smoke exclusion; SC-007 single-invocation green) |
+| FR-008 (responder mode) | `tests/contract/test_setup_responder_mode.py` (probes under responder credentials; zero team writes; responder-vs-team failure distinctness) |
+| FR-009 (idempotence, repair) | `tests/contract/test_setup_idempotence.py` (SC-005 zero mutating ops; partial does only what's missing via committed bindings; malformed ⇒ repair never re-create) |
+| FR-010 (naming gate) | `tests/contract/test_command_capability_naming.py` (deny-scan over commands/manifest/session-sheet; roster template sole exemption + positive tests; dotted-op fidelity vs manifest) |
+| FR-011 (hermetic coverage) | The modules above + `test_doctor_fixtures.py`; all run under `make verify` with no credentials/network (conftest-enforced in-memory mock) |
+| FR-012 (no storage code) | `tests/unit/test_packaging.py` (dev-only boundary over the bundle globs) + structural: shipped deliverables are `commands/*.md`, `manifest/capabilities.json`, `templates/*` only |
