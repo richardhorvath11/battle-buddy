@@ -346,6 +346,7 @@ def open_command(
     rung_answers=None,
     auto_launch_deep=False,
     deep_confirmed=False,
+    ignore_join_offer=False,
 ):
     """contracts/lifecycle-protocol.md "Open-flow order", executed in the
     documented sequence (FR-001).
@@ -373,7 +374,12 @@ def open_command(
     ``lifecycle_fixtures.resolve_service`` for a catalog-miss ladder walk.
     ``auto_launch_deep``/``deep_confirmed``: the FR-5f/R14 orchestration
     inputs `/incident` (US2) will drive; `/page` sessions never propose deep
-    investigation at all (see ``deep_proposed`` below).
+    investigation at all (see ``deep_proposed`` below). ``ignore_join_offer``
+    (US3, additive, keyword-only, default ``False``): the cleanest additive
+    mechanism found for ``open_separate`` (below) to force the explicit
+    "separate" choice through step 5's join halt — every existing caller is
+    unaffected (default preserves this function's halt-and-surface behavior
+    exactly); ``open_separate`` is the only caller that ever passes ``True``.
 
     Steps, each citing the contracts-doc section it executes:
 
@@ -396,8 +402,12 @@ def open_command(
        limitation, not a second decision point). A non-empty match means an
        open/handoff row already exists for this source ID: this function
        **stops here, before any store write**, and returns the offer as
-       ``join_offer`` — join/separate execution itself is US3 scope (T018);
-       this outcome is shaped so that later work can extend it (FR-004).
+       ``join_offer`` — join/separate execution itself is US3 scope
+       (``join_session``/``open_separate`` below), UNLESS the caller passed
+       ``ignore_join_offer=True`` (``open_separate``'s own mechanism), in
+       which case this step's match is still reported as ``join_offer`` on
+       the completed-path outcome below (bypassed, never silently hidden)
+       and the flow proceeds exactly as if no candidates existed (FR-004).
     6. **Verdict validation** (one re-prompt; second failure persists
        flagged ``schema_valid: false`` — FR-005) via
        ``_validate_verdict_candidates`` above (R2 — never
@@ -484,9 +494,11 @@ def open_command(
         None,  # severity unknown until the verdict returns (step 6, below)
     )
     join_candidates = store_flows.detect_open_session(mock, source_id)
-    if join_candidates:
+    if join_candidates and not ignore_join_offer:
         # FR-004: no store write of any kind before the explicit choice.
-        # join/separate execution is US3 scope (T018) — halt here.
+        # join/separate execution is US3 scope (join_session/open_separate
+        # below) — halt here unless the caller explicitly bypassed via
+        # ignore_join_offer (open_separate's mechanism).
         return {
             "proceed": False,
             "session_id": session_id,
@@ -629,7 +641,11 @@ def open_command(
         "winning_document": winning_doc,
         "resolution": resolution,
         "retrieval": retrieval,
-        "join_offer": [],
+        # Empty on every existing (non-bypassed) caller — join_candidates is
+        # necessarily [] to have reached this point without ignore_join_offer.
+        # A caller that bypassed via ignore_join_offer=True (open_separate)
+        # sees whatever step 5 actually found, bypassed rather than hidden.
+        "join_offer": join_candidates,
         "alert": alert,
         "alert_context_available": alert_context_available,
         "flap_history": flap_history,
@@ -639,6 +655,155 @@ def open_command(
         "deep_proposed": deep_proposed,
         "deep_launched": deep_launched,
     }
+
+
+# ---------------------------------------------------------------------------
+# join_session / open_separate (contracts/lifecycle-protocol.md
+# "Join-vs-separate", "Marker lifecycle" state 3; FR-002, FR-004; research
+# R1, R7) — T018 (US3)
+# ---------------------------------------------------------------------------
+
+
+def join_session(mock, state_dir, row, responder):
+    """contracts/lifecycle-protocol.md "Join-vs-separate" / "Marker
+    lifecycle" state 3 (R7): executes the explicit **join** choice on one of
+    ``open_command``'s ``join_offer`` candidate rows (a full row dict from
+    ``store_flows.detect_open_session``'s scan — already read, never a
+    second lookup by this function).
+
+    Steps, each citing the contracts-doc section it executes:
+
+    1. **Rehydrate** — ``store_flows.read_latest_checkpoint`` on the joined
+       row's own ``session_id`` (never a newly computed one): reads
+       ``latest_checkpoint``/``triage_verdict`` and follows an overflow
+       pointer via ``artifacts.get_file`` when present. A row that carries
+       no checkpoint at all yet is a legitimate outcome — ``None`` is
+       surfaced as-is, never treated as an error.
+    2. **Take-over** — ``store_flows.take_over`` writes ``responder`` onto
+       the joined row: exactly one ``update_record`` (the read inside
+       ``take_over`` is non-mutating — it only reports who gets displaced,
+       never gates the write; a take-over always wins, D-18).
+    3. **Marker rewrite** (R7, documented protocol extension) — the local
+       marker is rewritten **wholesale** to the joined session's identity:
+       ``session_id`` (the joined row's own, from ``row``), ``source_id``
+       (parsed from that same ``session_id`` per schema.md's rule —
+       ``store_flows.parse_source_id``, never carried over from whatever
+       this workspace's marker previously named), ``opened_at`` (the joined
+       row's own ``started_at`` — never this join's own timestamp).
+       Confirmation is the take-over write's **read-back**, not the marker
+       write itself: the row is re-read by ``session_id`` and its
+       ``responder`` cell is compared against ``responder`` (this join's
+       token) — a match sets ``open_write_confirmed: true``; a missing row
+       or a mismatch (a race — someone else took over between step 2 and
+       this re-read) leaves it ``false``. The marker is rewritten to the
+       joined identity **either way** — the rewrite IS the join; only its
+       confirmation flag depends on the read-back (contracts doc: "marker
+       still rewritten to the joined identity — the rewrite is the join;
+       the confirmation is the read-back").
+
+    ``state_dir``: the local session-state directory whose ``marker.json``
+    this function overwrites — replacing whatever marker the halted
+    ``open_command`` call left behind for the not-yet-opened new session
+    (the halt path already wrote one, unconfirmed, for a session that never
+    actually opens once "join" is chosen).
+
+    Returns the data-model.md ``join_session`` outcome: ``{"session_id",
+    "rehydrated_checkpoint", "takeover_result", "marker_rewritten",
+    "marker_confirmed"}`` — ``marker_rewritten`` is unconditionally ``True``
+    (the rewrite always happens); ``marker_confirmed`` is the read-back
+    result described above. Also returns ``"marker"``/``"marker_path"`` for
+    callers/tests that want the written shape or location without
+    re-reading the file themselves.
+    """
+    state_dir = Path(state_dir)
+    state_dir.mkdir(parents=True, exist_ok=True)
+    session_id = row["session_id"]
+
+    # Step 1: rehydrate from the joined row's own latest checkpoint
+    # (overflow followed); None is a legitimate, surfaced-as-is outcome.
+    rehydrated_checkpoint = store_flows.read_latest_checkpoint(mock, session_id)
+
+    # Step 2: take-over — exactly one update_record; no precondition here
+    # (take_over's own read is non-mutating and never gates the write).
+    takeover_result = store_flows.take_over(mock, session_id, responder)
+
+    # Step 3: marker rewritten to the joined identity; confirmation is the
+    # take-over write's own read-back, never the marker write itself.
+    readback = mock.invoke(
+        "storage", "read_records", {"filter": {"session_id": session_id}}
+    )
+    readback_rows = readback["records"]
+    marker_confirmed = (
+        len(readback_rows) == 1 and readback_rows[0].get("responder") == responder
+    )
+
+    marker = {
+        "protocol": "bb.local.v1",
+        "session_id": session_id,
+        "source_id": store_flows.parse_source_id(session_id),
+        "opened_at": row.get("started_at"),
+        "open_write_confirmed": marker_confirmed,
+    }
+    marker_path = state_dir / "marker.json"
+    marker_path.write_text(json.dumps(marker, indent=2), encoding="utf-8")
+
+    return {
+        "session_id": session_id,
+        "rehydrated_checkpoint": rehydrated_checkpoint,
+        "takeover_result": takeover_result,
+        "marker_rewritten": True,
+        "marker_confirmed": marker_confirmed,
+        "marker": marker,
+        "marker_path": marker_path,
+    }
+
+
+def open_separate(
+    mock,
+    state_dir,
+    session_type,
+    source_id,
+    opened_date,
+    started_at,
+    responder,
+    verdict_candidates,
+    catalog,
+    shell=None,
+    rung_answers=None,
+    auto_launch_deep=False,
+    deep_confirmed=False,
+):
+    """contracts/lifecycle-protocol.md "Join-vs-separate": the explicit
+    **separate** choice — proceed with the normal open flow for a NEW
+    session despite an existing ``join_offer`` candidate, appending a
+    distinct row and tracking only the new session in the local marker.
+
+    A thin re-entry into ``open_command`` with its additive, keyword-only
+    ``ignore_join_offer=True`` — the cleanest additive mechanism available
+    (R1's reuse discipline): no duplicated open-flow logic, and
+    ``open_command``'s own default behavior (halt and surface the choice)
+    is completely unchanged for every other caller, since that parameter
+    defaults to ``False``. Every argument here is forwarded verbatim; this
+    function makes no decision of its own beyond forcing the bypass, so its
+    parameter list and return shape are identical to ``open_command``'s own
+    (see that function's docstring for each parameter's meaning).
+    """
+    return open_command(
+        mock,
+        state_dir,
+        session_type,
+        source_id,
+        opened_date,
+        started_at,
+        responder,
+        verdict_candidates,
+        catalog,
+        shell=shell,
+        rung_answers=rung_answers,
+        auto_launch_deep=auto_launch_deep,
+        deep_confirmed=deep_confirmed,
+        ignore_join_offer=True,
+    )
 
 
 # ---------------------------------------------------------------------------

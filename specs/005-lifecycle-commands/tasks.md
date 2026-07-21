@@ -235,14 +235,14 @@ appends exactly one distinct row.
 join offer, join rehydration from `latest_checkpoint` + take-over write, and separate
 producing a distinct row only on explicit choice (spec US3).
 
-- [ ] T018 [US3] Extend `tests/helpers/lifecycle_flows.py` — join:
+- [x] T018 [US3] Extend `tests/helpers/lifecycle_flows.py` — join:
       `open_command` surfaces `join_offer` (via `detect_open_session` on the open-time
       read) and **stops before any store write** pending the choice;
       `join_session(mock, state_dir, row, responder, ...)`: rehydrate via
       `read_latest_checkpoint` (overflow followed), take-over write, marker rewritten
       to the joined identity with confirmation = take-over read-back (R7);
       `open_separate(...)`: proceed with the normal append flow on explicit choice
-- [ ] T019 [US3] Write `tests/contract/test_join_separate.py`: seeded yesterday-dated
+- [x] T019 [US3] Write `tests/contract/test_join_separate.py`: seeded yesterday-dated
       open row → join offer surfaced, matching by parsed source ID + non-terminal
       status (never recomputed ID), **zero mutating ops before the choice** (AS-1,
       SC-004); join → rehydrated state equals the seeded `latest_checkpoint` (and the
