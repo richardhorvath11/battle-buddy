@@ -1,0 +1,195 @@
+{
+  "schema": "bb.capabilities.v1",
+  "description": "Capability manifest (design §7.1, contracts/doctor-protocol.md). Required half is the shipped projection of operation contract v1 (tools/bb-mock-mcp/contract.json) minus test-only harness surface; optional half is authored here per research R7 until a consuming slice promotes it into the operation contract.",
+  "required": {
+    "storage": {
+      "ops": {
+        "append_record": {
+          "input": {
+            "record": {
+              "type": "map",
+              "required": true,
+              "notes": "session_id (str, non-empty) required inside the record; duplicate session_id handling is caller policy, not enforced here; every field value ≤ single_field_limit_chars"
+            }
+          },
+          "output": {
+            "session_id": {"type": "str", "required": true}
+          }
+        },
+        "read_records": {
+          "input": {
+            "filter": {
+              "type": "map",
+              "required": false,
+              "notes": "field-equality map; empty/absent = all records"
+            }
+          },
+          "output": {
+            "records": {"type": "list", "required": true, "notes": "insertion order"}
+          }
+        },
+        "update_record": {
+          "input": {
+            "session_id": {"type": "str", "required": true, "non_empty": true},
+            "fields": {
+              "type": "map",
+              "required": true,
+              "non_empty": true,
+              "notes": "partial field map merged into the matching record; every field value ≤ single_field_limit_chars"
+            }
+          },
+          "output": {
+            "session_id": {"type": "str", "required": true}
+          }
+        }
+      }
+    },
+    "artifacts": {
+      "ops": {
+        "put_file": {
+          "input": {
+            "name": {"type": "str", "required": true, "non_empty": true},
+            "content": {"type": "str", "required": true}
+          },
+          "output": {
+            "link": {"type": "str", "required": true}
+          }
+        }
+      }
+    },
+    "diary": {
+      "ops": {
+        "append_entry": {
+          "input": {
+            "content": {"type": "str", "required": true, "non_empty": true}
+          },
+          "output": {
+            "link": {"type": "str", "required": true}
+          }
+        },
+        "read_recent": {
+          "input": {
+            "n": {"type": "int", "required": true, "min": 1}
+          },
+          "output": {
+            "entries": {
+              "type": "list",
+              "required": true,
+              "notes": "[{link, content, at}] most recent first (design §6.2, v1.2.1)"
+            }
+          }
+        }
+      }
+    },
+    "alerting": {
+      "ops": {
+        "get_alert": {
+          "input": {
+            "alert_id": {"type": "str", "required": true, "non_empty": true}
+          },
+          "output": {
+            "alert": {
+              "type": "map",
+              "required": true,
+              "notes": "field map incl. required alert_id, service_hint (may be empty), description, fired_at"
+            }
+          }
+        },
+        "list_alert_history": {
+          "input": {
+            "filter": {
+              "type": "map",
+              "required": true,
+              "notes": "field-equality map; supports at least {alert_id} and {service_hint}"
+            }
+          },
+          "output": {
+            "alerts": {"type": "list", "required": true, "notes": "newest first"}
+          }
+        }
+      }
+    }
+  },
+  "optional": {
+    "code": {
+      "ops": {
+        "read_file": {
+          "input": {
+            "path": {"type": "str", "required": true, "non_empty": true, "notes": "repo-relative path"}
+          },
+          "output": {
+            "content": {"type": "str", "required": true}
+          }
+        },
+        "list_commits": {
+          "input": {
+            "window": {
+              "type": "map",
+              "required": true,
+              "notes": "bounds the commit range, e.g. {since, until} timestamps or {limit} count"
+            }
+          },
+          "output": {
+            "commits": {
+              "type": "list",
+              "required": true,
+              "notes": "commit metadata records (sha, message, author, at), newest first"
+            }
+          }
+        },
+        "search": {
+          "input": {
+            "query": {"type": "str", "required": true, "non_empty": true}
+          },
+          "output": {
+            "results": {
+              "type": "list",
+              "required": true,
+              "notes": "matching locations with snippets (e.g. {path, line, snippet})"
+            }
+          }
+        }
+      },
+      "enables": ["deploy correlation", "catalog", "runbook fetch"]
+    },
+    "observability": {
+      "ops": {
+        "query_metrics": {
+          "input": {
+            "query": {"type": "str", "required": true, "non_empty": true},
+            "window": {
+              "type": "map",
+              "required": true,
+              "notes": "time-range bound, e.g. {since, until}"
+            }
+          },
+          "output": {
+            "series": {
+              "type": "list",
+              "required": true,
+              "notes": "time-series datapoints for the queried metric"
+            }
+          }
+        },
+        "search_logs": {
+          "input": {
+            "query": {"type": "str", "required": true, "non_empty": true},
+            "window": {
+              "type": "map",
+              "required": true,
+              "notes": "time-range bound, e.g. {since, until}"
+            }
+          },
+          "output": {
+            "entries": {
+              "type": "list",
+              "required": true,
+              "notes": "matching log lines/records"
+            }
+          }
+        }
+      },
+      "enables": ["metric reads", "evidence deep-links"]
+    }
+  }
+}
