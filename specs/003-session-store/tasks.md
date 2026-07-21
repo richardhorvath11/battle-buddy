@@ -21,7 +21,7 @@ US3/US4 P2, US5 P3.
 
 **Purpose**: The skill bundle scaffold every story writes into.
 
-- [ ] T001 Create `skills/session-store/SKILL.md` skeleton (frontmatter with name +
+- [x] T001 Create `skills/session-store/SKILL.md` skeleton (frontmatter with name +
       when-to-use description, overview of the tier-0 store model, routing table to
       `references/schema.md` / `fingerprint.md` / `retrieval.md`, empty convention
       section stubs for close flow / checkpoints / ownership / artifacts) and the
@@ -37,7 +37,7 @@ exist before doc and tests can co-evolve safely.
 
 **⚠️ CRITICAL**: No user story work until this phase is complete.
 
-- [ ] T002 Write `skills/session-store/references/schema.md`: the full §5.1 column
+- [x] T002 Write `skills/session-store/references/schema.md`: the full §5.1 column
       table (Column / Type / Mutation class / Notes per data-model.md — the SC-006
       parse target), `session_id` key format **plus its source-ID parse rule** (strip
       leading `{type}-` and trailing `-{YYYY-MM-DD}`; hyphens inside source ID legal —
@@ -45,12 +45,12 @@ exist before doc and tests can co-evolve safely.
       sentinel-cell representation (research R2/R8), the FR-002 append-mostly mutation
       policy (full enumerated mutable set, close-time group, write-once re-assertion
       rule), and the FR-013 tier-1 stability commitment
-- [ ] T003 Create `tests/helpers/store_flows.py` base: canonical column constants
+- [x] T003 Create `tests/helpers/store_flows.py` base: canonical column constants
       (name + mutation class, mirroring schema.md), enum constants (`status`,
       `session_type`, non-terminal set), row-builder helper producing
       contract-shaped records; module docstring stating it is the conventions'
       executable form (research R4, FR-012 dev-only)
-- [ ] T004 Write `tests/contract/test_store_schema_doc.py`: parse schema.md's column
+- [x] T004 Write `tests/contract/test_store_schema_doc.py`: parse schema.md's column
       table and assert name/order/mutation-class equality both ways against
       `store_flows` constants (SC-006); assert the documented mutable set is exactly
       FR-002's enumeration; assert the stability commitment and `bb.schema.v1` are
