@@ -119,6 +119,9 @@ merge writes above:
 
 ## Transcript capture
 
+(This step happens before the dual-write above runs — it produces the staged transcript
+that step's artifact uploads carry.)
+
 The session transcript is copied from the runtime's own transcript file at the moment
 `/close` runs, then uploaded through the normal mapping above. A missing or unreadable
 source is a logged notice — the transcript artifact is simply omitted, and close
@@ -128,6 +131,9 @@ happen after `/close` runs are not part of the uploaded transcript — an accept
 limitation of capturing it here rather than later.
 
 ## Timeline and the report
+
+(Both are produced before the dual-write above runs — the timeline rides the row update
+and the report is one of the artifact uploads.)
 
 The row's `timeline` field is never assembled from prose recall of the transcript. It is
 derived mechanically, purely from two local sources: every tool-call line in the local

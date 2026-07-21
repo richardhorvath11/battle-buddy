@@ -528,13 +528,19 @@ def close_session(
 
     # Step 4 (SKILL.md close step 4 — read-back): only a confirmed
     # session_id match clears the local marker (deletion-is-cleared,
-    # protocol v1).
+    # protocol v1). The read-back can only confirm a row update that
+    # actually landed: a lingering update error (e.g. an exhausted R13
+    # retry) must never false-confirm on the row's mere existence — the
+    # open-time row pre-exists, so an existence-only check would delete
+    # local state while the store row stays open, defeating D-11's
+    # must-not-lose backstop.
     readback = mock.invoke(
         "storage", "read_records", {"filter": {"session_id": session_id}}
     )
     readback_records = readback["records"]
     confirmed = (
-        len(readback_records) == 1
+        "error" not in update_result
+        and len(readback_records) == 1
         and readback_records[0].get("session_id") == expected_session_id
     )
 

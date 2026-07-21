@@ -274,6 +274,34 @@ def test_transient_row_write_failure_retried_marker_still_gated(mock_mcp, tmp_pa
     assert not tmp_path.exists()
 
 
+def test_exhausted_row_write_retry_never_false_confirms(mock_mcp, tmp_path):
+    # FR-008's other half: when the bounded retry is EXHAUSTED and the row
+    # update still errors, the read-back must not confirm on the open row's
+    # mere existence — local state survives for the slice-2 session guard,
+    # and the store row stays open (the close did not land).
+    open_out = _open(mock_mcp, tmp_path, source_id="ALERT-77")
+    draft = _build_draft(mock_mcp, open_out["row"], [])
+
+    injector = lifecycle_fixtures.TransientFaultInjector(
+        mock_mcp, "storage", "update_record", times=5
+    )
+    out = lifecycle_flows.close_command(
+        injector, tmp_path, None, draft, CLOSE_FIELDS, RESPONDER, row_write_retries=2
+    )
+
+    assert injector.failures_injected == 3  # initial attempt + 2 retries
+    assert "error" in out["update_result"]
+    assert out["readback_confirmed"] is False
+    assert out["marker_cleared"] is False
+    assert (tmp_path / "marker.json").exists()  # guard evidence intact
+    row = mock_mcp.invoke(
+        "storage",
+        "read_records",
+        {"filter": {"session_id": open_out["session_id"]}},
+    )["records"][0]
+    assert row["status"] == "open"
+
+
 # ---------------------------------------------------------------------------
 # AS-2: read-back success -> directory deleted; failed read-back -> intact.
 # ---------------------------------------------------------------------------

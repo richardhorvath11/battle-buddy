@@ -258,7 +258,7 @@ def test_incident_open_halted_by_join_offer_sets_no_deep_flags(mock_mcp, tmp_pat
     out = _open(
         mock_mcp,
         tmp_path,
-        lifecycle_fixtures.load_verdict_candidates("valid-known-issue"),
+        [lifecycle_fixtures.load_verdict("valid-known-issue")],
         source_id=store_flows.parse_source_id(seed_row["session_id"]),
         auto_launch_deep=True,
         deep_confirmed=True,
