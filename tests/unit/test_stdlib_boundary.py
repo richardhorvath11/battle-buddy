@@ -38,6 +38,7 @@ ALLOWED_STDLIB = {
     "pathlib",
     "re",
     "shutil",
+    "stat",
     "sys",
     "tempfile",
     "time",

@@ -55,6 +55,9 @@ Entities per the spec, concretized by research R1–R12 and the local-state prot
 
 - `turn_cap: int (default 15)`, `bindings: dict[str, str]|None` (keys
   `capability.operation`, values tool names — design §7.2 shape, R6),
-  `config_present: bool` — computed once per invocation from `.claude/settings.json`;
-  malformed ⇒ absent semantics; exposes `capabilities_for(tool) -> set[str]` (reverse
-  lookup with prefix parse per the protocol doc)
+  `config_present: bool`, `settings_error: bool` (settings file exists but is
+  unreadable — distinct from a missing block, so user-facing warnings name the real
+  cause), `notices: list[str]` (read-time diagnostics, surfaced on hook stderr) —
+  computed once per invocation from `.claude/settings.json`; malformed ⇒ absent
+  semantics; exposes `capabilities_for(tool) -> set[str]` (reverse lookup with prefix
+  parse per the protocol doc)

@@ -1,0 +1,9 @@
+{
+  "name": "order-auth-wins-over-flag",
+  "description": "auth text outranks the generic error flag (R4 order)",
+  "tool_response": {
+    "is_error": true,
+    "content": "HTTP 403 Forbidden"
+  },
+  "expected": "error:auth"
+}

@@ -1,0 +1,7 @@
+{
+  "name": "transcript-missing",
+  "description": "transcript path names a file that does not exist - logged notice, never a failure",
+  "transcript": "missing",
+  "expect_staged": false,
+  "expect_notice": true
+}

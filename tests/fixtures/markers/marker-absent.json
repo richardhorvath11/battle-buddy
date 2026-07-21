@@ -1,0 +1,6 @@
+{
+  "name": "marker-absent",
+  "description": "no session was ever opened - the guard stays silent (spec US5 AS-3)",
+  "marker": null,
+  "expected_warning": false
+}

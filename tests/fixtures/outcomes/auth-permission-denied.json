@@ -1,0 +1,6 @@
+{
+  "name": "auth-permission-denied",
+  "description": "permission denied phrasing",
+  "tool_response": "bash: /var/log/secure: Permission denied",
+  "expected": "error:auth"
+}

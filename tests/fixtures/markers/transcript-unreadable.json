@@ -1,0 +1,7 @@
+{
+  "name": "transcript-unreadable",
+  "description": "transcript exists but is unreadable (chmod 000) - logged notice, never a failure",
+  "transcript": "unreadable",
+  "expect_staged": false,
+  "expect_notice": true
+}

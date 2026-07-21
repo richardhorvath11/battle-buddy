@@ -1,0 +1,12 @@
+{
+  "name": "base64-no-trip",
+  "description": "short encoded id stays under the 200-char blob floor",
+  "bindings": {
+    "alerting.get_alert": "mcp__pager__get_alert",
+    "observability.run_query": "mcp__grafana__run_query",
+    "storage.append_record": "mcp__sheets__append_row"
+  },
+  "tool_name": "mcp__pager__get_alert",
+  "tool_response": "trace id: QWxhZGRpbjpvcGVuIHNlc2FtZQ==",
+  "expected": "none"
+}

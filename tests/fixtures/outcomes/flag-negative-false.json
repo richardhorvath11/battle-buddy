@@ -1,0 +1,9 @@
+{
+  "name": "flag-negative-false",
+  "description": "is_error false is not an error",
+  "tool_response": {
+    "is_error": false,
+    "content": "2 rows appended"
+  },
+  "expected": "ok"
+}
