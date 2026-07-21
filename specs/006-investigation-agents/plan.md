@@ -39,10 +39,11 @@ against a temp dir, never a live session).
 
 **Testing**: contract layer (`tests/contract/`) — doc↔validator agreement (worked
 examples parsed from `schemas.md` fences and classified by `bb_validate.validate()`),
-the anchoring-guard state matrix, role-registration shape conformance,
-toolset↔manifest cross-check, and the capability-naming scan extended over the new
-prose surfaces. Unit layer touched only if fixture helpers need it. Runs under
-`make verify`, no credentials, no network.
+role-registration shape conformance, toolset↔manifest cross-check, and the
+capability-naming scan extended over the new prose surfaces. Unit layer — the
+anchoring-guard state matrix (pure validator behavior, py3.9 floor, beside
+`test_validate.py` — research R5). Runs under `make verify`, no credentials, no
+network.
 
 **Target Platform**: repo/CI only this slice (prose + tests); the documented agents
 target the responder runtime via capabilities only (Constitution VII).
@@ -58,9 +59,10 @@ concrete MCP server/tool names (FR-013, SC-005); every documented example classi
 the real validator exactly as documented (SC-002); the skill instructs, the
 deterministic layer enforces — no prose may claim self-enforcement (FR-006, FR-010).
 
-**Scale/Scope**: 5 agent definitions + 1 SKILL.md + 3 reference docs; ~5 contract-test
-modules; 1 reconciling edit to design §5.4's example ledger (research R8); 1 packaging
-fixture update registering the new shipped dirs.
+**Scale/Scope**: 5 agent definitions + 1 SKILL.md + 3 reference docs; 4 contract-test
+modules + 1 unit-test module; 1 reconciling edit to design §5.4's example ledger
+(research R8); packaging coverage verified (existing globs already cover the new dirs
+— research R11).
 
 ## Constitution Check
 
@@ -141,11 +143,10 @@ tests/contract/
 │                                    #   bb_validate exactly as documented; vocabulary/
 │                                    #   constant agreement (phases, invariant phases,
 │                                    #   provenance, validation, min-live, version tags)
-├── test_anchoring_matrix.py         # SC-004: both invariant phases × {2 live, 3 live
-│                                    #   none fresh, 3 live with fresh, dead fresh} +
-│                                    #   early-phase sparse-ledger legality
 ├── test_role_registration.py        # SC-003: simulated spawn write conforms to the
-│                                    #   protocol agents.json shape; bad role rejected
+│                                    #   protocol agents.json shape; role vocabulary
+│                                    #   derived from shipped agent docs; bad role
+│                                    #   rejected
 ├── test_agent_toolsets.py           # SC-006 + FR-006/007/008 pinned-property
 │                                    #   inspection: toolset tables parse, capabilities ⊆
 │                                    #   manifest, triage set exact, read-only markings
@@ -155,8 +156,11 @@ tests/contract/
                                      #   ordering, launch conditions, enforcement
                                      #   attribution phrases
 
-tests/fixtures/packaging/intended-bundle.json
-                                     # + agents/** and skills/investigation/** globs
+tests/unit/test_anchoring_matrix.py  # SC-004 (unit layer — pure validator behavior,
+                                     #   py3.9 floor, beside test_validate.py): both
+                                     #   invariant phases × {2 live, 3 live none fresh,
+                                     #   3 live with fresh, dead fresh} + early-phase
+                                     #   sparse-ledger legality
 ```
 
 **Structure Decision**: `agents/` and `skills/investigation/` match design §3.1's plugin

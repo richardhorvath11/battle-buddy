@@ -67,13 +67,20 @@ immediately preceded by an HTML marker line:
 `<!-- bb-example: <id> expect=invalid rule=<rule.name>[,<rule.name>…] -->`.
 `test_schemas_reference.py` parses every marker+fence pair, runs the real
 `bb_validate.validate()` on the JSON, and asserts: `expect=valid` ⇒ zero violations;
-`expect=invalid` ⇒ the named rule(s) each appear among the violation rules. A
-non-vanishing guard requires a minimum example count and at least one valid + one
-invalid example per schema. The same module asserts vocabulary agreement by importing
-the validator's constants: documented phase list == `PHASES`, invariant phases ==
-`INVARIANT_PHASES`, provenance == `PROVENANCE_VALUES`, validation marks ==
-`VALIDATION_VALUES`, minimum live == `MIN_LIVE_HYPOTHESES`, version tags ==
-`VERDICT_SCHEMA`/`LEDGER_SCHEMA`.
+`expect=invalid` ⇒ the named rule(s) each appear among the violation rules —
+**membership assertions, never exact-set**: several invalid states legitimately trip
+more than one rule (e.g. 2 live non-fresh hypotheses fire both anchoring rules), so an
+exact-set assertion would false-fail (converge finding). A non-vanishing guard
+requires a minimum example count and at least one valid + one invalid example per
+schema. The same module asserts vocabulary agreement in **exact set-equality both
+ways** against the validator's constants (`PHASES`, `INVARIANT_PHASES`,
+`PROVENANCE_VALUES`, `VALIDATION_VALUES`, `MIN_LIVE_HYPOTHESES`,
+`VERDICT_SCHEMA`/`LEDGER_SCHEMA`) — which requires a machine-readable source in the
+doc: `schemas.md` carries one fenced vocabulary block in a pinned line format
+(`phases: a | b | …`, `invariant-phases: …`, `provenance: …`, `validation: …`,
+`min-live: 3`, `schemas: bb.verdict.v1 | bb.ledger.v1`) that the test parses for
+equality; substring containment alone could not catch a doc listing an extra or
+misspelled value (converge finding).
 
 **Rationale**: this is slice-3's FR-003 fingerprint precedent (doc ↔ helper ↔ corpus,
 worked examples recomputed through the real implementation) applied to the validator,
@@ -89,18 +96,27 @@ intent (rejected — wording-brittle).
 
 ## R5 — Anchoring-guard matrix construction
 
-**Decision**: `test_anchoring_matrix.py` builds ledgers programmatically (a small
-in-test builder) and parametrizes both invariant phases (`evidence-gathering`,
-`deep-dive`) × the four spec states: 2 live ⇒ `ledger.min_live_hypotheses`; 3 live
-none fresh ⇒ `ledger.fresh_required`; 3 live with fresh ⇒ no anchoring violations;
-3 live non-fresh + 1 **dead** fresh ⇒ `ledger.fresh_required` (dead fresh does not
-satisfy). It also asserts the early phases (`triage-seeded`,
-`hypothesis-generation`) accept sparse and empty ledgers, and `resolution` is
-non-invariant — pinning the full phase scoping FR-002 states.
+**Decision**: `tests/unit/test_anchoring_matrix.py` builds ledgers programmatically
+(a small in-test builder) and parametrizes both invariant phases
+(`evidence-gathering`, `deep-dive`) × the four spec states: 2 live ⇒
+`ledger.min_live_hypotheses` present among the violations; 3 live none fresh ⇒
+`ledger.fresh_required` present; 3 live with fresh ⇒ no anchoring-rule violations;
+3 live non-fresh + 1 **dead** fresh ⇒ `ledger.fresh_required` present (dead fresh
+does not satisfy). Assertions are rule-presence (membership), never exact-set — a
+2-live-non-fresh cell legitimately fires both anchoring rules. It also asserts the
+early phases (`triage-seeded`, `hypothesis-generation`) accept sparse and empty
+ledgers — empty meaning `hypotheses: []`, since `hypotheses` is a required field
+whose omission trips `schema.missing_field` — and `resolution` is non-invariant,
+pinning the full phase scoping FR-002 states.
 
-**Rationale**: SC-004 is a matrix over validator behavior — programmatic construction
-keeps 8+ cells cheap and exact; the doc-agreement half already rides R4's worked
-examples (the schemas reference documents representative guard states with markers).
+**Rationale**: SC-004 is a matrix over pure validator behavior — no mock, no store —
+so it belongs in the **unit layer** beside `tests/unit/test_validate.py`, running on
+the py3.9 shipped-code floor as well as 3.12 (contract placement would skip the
+floor; converge finding). Programmatic construction keeps 8+ cells cheap and exact;
+the doc-agreement half already rides R4's worked examples (the schemas reference
+documents representative guard states with markers); the existing `test_validate.py`
+corpus covers per-rule emission, while this module pins the phase × state matrix
+SC-004 names.
 
 **Alternatives considered**: all matrix cells as documented examples in `schemas.md`
 (rejected — a dozen near-identical JSON blocks would bloat a normative doc that readers
@@ -113,15 +129,23 @@ need to stay sharp; the doc shows representative states, the test sweeps the mat
 `{"protocol": "bb.local.v1", "roles": {...}}`, role vocabulary
 `triage` | `deep` | `specialist:<name>`. `test_role_registration.py` simulates the
 documented write against a temp state dir and validates shape: protocol tag, `roles`
-map of string→string, every role matching `^(triage|deep|specialist:[a-z0-9-]+)$`;
-a seeded non-conforming role (e.g. `admin`) is rejected by the check (SC-003). The
-test reuses/extends `tests/unit/test_local_state_protocol.py`'s existing agents.json
-coverage where overlap exists rather than duplicating it.
+map of string→string with non-empty string actor keys, every role matching
+`^(triage|deep|specialist:[a-z0-9-]+)$`; a seeded non-conforming role (e.g. `admin`)
+is rejected by the check (SC-003). **The role values under test are derived from the
+shipped artifacts, not test literals** (converge finding — FR-012 asserts on
+artifacts): `triage` and `deep` from the existence of `agents/triage.md` /
+`agents/deep-investigator.md`, and each `specialist:<stem>` from the shipped
+specialist doc filenames, so a renamed or added agent doc changes what the test
+checks. The test reuses/extends `tests/unit/test_local_state_protocol.py`'s existing
+agents.json coverage where overlap exists rather than duplicating it.
 
 **Rationale**: the protocol doc names slice 6's spawn flow as the registered writer;
 the test proves the *documented* write conforms to the protocol shape — artifact
-assertion, no live hooks involved. The specialist-name charset pin (lowercase
-kebab, matching the three shipped specialist names) makes "conforming" decidable.
+assertion, no live hooks involved (no production writer exists yet; deriving the
+role vocabulary from the shipped agent docs keeps the check biting on a real
+deliverable rather than its own literals). The specialist-name charset pin
+(lowercase kebab, matching the three shipped specialist names) makes "conforming"
+decidable.
 
 **Alternatives considered**: asserting against the hook source's parsing (rejected —
 slices build on the protocol document, never on hook source, per that contract's own
@@ -201,15 +225,19 @@ implementing tasks quote one source.
 
 ## R11 — Packaging registration for new shipped dirs
 
-**Decision**: add `agents/**` and `skills/investigation/**` globs to
-`tests/fixtures/packaging/intended-bundle.json` in the same change that creates the
-dirs.
+**Decision**: **no fixture edit** — `tests/fixtures/packaging/intended-bundle.json`
+already lists `agents/**` and `skills/**` (which subsumes `skills/investigation/**`);
+the task is verification-only: confirm both new dirs are covered by the existing
+globs and `tests/unit/test_packaging.py` stays green (converge finding — the
+originally planned addition was a no-op duplicate).
 
 **Rationale**: the intended-bundle fixture stands in for the real plugin manifest
-(its own docstring); a shipped surface absent from it is invisible to the packaging
-boundary check. No forbidden segments are introduced (references/ is not fixtures/).
+(its own docstring); the slice-1 authors pre-registered the design §3.1 layout, so
+the new surfaces are already inside the boundary. No forbidden segments are
+introduced (references/ is not fixtures/).
 
-**Alternatives considered**: none — mechanical consequence of new shipped dirs.
+**Alternatives considered**: adding narrower duplicate globs (rejected — redundant
+lines invite drift and add nothing the packaging check reads).
 
 ## R12 — Doc-structure gates for skill-level requirements
 
@@ -222,9 +250,12 @@ validator at checkpoint-write time"; (c) launch conditions — exactly three con
 anchors (a/b/c) plus the confirm rule and `autoLaunchDeep`; (d) enforcement
 attribution — the turn-cap and registration sections attribute enforcement to the
 deterministic layer (the skill/definitions never self-claim); (e) the naming scan
-(SC-005) over all seven new prose files, reusing `DENY_PATTERNS`/`FENCE_RE` from
-`test_skill_capability_naming.py` plus slice-4's vendor extensions, `mcp__` raw-scan
-included, fences stripped for the deny-list half only.
+(SC-005) over all **nine** new prose files (5 agent docs + SKILL.md + 3 references),
+importing the **public merged** `DENY_PATTERNS` from
+`test_command_capability_naming.py` (slice-4's list already folds in slice-3's plus
+the vendor extensions; the extensions dict itself is private and not imported —
+converge finding) and `FENCE_RE` from `test_skill_capability_naming.py`, `mcp__`
+raw-scan included, fences stripped for the deny-list half only.
 
 **Rationale**: these are the spec's document-property Independent Tests; anchored
 structure (section ordering, labeled condition list, attribution lines placed in

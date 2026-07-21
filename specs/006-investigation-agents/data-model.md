@@ -75,7 +75,9 @@ triage-seeded → hypothesis-generation → evidence-gathering → deep-dive →
   (`ledger.min_live_hypotheses`) and ≥1 *live* `fresh` (`ledger.fresh_required` —
   a dead fresh hypothesis does not satisfy).
 - **Early phases** (`triage-seeded`, `hypothesis-generation`): sparse or empty ledgers
-  legal — what makes immediate escalation with no triage verdict lawful.
+  legal — what makes immediate escalation with no triage verdict lawful. "Empty" means
+  `hypotheses: []` — the field itself is required, and omitting it trips
+  `schema.missing_field` in every phase.
 - **`resolution`**: non-invariant.
 - Enforcement: the slice-2 validator at every checkpoint write (Constitution II/VI);
   the skill instructs, the validator verifies.
