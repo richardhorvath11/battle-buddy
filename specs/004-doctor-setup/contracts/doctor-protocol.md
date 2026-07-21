@@ -202,7 +202,10 @@ the row is inert, never a live session join-at-open could surface), session ID
 resolved bindings: record append → artifact write (under `<artifactRoot><session_id>/`)
 → diary append → **record read-back** (`read_records` through the storage binding,
 confirming the appended row). Artifact write success is verified by the returned link
-being recorded on the row — `get_file` is harness surface, not a resolved binding, so
+being recorded on the row — via a follow-up `storage.update_record` immediately after
+the artifact write (the same `storage` capability, not a fifth documented path; the
+link exists only once the write returns) — and `get_file` is harness surface, not a
+resolved binding, so
 tests may read the artifact back through the mock as an extra oracle but the documented
 smoke path never invokes it. Slice-3 retrieval conventions permanently exclude
 `session_type: test` rows; accumulation across repeated setups is cosmetic. Smoke-test

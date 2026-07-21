@@ -125,7 +125,7 @@ mock from empty fixture state; header lands through the storage binding matching
 documented columns; config written with version field; smoke test exercises all four
 paths; run reported green (spec US1).
 
-- [ ] T012 [US1] Create `tests/helpers/setup_flows.py` — team mode:
+- [x] T012 [US1] Create `tests/helpers/setup_flows.py` — team mode:
       `derive_mode(workspace)` (inspection only — no done-flag; malformed ⇒ repair),
       `team_mode(mock, workspace, roster, inputs)` running resolve → store
       create-or-validate (`create_header` writes `COLUMN_NAMES` + sentinel **through the
@@ -138,11 +138,11 @@ paths; run reported green (spec US1).
       under `<artifactRoot><session_id>/` with returned link recorded on the row →
       append_entry → record read-back via `read_records` through the storage binding;
       `get_file` never invoked on the documented path)
-- [ ] T013 [P] [US1] Write `templates/mcp.recommended.json` (the FR-010 sanctioned
+- [x] T013 [P] [US1] Write `templates/mcp.recommended.json` (the FR-010 sanctioned
       server-name location: default roster covering the four required capabilities,
       tokens as `${ENV_VAR}` refs) and `templates/session-sheet.md` (manual store
       reference doc, explicitly not the setup path)
-- [ ] T014 [US1] Write `tests/contract/test_setup_team_mode.py`: full-sequence order via
+- [x] T014 [US1] Write `tests/contract/test_setup_team_mode.py`: full-sequence order via
       write log + report; header row through storage binding matching documented columns
       exactly (SC-003 create path); existing-correct store ⇒ zero-write validation;
       mismatched store ⇒ exact mismatch, zero writes, nothing re-created (US1 scenario
@@ -153,7 +153,7 @@ paths; run reported green (spec US1).
       only) and appears in no retrieval candidate set (SC-004 — drive slice-3
       `store_flows.retrieve_candidates` over the post-smoke store); single-invocation
       green (SC-007)
-- [ ] T015 [US1] Write `commands/setup.md`: mode-derivation table (team / responder /
+- [x] T015 [US1] Write `commands/setup.md`: mode-derivation table (team / responder /
       already-set-up / repair — inspection only), team-mode sequence (§7.3 order),
       create-vs-validate rules, scaffold contents + git-init/push-to-private-org
       instructions, diary/catalog prompts, doctor + smoke-test finish, "green: run
