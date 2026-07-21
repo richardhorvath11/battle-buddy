@@ -23,7 +23,7 @@ primitives). Full open→close simulation (SC-007) lands in Polish once all stor
 
 **Purpose**: The fixture directory this slice introduces.
 
-- [ ] T001 Create `tests/fixtures/lifecycle/` with subdirs `verdicts/` and `seeds/`;
+- [x] T001 Create `tests/fixtures/lifecycle/` with subdirs `verdicts/` and `seeds/`;
       add a fixture transcript source file `tests/fixtures/lifecycle/transcript.md`
       (a few markdown turns — the R9 copy source)
 
@@ -36,23 +36,23 @@ R3–R6) — every story's tests drive them.
 
 **⚠️ CRITICAL**: No user story work until this phase is complete.
 
-- [ ] T002 [P] Create `tests/fixtures/lifecycle/verdicts/` fixture verdicts (R3):
+- [x] T002 [P] Create `tests/fixtures/lifecycle/verdicts/` fixture verdicts (R3):
       `valid-known-issue.json` (VALIDATED known_issue + candidates with `{url, excerpt}`
       evidence incl. ≥2 distinct dashboard URLs with one cited most — feeds R16
       top-cited), `valid-no-signal.json` (`no_strong_signal: true`), `invalid-then-
       valid/` pair (re-prompt path), `invalid-twice/` pair (flagged-persist path) —
       invalid docs violating `bb.verdict.v1` in ways `tests/fixtures/validate/` doesn't
       already cover, else reuse that corpus; all valid docs pass the real `bb_validate`
-- [ ] T003 [P] Create `tests/fixtures/lifecycle/catalog.json` (R4): ≥2 fixture services
+- [x] T003 [P] Create `tests/fixtures/lifecycle/catalog.json` (R4): ≥2 fixture services
       (`name`, `owner`, `runbooks`, `dashboards`, `alert_matchers`, `depends_on`), one
       matching the mock's seeded alert `service_hint`, one unmatched (ladder path)
-- [ ] T004 [P] Create `tests/fixtures/lifecycle/seeds/` seed-row fixtures:
+- [x] T004 [P] Create `tests/fixtures/lifecycle/seeds/` seed-row fixtures:
       `join-open-yesterday.json` (open row, same source ID, yesterday-dated
       `session_id`, `latest_checkpoint` set + an overflow variant), `merge-duplicates.json`
       (two open rows sharing a source ID, distinct `started_at`/links/folders),
       `promotion-open-page.json` (open page row), `ownership-displaced.json`
       (row whose `responder` names someone else)
-- [ ] T005 Create `tests/helpers/lifecycle_fixtures.py` (R3–R6): fixture-verdict
+- [x] T005 Create `tests/helpers/lifecycle_fixtures.py` (R3–R6): fixture-verdict
       loaders (single + ordered re-prompt lists); `resolve_service(alert, catalog,
       rung_answers=None)` walking the §5.2 ladder with `catalog_resolved` semantics,
       fingerprinting via the real `bb_fingerprint`; `RecordingShellAdapter`
