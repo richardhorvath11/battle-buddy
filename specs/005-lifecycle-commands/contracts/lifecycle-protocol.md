@@ -77,10 +77,35 @@ This slice is the protocol's designated marker writer. States it writes:
 
 **Close-time ownership scope** (*second documented extension*): the slice-3 pre-write
 ownership re-read — spec'd there for checkpoint writes — extends to `/close`'s row
-writes: re-read `responder` immediately before the merge's row updates and immediately
-before the close-time `update_record`. On displacement: no row write, no marker
-deletion; close goes read-only and reports the take-over. Earlier diary/artifact
-writes stand (additive).
+writes, in two checkpoints that each protect a different row:
+
+1. **This session's own row** (the one its local marker names) — re-read immediately
+   after draft approval, before any close-flow write of any kind (diary, artifacts, or
+   merge). Compared against **this closing session's own token**, never canonical's —
+   canonical may be a different row entirely (the merge case: whichever of a true-race
+   pair happens to close first is never necessarily the earlier row's own opener).
+   Displacement here means zero writes happen at all: not a merge write, not the diary,
+   not an artifact, not the row update; the take-over is reported and close goes
+   read-only. This single checkpoint subsumes the "immediately before the merge's row
+   updates" rule and covers the no-merge case identically (there, canonical *is* this
+   row).
+2. **The canonical row** — checked again immediately before the close-time
+   `update_record` (unchanged from where slice-3 already puts this check). Compared
+   against canonical's own responder **as observed** during step 1's read-only
+   duplicate-detection scan — an optimistic-concurrency comparison spanning detection
+   through to this update, catching a take-over of canonical specifically in that
+   window. When no merge occurred this is the closing session's own token unchanged
+   (canonical *is* that row). Displacement here: no row write, no read-back, no marker
+   deletion; earlier diary/artifact writes stand (additive, harmless) — only the row
+   write itself is gated.
+
+An earlier draft of this extension compared canonical's live responder against the
+*closing session's own token* unconditionally at this second checkpoint — which
+false-denies the ordinary case where the closer isn't canonical's own opener (exactly
+the ordinary "straggler closes first" merge scenario). Checkpoint 1 above is what
+actually protects the closing session's own identity; checkpoint 2 protects canonical
+using information already legitimately known (canonical's own observed responder), never
+the closer's identity.
 
 ## Join-vs-separate (FR-004)
 
@@ -161,22 +186,38 @@ artifact.
 
 ## Close order (FR-008) and ordering-claim scope
 
-1. **Merge-at-close first** (when same-source-ID non-terminal duplicates exist):
-   slice-3 `merge_duplicates` — earliest `started_at` canonical, links + duplicate's
-   artifacts folder folded in, duplicates `superseded`. All subsequent close steps
-   target the **canonical** row, whichever session invoked `/close`; the closing
+1. **Read-only duplicate detection + canonical determination** (R12): slice-3
+   `detect_open_session` on the marker's `source_id` — a read, never a write. Two or
+   more same-source-ID non-terminal rows ⇒ the earliest `started_at` one is the
+   *prospective* canonical row (the same selection `merge_duplicates` will itself make
+   in step 3); its responder, as observed **right here**, is what step 4's second
+   ownership checkpoint compares against. Fewer than two: canonical is simply this
+   session's own (marker-named) row. This step only *describes* canonical — the draft
+   (below) is built against it; nothing is written yet.
+2. **Draft + approval** (artifact above): **zero writes of any kind** while
+   `draft.approved` is false — duplicates or not; a responder who declines has changed
+   nothing, not even a merge.
+3. **Ownership pre-read (checkpoint 1) + merge writes** (R12/R13): immediately after
+   approval, before any close-flow write of any kind, this session's own (marker-named)
+   row's responder is re-read and compared against the closing session's own token —
+   see "Marker lifecycle" -> "Close-time ownership scope" checkpoint 1. On a match, and
+   only when step 1 found two or more duplicates, `merge_duplicates` runs — earliest
+   `started_at` canonical, links + duplicate's artifacts folder folded in, duplicates
+   `superseded`. Still precedes the FR-008 ordering scope below (merge writes, like
+   mid-session writes, sit outside the scope slice 3 already pins). All subsequent
+   steps target the **canonical** row, whichever session invoked `/close`; the closing
    session's marker deletion is gated on the canonical row's read-back.
-2. **Draft + approval** (artifact above; no writes before approval).
-3. **Dual-write, pinned order** (the FR-008/slice-3 ordering claim's scope — merge
-   writes in step 1 precede the scope, exactly as slice 3 scopes mid-session writes
+4. **Dual-write, pinned order** (the FR-008/slice-3 ordering claim's scope — the merge
+   writes in step 3 precede the scope, exactly as slice 3 scopes mid-session writes
    out): diary `append_entry` (failure ⇒ continue, row lands `diary_pending: true` —
    the flag is the retry queue) → staged-artifact `put_file`s (transcript, trace under
    `tool-trace.jsonl`, checkpoint history, generated report; per-file failure ⇒ omit
    link, continue) → close-time `update_record` (close field group + re-asserted
-   write-once fields; ownership re-read immediately before; transient failure ⇒ retry,
-   close blocks on row-write success; displacement ⇒ read-only, above) → read-back →
-   marker + `.bb-session/` deletion on confirmed match only.
-4. **Shell close**: `close_workspace(session_id)`, state restorable; degraded: printed
+   write-once fields; ownership checkpoint 2 re-read immediately before, against
+   canonical's responder as observed in step 1 — see "Marker lifecycle"; transient
+   failure ⇒ retry, close blocks on row-write success; displacement ⇒ read-only, no row
+   write) → read-back → marker + `.bb-session/` deletion on confirmed match only.
+5. **Shell close**: `close_workspace(session_id)`, state restorable; degraded: printed
    message. Runs last; fail-soft.
 
 **No open session** (no marker): `/close` reports "no open session" and performs zero

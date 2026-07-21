@@ -214,49 +214,90 @@ never redefines it").
 
 **Alternatives**: reimplementing staleness in lifecycle flows (rejected: pin drift).
 
-## R12 — Merge-at-close runs first, and close proceeds on the canonical row
+## R12 — Merge-at-close runs first (detection), but its writes run after approval
 
 **Decision**: `/close` detects same-source-ID non-terminal duplicates (slice-3
-`detect_open_session`) **before drafting**, and when found runs slice-3
-`merge_duplicates` (earliest `started_at` canonical, links + artifacts-folder folded,
-duplicates `superseded`) as its first store writes. The remainder of close — draft,
-dual-write, read-back — targets the **canonical** row, whichever session invokes it;
-if the closing session's own row was superseded by the merge, its marker deletion is
-gated on the canonical row's read-back (the incident's record is what must land). The
-FR-008 ordering claim is scoped to the dual-write steps (diary → artifacts → close-time
-row update → read-back); merge writes precede the scope, exactly as slice-3 scopes
-mid-session writes out.
+`detect_open_session`) **before drafting** — a read, never a write — and determines the
+prospective canonical row (earliest `started_at`) from that same scan; the draft is
+built against this row. The merge's actual writes (`merge_duplicates`: links +
+artifacts-folder folded, duplicates `superseded`) do **not** run at detection time —
+they run later, after the draft is approved and after the closing session's own
+ownership check (R13), immediately before the dual-write's diary write. The remainder of
+close — dual-write, read-back — targets the **canonical** row, whichever session
+invokes it; if the closing session's own row was superseded by the merge, its marker
+deletion is gated on the canonical row's read-back (the incident's record is what must
+land). The FR-008 ordering claim is scoped to the dual-write steps (diary → artifacts →
+close-time row update → read-back); merge writes precede the scope, exactly as slice-3
+scopes mid-session writes out.
 
 **Rationale**: Drafting and the row update must describe one canonical record — merging
-after the dual-write would close a row the merge then supersedes. Scoping keeps the
-slice-3 ordering claim (already tested) intact rather than amending it.
+after the dual-write would close a row the merge then supersedes, so canonical must be
+*determined* before drafting. But determining canonical is a read; actually *writing*
+the merge (superseding a row) is not, and `bb.draft.v1`'s own invariant is "no write of
+any kind occurs while `approved` is false" — a responder who declines a draft must find
+nothing changed, not even a duplicate silently superseded. An earlier version of this
+slice ran the merge's writes at detection time, before the approval gate; that violated
+the draft's own zero-write invariant and `commands/close.md`'s own prose, and was
+corrected here: detection (read) stays first, but merge *writes* move to after approval,
+scoped alongside — not ahead of — the ownership check that must also gate them (R13).
 
-**Alternatives**: merge after the dual-write (rejected above); merge only when the
-closing session is canonical (rejected: leaves a duplicate open forever when the
-straggler closes first).
+**Alternatives**: merge writes at detection time, before approval (rejected above — the
+corrected design); merge after the dual-write (rejected: closes a row the merge would
+then supersede); merge only when the closing session is canonical (rejected: leaves a
+duplicate open forever when the straggler closes first).
 
-## R13 — Close-time ownership check: immediately before close's row writes
+## R13 — Close-time ownership check: two checkpoints, each protecting a different row
 
-**Decision**: The slice-3 pre-write ownership re-read extends to `/close`'s row writes:
-re-read `responder` immediately before the merge's row updates and again immediately
-before the close-time `update_record`. On displacement: no row write, no marker
-deletion, close goes read-only and reports the take-over. Diary/artifact writes that
-already landed stand (additive, harmless — documented in `commands/close.md`); the
-canonical must-not-lose write is owned by whoever owns the row.
+**Decision**: The slice-3 pre-write ownership re-read extends to `/close`'s row writes
+in **two** checkpoints, deliberately checking two *different* rows:
+
+1. **This closing session's own row** (the one its local marker names) — re-read
+   immediately after draft approval, before any close-flow write of any kind (merge,
+   diary, or artifacts). Compared against **this session's own token**. On displacement:
+   zero writes happen at all — not a merge write, not the diary, not an artifact, not
+   the row update; close goes read-only and reports the take-over.
+2. **The canonical row** — re-read again immediately before the close-time
+   `update_record` (unchanged from slice-3's own placement of this check). Compared
+   against canonical's own responder **as observed** during checkpoint 1's read-only
+   detection scan (R12) — an optimistic-concurrency comparison spanning detection
+   through to this update. On displacement: no row write, no read-back, no marker
+   clearance; diary/artifact writes that already landed stand (additive, harmless); close
+   goes read-only and reports the take-over.
+
+When no merge is in play, canonical *is* the closing session's own row, so both
+checkpoints protect the same row — checkpoint 2 simply reconfirms checkpoint 1's
+guarantee immediately before the write it actually protects, not a second chance to
+deny the same session for the same reason.
 
 **Rationale**: Spec FR-010 pins the extension (following D-18's intent — no write to a
 row you no longer own) while FR-008 pins that displacement, unlike transient write
-failure, does not block-and-retry. Checking before the diary write was considered and
-rejected: the check's scope is row writes (the spec's pin), and a pre-diary check would
-still race the whole dual-write anyway — the row-adjacent check bounds the damage
-identically with one rule instead of two.
+failure, does not block-and-retry. A single checkpoint comparing canonical's row against
+the closing session's own token — this slice's first cut at the mechanism — is **wrong**:
+in the ordinary "straggler closes first" merge case (R12), the closing session is never
+necessarily canonical's own opener, so that comparison false-denies the exact scenario
+merge-at-close exists to handle (confirmed by executing it: two seeded rows, bob
+canonical/carol duplicate, carol closing with her own marker and her own token was
+denied because her token didn't match bob's row). Splitting into two checkpoints against
+two different rows — this session's own identity, and canonical's own observed state —
+resolves this: checkpoint 1 only ever compares a row against the token of whoever
+actually opened it (always a legitimate comparison), and checkpoint 2 never involves the
+closer's identity at all, only canonical's own last-known state versus its live state (a
+pure optimistic-concurrency check, D-18's "no lock" model in its simplest form).
+Checking checkpoint 1 before the diary write (rather than only at the row update) was
+considered and rejected as *insufficient on its own*: the check's scope is row writes,
+but scoping it to only the close-time update would let a displaced session's merge write
+supersede a duplicate before the displacement is ever caught — checkpoint 1 has to run
+before the merge write too, hence "immediately after approval, before any close-flow
+write of any kind" rather than "immediately before the row update" for that first
+checkpoint specifically.
 
-**Mechanism**: `store_flows.close_session` cannot host either behavior today (no
-ownership pre-read, no retry — its only update-failure handling is `not_found`
-reconciliation). Rather than duplicating the close order in lifecycle flows (R1's
-rejected alternative), `close_session` gains two **additive, keyword-only, default-off
-parameters**: `owned_by=None` — when set, re-read the row's `responder` immediately
-before the step-3 `update_record`; on mismatch return a read-only outcome
+**Mechanism** (unchanged by the two-checkpoint correction above — this is orchestration,
+not a `store_flows` change): `store_flows.close_session` cannot host checkpoint 2 or the
+retry today (no ownership pre-read, no retry — its only update-failure handling is
+`not_found` reconciliation). Rather than duplicating the close order in lifecycle flows
+(R1's rejected alternative), `close_session` gains two **additive, keyword-only,
+default-off parameters**: `owned_by=None` — when set, re-read the row's `responder`
+immediately before the step-3 `update_record`; on mismatch return a read-only outcome
 (`read_only: True`, `taken_over_by`) without performing the row update, read-back, or
 marker clearance (diary/artifact writes already made stand, per this pin) — and
 `row_write_retries=0` — a bounded re-issue of the step-3 `update_record` on a
@@ -264,7 +305,9 @@ non-`not_found` error result (the injector-driven transient stand-in), never tou
 steps 1–2 (no double diary write). Defaults preserve slice-3 behavior exactly; the
 existing slice-3 close tests keep passing unmodified, and the new parameters are
 exercised by this slice's close tests (Constitution VIII — code and its tests in the
-same change).
+same change). Checkpoint 1 (this session's own row) is orchestrated entirely in
+`lifecycle_flows.close_command`, outside `close_session`, since it must run before the
+merge write `close_session` never sees at all.
 
 ## R14 — Deep-investigation launch: orchestration flags only
 

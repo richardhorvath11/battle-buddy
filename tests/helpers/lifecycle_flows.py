@@ -55,6 +55,7 @@ contracts/lifecycle-protocol.md's ``bb.briefing.v1`` normatively requires.
 """
 
 import json
+import shutil
 from pathlib import Path
 
 from helpers import doctor_flows, lifecycle_fixtures, setup_flows, store_flows
@@ -726,3 +727,590 @@ def promote_session(mock, state_dir):
         "deep_launched": True,
         "update_result": update_result,
     }
+
+
+# ---------------------------------------------------------------------------
+# derive_timeline (contracts/lifecycle-protocol.md "Timeline derivation";
+# FR-009, D-5; research R10) — T015 (US4)
+# ---------------------------------------------------------------------------
+
+
+def derive_timeline(state_dir):
+    """contracts/lifecycle-protocol.md "Timeline derivation" (FR-009, D-5;
+    research R10): a pure function over the local ``trace.jsonl`` call lines
+    and the ``staging/checkpoints.jsonl`` history entries — never the
+    transcript. The mapping is 1:1 and complete: every input line yields
+    exactly one event; no event exists without one.
+
+    - Each ``trace.jsonl`` line **without** an ``event`` field (a call line —
+      local-state-protocol.md "trace.jsonl"; tripwire/other event lines
+      carry ``event`` and are skipped entirely, never becoming timeline
+      events) maps to ``{"at", "source": "trace", "seq", "summary",
+      "outcome"}``, read straight off the line.
+    - Each ``staging/checkpoints.jsonl`` entry (``{"seq", "document"}`` —
+      ``store_flows``'s own checkpoint-history-line shape, also what
+      ``open_command``'s checkpoint-zero history line writes) maps to
+      ``{"at", "source": "checkpoint", "seq", "phase"}``, with ``at``/
+      ``phase`` read from the wrapped ``document`` where present (absent ->
+      ``None`` — this function never fabricates either).
+
+    Ordered by ``at``; ties broken by ``(source, seq)``. An event whose
+    ``at`` is ``None`` sorts after every timestamped event (a defensive
+    tie-break for a malformed/incomplete input line — well-formed fixtures
+    always carry ``at`` on every line) — ties among ``None``-``at`` events
+    still resolve by ``(source, seq)``.
+
+    ``state_dir``: the local session-state directory — a missing
+    ``trace.jsonl`` or ``staging/checkpoints.jsonl`` simply contributes no
+    events from that source (never an error; a session with no checkpoints
+    yet, or whose trace hasn't been written in this test, still derives
+    whatever the other source has).
+    """
+    state_dir = Path(state_dir)
+    events = []
+
+    trace_path = state_dir / "trace.jsonl"
+    if trace_path.exists():
+        for line in trace_path.read_text(encoding="utf-8").splitlines():
+            if not line:
+                continue
+            entry = json.loads(line)
+            if "event" in entry:
+                continue  # tripwire/other event lines never become timeline events
+            events.append(
+                {
+                    "at": entry.get("at"),
+                    "source": "trace",
+                    "seq": entry.get("seq"),
+                    "summary": entry.get("summary"),
+                    "outcome": entry.get("outcome"),
+                }
+            )
+
+    history_path = state_dir / "staging" / "checkpoints.jsonl"
+    if history_path.exists():
+        for line in history_path.read_text(encoding="utf-8").splitlines():
+            if not line:
+                continue
+            entry = json.loads(line)
+            document = entry.get("document") or {}
+            events.append(
+                {
+                    "at": document.get("at"),
+                    "source": "checkpoint",
+                    "seq": entry.get("seq"),
+                    "phase": document.get("phase"),
+                }
+            )
+
+    events.sort(key=lambda e: (e["at"] is None, e["at"], e["source"], e["seq"]))
+    return events
+
+
+# ---------------------------------------------------------------------------
+# draft_close (contracts/lifecycle-protocol.md "Diary draft artifact —
+# bb.draft.v1"; FR-007, Constitution V; research R5) — T015 (US4)
+# ---------------------------------------------------------------------------
+
+_CAUSAL_FIELDS = ("root_cause", "contributing_factors", "action_items")
+_PROPOSAL_LABEL = "[PROPOSAL]"
+
+
+def _render_draft_entry(closed_at, causal_values, template=None, recent_entries=None):
+    """Renders the diary-entry text from the draft's causal proposals —
+    configured-template-else-format-matched-to-``read_recent(5)`` (R5).
+    Rendering *style* beyond the explicit proposal labels is slice 8's
+    surface (SKILL.md/contracts doc); this only pins the one structural
+    property R5/SC-006 need asserted on *rendered text*: every causal
+    section is explicitly labeled a proposal, never presented as fact.
+    """
+    lines = []
+    if template:
+        lines.append(template)
+    elif recent_entries:
+        # Format-matched judgment call: slice 8 owns the real format-
+        # matching logic; no established shipped format exists yet to
+        # imitate, so this line only proves the read_recent(5) path was
+        # consulted (its count) without inventing a rendering slice 8 would
+        # then have to un-invent.
+        lines.append(
+            "(format-matched to {} recent diary entries)".format(len(recent_entries))
+        )
+    lines.append("Closed at: {}".format(closed_at))
+    for label, value in causal_values:
+        lines.append("{} {}: {!r}".format(_PROPOSAL_LABEL, label, value))
+    return "\n".join(lines)
+
+
+def draft_close(mock, config, row, timeline, proposals):
+    """contracts/lifecycle-protocol.md "Diary draft artifact — bb.draft.v1"
+    (FR-007, Constitution V; research R5): produces the structured draft
+    artifact **before any write** — the approval step (``close_command``'s
+    gate) operates on exactly this dict.
+
+    ``factual`` is auto-filled from ``row`` — ``links``/``services``/
+    ``severity``/``responder``/``started_at`` — plus ``closed_at``, which is
+    caller-supplied (**judgment call**: the caller merges it into ``row``
+    before calling this, or passes a row-shaped dict already carrying it —
+    this function only ever reads ``row.get("closed_at")``, never the
+    clock; R17's parameterized-time discipline applies here too — a real
+    close-time field isn't known until the responder confirms the close, so
+    threading it through ``row`` rather than adding a fourth caller-supplied
+    scalar keeps this function's signature exactly the one the task pins).
+    ``timeline`` is the caller's already-derived (``derive_timeline``) event
+    list — this function never derives it itself, keeping one derivation
+    path.
+
+    ``proposals``: a plain ``{root_cause, contributing_factors,
+    action_items}`` map of raw candidate values (the responder's not-yet-
+    approved drafting input) — each is wrapped here as ``{"proposal": true,
+    "value": ...}``. **Structural invariant (SC-006)**: causal values appear
+    only under ``proposals.*``; ``factual`` carries no causal key at all.
+
+    Rendering input: ``battleBuddy.diary.template`` (contracts doc's
+    additive config key) when present in ``config``, else
+    ``diary.read_recent(5)`` (slice-8 surface, consumed via the mock) —
+    which path was taken is recorded (``render_source``), along with the
+    ``read_recent`` result when that path runs (``diary_recent_entries``,
+    ``None`` on the template path) and the rendered text itself
+    (``rendered_entry``), with every causal section explicitly proposal-
+    labeled (``_render_draft_entry`` above).
+
+    Returns the ``bb.draft.v1`` dict, ``approved: False`` — approval is a
+    separate, later responder decision (``close_command``'s gate), never
+    set by this function.
+    """
+    factual = {
+        "timeline": timeline,
+        "links": list(row.get("links") or []),
+        "services": list(row.get("services") or []),
+        "severity": row.get("severity"),
+        "responder": row.get("responder"),
+        "started_at": row.get("started_at"),
+        "closed_at": row.get("closed_at"),
+    }
+
+    wrapped_proposals = {
+        key: {"proposal": True, "value": proposals.get(key)} for key in _CAUSAL_FIELDS
+    }
+
+    diary_cfg = ((config or {}).get("battleBuddy") or {}).get("diary") or {}
+    template = diary_cfg.get("template")
+
+    recent_entries = None
+    if template:
+        render_source = "template"
+    else:
+        render_source = "read_recent"
+        recent_result = mock.invoke("diary", "read_recent", {"n": 5})
+        recent_entries = (
+            recent_result.get("entries", []) if "error" not in recent_result else []
+        )
+
+    rendered_entry = _render_draft_entry(
+        factual["closed_at"],
+        [
+            ("Root cause", wrapped_proposals["root_cause"]["value"]),
+            ("Contributing factors", wrapped_proposals["contributing_factors"]["value"]),
+            ("Action items", wrapped_proposals["action_items"]["value"]),
+        ],
+        template=template,
+        recent_entries=recent_entries,
+    )
+
+    return {
+        "schema": "bb.draft.v1",
+        "session_id": row.get("session_id"),
+        "factual": factual,
+        "proposals": wrapped_proposals,
+        "approved": False,
+        "render_source": render_source,
+        "diary_recent_entries": recent_entries,
+        "rendered_entry": rendered_entry,
+    }
+
+
+# ---------------------------------------------------------------------------
+# close_command (contracts/lifecycle-protocol.md "Close order (FR-008) and
+# ordering-claim scope", "Transcript capture at close", "Timeline
+# derivation", "Marker lifecycle" close-time ownership scope; FR-007,
+# FR-008, FR-009, FR-010; research R9, R10, R12, R13) — T015 (US4)
+# ---------------------------------------------------------------------------
+
+
+def _close_outcome(
+    merged=False,
+    canonical_id=None,
+    superseded_ids=None,
+    session_id=None,
+    reason=None,
+    draft=None,
+    approved=False,
+    transcript_notice=None,
+    diary_link=None,
+    diary_pending=None,
+    uploaded=None,
+    omitted_artifacts=None,
+    timeline=None,
+    update_result=None,
+    readback_confirmed=False,
+    marker_cleared=False,
+    read_only=False,
+    taken_over_by=None,
+    shell_calls=None,
+    printed=None,
+):
+    return {
+        "merged": merged,
+        "canonical_id": canonical_id,
+        "superseded_ids": superseded_ids or [],
+        "session_id": session_id,
+        "reason": reason,
+        "draft": draft,
+        "approved": approved,
+        "transcript_notice": transcript_notice,
+        "diary_link": diary_link,
+        "diary_pending": diary_pending,
+        "uploaded": uploaded or {},
+        "omitted_artifacts": omitted_artifacts or [],
+        "timeline": timeline,
+        "update_result": update_result,
+        "readback_confirmed": readback_confirmed,
+        "marker_cleared": marker_cleared,
+        "read_only": read_only,
+        "taken_over_by": taken_over_by,
+        "shell_calls": shell_calls,
+        "printed": printed,
+    }
+
+
+def _generate_report(row, session_id, timeline):
+    """SKILL.md "The report" -> "a rendering, not a source": every fact here
+    already lives on ``row`` (the canonical row merged with this close's own
+    ``close_fields`` — the effective closed-state row; the report uploads
+    before the row's own store update lands, close-order step 2 before step
+    3) or in the ``timeline``/``links`` it already carries. Introduces no
+    new fact — purely a rendering.
+    """
+    lines = [
+        "# Session report: {}".format(session_id),
+        "",
+        "- Services: {}".format(", ".join(row.get("services") or [])),
+        "- Severity: {}".format(row.get("severity")),
+        "- Responder: {}".format(row.get("responder")),
+        "- Started at: {}".format(row.get("started_at")),
+        "- Closed at: {}".format(row.get("closed_at")),
+        "",
+        "## Root cause",
+        str(row.get("root_cause") or ""),
+        "",
+        "## Resolution",
+        str(row.get("resolution") or ""),
+        "",
+        "## Timeline",
+    ]
+    for event in timeline:
+        lines.append("- " + json.dumps(event, sort_keys=True))
+    lines.append("")
+    lines.append("## Links")
+    for link in row.get("links") or []:
+        lines.append("- {} — {}".format(link.get("url"), link.get("excerpt")))
+    return "\n".join(lines)
+
+
+def close_command(
+    mock,
+    state_dir,
+    transcript_path,
+    draft,
+    close_fields,
+    responder,
+    shell=None,
+    row_write_retries=2,
+):
+    """contracts/lifecycle-protocol.md "Close order (FR-008) and ordering-
+    claim scope", executed in the documented sequence.
+
+    ``mock``: the ``bb-mock-mcp`` facade (or a fault-injecting wrapper).
+    ``state_dir``: the local session-state directory — ``marker.json``
+    names the session this `/close` invocation is closing.
+    ``transcript_path``: the runtime's transcript file path (R9) — a
+    caller-supplied fixture path in tests, or ``None``/an unreadable path to
+    exercise the missing-source notice. ``draft``: the ``bb.draft.v1``
+    artifact (``draft_close`` above, built against whatever this function's
+    own read-only detection step determines to be the prospective canonical
+    row) — its ``approved`` flag gates every write below; only ``approved``
+    and ``rendered_entry`` are read here, so a test may hand-build a minimal
+    draft dict to drive a specific failure path without going through
+    ``draft_close``. ``close_fields``: the close-time field-group values the
+    responder has already curated from the draft (``root_cause``,
+    ``resolution``, ``runbook_refs``, ``report_url``, ...) — passed through
+    to ``store_flows.close_session`` mostly verbatim; this function only
+    ever adds/overrides ``timeline`` (always its own derivation, R10) and
+    folds in whatever ``links`` the canonical row already carries (below —
+    ``store_flows.close_session`` would otherwise overwrite ``links``
+    wholesale with only what it's given). ``responder``: this closing
+    session's own currently-believed ownership token (the exact
+    ``responder``-cell format) — checked against THIS SESSION's own
+    (marker-named) row at step 4 below, never canonical's directly (see that
+    step's note: comparing canonical's responder to this token would be
+    wrong whenever this session isn't itself canonical — exactly the
+    ordinary "straggler closes first" merge case R12 exists for; an earlier
+    version of this function made that mistake and false-denied the normal
+    merge-close). ``shell``: a shell adapter or ``None`` for degraded mode.
+    ``row_write_retries``: forwarded to ``store_flows.close_session``
+    (FR-008's bounded transient-failure retry) — a small default > 0 so a
+    caller doesn't have to know to ask for the retry FR-008 requires; ``0``
+    still opts a test all the way out.
+
+    Steps, each citing the contracts-doc section it executes:
+
+    1. **No marker** — nothing open in this workspace to close. Zero writes
+       of any kind; returns immediately with a reason.
+    2. **Read-only duplicate detection + canonical determination** (R12):
+       ``store_flows.detect_open_session`` on the marker's ``source_id`` —
+       a read, never a write, so it runs even when the draft turns out
+       unapproved below. Two or more non-terminal rows sharing the source ID
+       means the earliest-``started_at`` one is the *prospective* canonical
+       row (the same selection ``merge_duplicates`` will itself make) — its
+       ``responder``, **as observed right here**, is captured for step 8's
+       close-time ownership check. Fewer than two: canonical is simply this
+       session's own (marker-named) row. This step only *describes* what
+       canonical will be — the draft (already built by the caller before
+       calling this function) targets this same row; nothing is written
+       yet.
+    3. **Approval gate** (Constitution V, SC-006): ``draft["approved"]``
+       must be ``True`` — otherwise returns immediately with **zero writes
+       of any kind**, duplicates or not (the contracts doc's "no write of
+       any kind occurs while approved is false" covers the merge too, not
+       only the dual-write).
+    4. **Ownership pre-read of this session's own row** (R13's first
+       checkpoint) — immediately after approval, before any close-flow
+       write of any kind. A fresh read of the row THIS SESSION's marker
+       names, compared against ``responder`` (this closing session's own
+       token) — never canonical's, which may be a different row entirely
+       (step 2's merge case). This single check subsumes R13's "immediately
+       before the merge's row updates" *and* covers the plain no-merge case
+       in one rule (there, canonical IS this row, so the same check already
+       protects it). A mismatch returns read-only with **zero writes at
+       all** — not even a diary or artifact write lands first; FR-010 only
+       requires "going read-only with a take-over report," never that any
+       write happen before it's caught.
+    5. **Merge writes** (R12) — only when step 2 found two or more
+       duplicates: ``store_flows.merge_duplicates`` — earliest
+       ``started_at`` canonical, duplicates ``superseded``, links + the
+       duplicate's artifacts folder folded in. Runs after approval and this
+       session's own ownership check, immediately before the diary write
+       below — still outside the FR-008 ordering scope (merge writes
+       precede it, exactly as slice-3 scopes mid-session writes out). Every
+       step from here on targets the **canonical** session_id, whichever
+       session invoked `/close` (R12).
+    6. **Transcript capture** (R9): copies ``transcript_path`` into
+       ``state_dir/staging/transcript.md``. A missing/unreadable source is a
+       logged notice — the artifact is simply omitted from the staged set
+       below, close continues.
+    7. **Assemble staged artifacts + derive the timeline** (R10, D-5): the
+       slice-3 local-name -> uploaded-name mapping's order (transcript,
+       trace, checkpoint history), plus a freshly generated ``report.md``
+       (a rendering of the canonical row + this close's own ``close_fields``,
+       never a new fact — SKILL.md "The report"). ``derive_timeline`` runs
+       over this same ``state_dir`` — the closing responder's own local
+       trace/checkpoint files, regardless of which session is canonical.
+    8. **Dual-write** (the FR-008 ordering scope): delegates to the extended
+       ``store_flows.close_session`` — diary -> artifacts -> the ownership-
+       gated (immediately before the close-time ``update_record`` — R13's
+       second checkpoint, **unchanged**, exactly where slice-3 put it),
+       retry-bounded row update -> read-back -> marker clearance —
+       targeting the canonical session_id. The ``owned_by`` passed to this
+       check is canonical's responder **as observed in step 2** when a
+       merge occurred (an optimistic-concurrency check spanning detection
+       through to this update — D-18's "no lock, compare live-vs-last-known"
+       model, catching a take-over of the *canonical* row in that window);
+       when no merge occurred, canonical IS this session's own row, so it's
+       simply ``responder`` unchanged.
+    9. **Whole local session directory removed** on confirmed marker
+       clearance (protocol's "deletion is the cleared state", extended past
+       ``close_session``'s own marker.json-only deletion to the entire
+       ``state_dir`` — ``shutil.rmtree``). Left untouched on a read-only or
+       failed-read-back outcome.
+    10. **Shell close** — ``close_workspace(canonical_id)`` last, fail-soft
+        (degraded: a printed message), state restorable.
+
+    Returns a data-model.md-shaped outcome dict (``_close_outcome`` above).
+    """
+    state_dir = Path(state_dir)
+    marker_path = state_dir / "marker.json"
+
+    # Step 1: no marker at all -> zero writes, reason surfaced.
+    if not marker_path.exists():
+        return _close_outcome(reason="no local session marker — nothing open to close")
+
+    marker = json.loads(marker_path.read_text(encoding="utf-8"))
+    session_id = marker["session_id"]
+    source_id = marker.get("source_id") or store_flows.parse_source_id(session_id)
+
+    # Step 2: read-only duplicate detection + canonical determination
+    # (R12) — a read, never a write; runs even if the draft turns out
+    # unapproved below.
+    duplicates = store_flows.detect_open_session(mock, source_id)
+    will_merge = len(duplicates) >= 2
+    if will_merge:
+        prospective_canonical = min(duplicates, key=lambda r: r["started_at"])
+        canonical_id = prospective_canonical["session_id"]
+        # "As observed" here — step 8's close-time check compares against
+        # this snapshot, never a fresh re-read, by design (R13's adjudicated
+        # optimistic-concurrency semantics for the canonical row).
+        canonical_observed_responder = prospective_canonical.get("responder")
+    else:
+        canonical_id = session_id
+        canonical_observed_responder = responder
+
+    # Step 3: approval gate — zero writes of any kind while unapproved,
+    # duplicates or not.
+    if not draft.get("approved"):
+        return _close_outcome(
+            merged=False,
+            canonical_id=canonical_id,
+            session_id=session_id,
+            draft=draft,
+            approved=False,
+            reason="draft not approved — no writes performed",
+        )
+
+    # Step 4: ownership pre-read of THIS session's own (marker-named) row —
+    # R13's first checkpoint, immediately after approval, before any
+    # close-flow write of any kind. Checked against the closer's own token,
+    # never canonical's (see docstring step 4).
+    own_row_result = mock.invoke(
+        "storage", "read_records", {"filter": {"session_id": session_id}}
+    )
+    own_rows = own_row_result["records"]
+    current_own_responder = own_rows[0].get("responder") if own_rows else None
+    if current_own_responder != responder:
+        return _close_outcome(
+            session_id=session_id,
+            canonical_id=canonical_id,
+            read_only=True,
+            taken_over_by=current_own_responder,
+            reason=(
+                "ownership displaced from this session's own row before any "
+                "close-flow write — no writes performed"
+            ),
+        )
+
+    # Step 5: merge writes (R12) — after approval + this session's own
+    # ownership check, immediately before the diary write; still outside
+    # the FR-008 ordering scope.
+    merged = False
+    superseded_ids = []
+    if will_merge:
+        merge_result = store_flows.merge_duplicates(mock, source_id)
+        if merge_result is not None:
+            merged = True
+            canonical_id = merge_result["canonical_id"]
+            superseded_ids = merge_result["superseded_ids"]
+
+    # Step 6: transcript capture (R9).
+    transcript_notice = None
+    staged_transcript = None
+    if transcript_path is not None:
+        try:
+            staged_transcript = Path(transcript_path).read_text(encoding="utf-8")
+        except OSError as exc:
+            transcript_notice = (
+                "transcript source unavailable ({}) — omitted, close continues".format(exc)
+            )
+    else:
+        transcript_notice = "no transcript source path supplied — omitted, close continues"
+
+    if staged_transcript is not None:
+        staging_dir = state_dir / "staging"
+        staging_dir.mkdir(parents=True, exist_ok=True)
+        (staging_dir / "transcript.md").write_text(staged_transcript, encoding="utf-8")
+
+    # Step 7: assemble staged artifacts (mapping order) + derive the timeline.
+    canonical_row_result = mock.invoke(
+        "storage", "read_records", {"filter": {"session_id": canonical_id}}
+    )
+    canonical_rows = canonical_row_result["records"]
+    canonical_row = canonical_rows[0] if canonical_rows else {}
+
+    timeline = derive_timeline(state_dir)
+
+    staged_artifacts = {}
+    if staged_transcript is not None:
+        staged_artifacts["staging/transcript.md"] = staged_transcript
+
+    trace_path = state_dir / "trace.jsonl"
+    if trace_path.exists():
+        staged_artifacts["trace.jsonl"] = trace_path.read_text(encoding="utf-8")
+
+    checkpoints_path = state_dir / "staging" / "checkpoints.jsonl"
+    if checkpoints_path.exists():
+        staged_artifacts["staging/checkpoints.jsonl"] = checkpoints_path.read_text(
+            encoding="utf-8"
+        )
+
+    effective_row = dict(canonical_row)
+    effective_row.update(close_fields)
+    effective_row["timeline"] = timeline
+    staged_artifacts["report.md"] = _generate_report(effective_row, canonical_id, timeline)
+
+    final_close_fields = dict(close_fields)
+    final_close_fields["timeline"] = timeline
+    preserved_links = list(canonical_row.get("links") or [])
+    caller_links = list(close_fields.get("links") or [])
+    final_close_fields["links"] = preserved_links + caller_links
+
+    # Step 8: dual-write, delegated to the extended close_session. owned_by
+    # is canonical's responder as observed in step 2 (merge case) or this
+    # session's own token unchanged (no-merge case, canonical IS this row)
+    # — see docstring step 8; this is the fix for the false-denial bug an
+    # earlier version of this function had (comparing canonical's live
+    # responder against the closer's own token unconditionally).
+    close_result = store_flows.close_session(
+        mock,
+        state_dir,
+        canonical_id,
+        close_fields=final_close_fields,
+        diary_content=draft.get("rendered_entry", ""),
+        staged_artifacts=staged_artifacts,
+        owned_by=canonical_observed_responder,
+        row_write_retries=row_write_retries,
+    )
+
+    # Step 9: whole local session directory removed on confirmed clearance.
+    if close_result["marker_cleared"] and state_dir.exists():
+        shutil.rmtree(str(state_dir))
+
+    # Step 10: shell close, last, fail-soft.
+    printed = lifecycle_fixtures.PrintedOutput()
+    if shell is not None:
+        try:
+            shell.close_workspace(canonical_id)
+        except Exception:
+            printed.message("close workspace for {}".format(canonical_id))
+    else:
+        printed.message("close workspace for {}".format(canonical_id))
+
+    return _close_outcome(
+        merged=merged,
+        canonical_id=canonical_id,
+        superseded_ids=superseded_ids,
+        session_id=session_id,
+        draft=draft,
+        approved=True,
+        transcript_notice=transcript_notice,
+        diary_link=close_result["diary_link"],
+        diary_pending=close_result["diary_pending"],
+        uploaded=close_result["uploaded"],
+        omitted_artifacts=close_result["omitted_artifacts"],
+        timeline=timeline,
+        update_result=close_result["update_result"],
+        readback_confirmed=close_result["readback_confirmed"],
+        marker_cleared=close_result["marker_cleared"],
+        read_only=close_result["read_only"],
+        taken_over_by=close_result["taken_over_by"],
+        shell_calls=getattr(shell, "calls", None) if shell is not None else None,
+        printed=printed.entries,
+    )

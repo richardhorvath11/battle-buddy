@@ -170,7 +170,7 @@ capture, timeline derivation, read-back-gated deletion, shell close.
 session; assert write ordering, read-back-then-delete, `diary_pending`, proposal
 labeling, merge leaving one non-superseded row (spec US4).
 
-- [ ] T014 [US4] Write `commands/close.md`: no-session guard (report, zero writes);
+- [x] T014 [US4] Write `commands/close.md`: no-session guard (report, zero writes);
       merge-at-close first + canonical-row rule (R12); draft step — `bb.draft.v1`
       structure, factual autofill vs proposal-labeled causal fields, template-else-
       `read_recent(5)` rendering (R5), approval gate (no writes before `approved`);
@@ -181,7 +181,7 @@ labeling, merge leaving one non-superseded row (spec US4).
       displacement (R13), transient row-write retry (bounded, injector-driven; close
       blocks on row-write success) vs displacement distinction (FR-008), read-back → `.bb-session/` deletion, shell `close_workspace` last,
       state restorable, degraded printed message (FR-007–FR-010)
-- [ ] T015 [US4] Extend `tests/helpers/store_flows.py` and
+- [x] T015 [US4] Extend `tests/helpers/store_flows.py` and
       `tests/helpers/lifecycle_flows.py` — close. In `store_flows.close_session`: two
       additive, keyword-only, default-off parameters (R13 mechanism) — `owned_by=None`
       (when set, re-read the row's `responder` immediately before the step-3
@@ -201,7 +201,7 @@ labeling, merge leaving one non-superseded row (spec US4).
       canonical row (`owned_by` + `row_write_retries` set; close blocks on row-write
       success, FR-008), timeline into the update, shell close; outcome dict per
       data-model.md
-- [ ] T016 [P] [US4] Write `tests/contract/test_close_command.py`: draft structure —
+- [x] T016 [P] [US4] Write `tests/contract/test_close_command.py`: draft structure —
       causal values only under `proposals.*` with `"proposal": true`, `factual` free of
       causal keys, zero writes while unapproved (AS-4, SC-006); write-log ordering
       diary → artifacts → row update (AS-1, SC-005); artifact set + names incl.
@@ -214,7 +214,7 @@ labeling, merge leaving one non-superseded row (spec US4).
       timeline 1:1 from staged trace + checkpoint fixtures, timestamped, ordered, no
       transcript-derived events (AS-6, R10); shell `close_workspace` called /
       degraded printed (AS-7); no-session close → zero writes (edge)
-- [ ] T017 [P] [US4] Write `tests/contract/test_close_merge_ownership.py`: seeded
+- [x] T017 [P] [US4] Write `tests/contract/test_close_merge_ownership.py`: seeded
       duplicates → earliest canonical, links + duplicate folder folded, duplicate
       `superseded`, exactly one non-superseded row for the source ID, dual-write
       targets the canonical row, closing-session marker cleared on canonical read-back
