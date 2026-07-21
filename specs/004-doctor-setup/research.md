@@ -8,7 +8,8 @@ no external unknowns. Each entry: Decision / Rationale / Alternatives considered
 
 **Decision**: The structured report FR-004 pins is a JSON document, schema
 `bb.doctor.report.v1`, normatively defined in `contracts/doctor-protocol.md`. Top level:
-`{schema, outcome, checks, bindings, reduced_features, migrations}` where `outcome` ∈
+`{schema, outcome, checks, reduced_features, migrations}` (the binding map is a
+config-block artifact, not a report field) where `outcome` ∈
 `green | red`; `checks` is a list with **one entry per resolved operation and one per
 verification check**, each `{id, kind, capability?, op?, status, detail, candidates?}`
 with `kind` ∈ `binding | probe | config | version | shell` and `status` ∈

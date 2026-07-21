@@ -74,19 +74,19 @@ report — the binding map lands in protocol-v1 format; failures are loud and sp
 required op resolves; written entries parse under `capability.operation`; missing op fails
 naming it; optional-missing yields the reduced-features list (spec US2).
 
-- [ ] T006 [US2] Create `tests/helpers/doctor_flows.py` — resolution core:
+- [x] T006 [US2] Create `tests/helpers/doctor_flows.py` — resolution core:
       `resolve_bindings(manifest, roster, choices=None)` implementing the per-op protocol
       (match → zero⇒fail / multi⇒ambiguous-with-candidates / one-or-chosen⇒probe-or-
       schema-match → write entry `capability.op → tool_name`), `run_probes(mock)` per the
       R6 probe table, and drift re-validation
       `revalidate_bindings(bindings, roster)` flagging stale entries by name — each step
       citing contracts/doctor-protocol.md sections
-- [ ] T007 [US2] Write `tests/contract/test_binding_resolution.py`: full roster ⇒ one
+- [x] T007 [US2] Write `tests/contract/test_binding_resolution.py`: full roster ⇒ one
       entry per required op, all parsing under the protocol-v1 key format (SC-002);
       missing-op roster ⇒ loud fail naming exactly that op; multi-match ⇒ `ambiguous` +
       candidate names, no silent pick, entry written only after explicit choice; drifted
       roster ⇒ stale entries named (US2 scenarios 1/2/5)
-- [ ] T008 [US2] Extend `tests/helpers/doctor_flows.py` — checks + report:
+- [x] T008 [US2] Extend `tests/helpers/doctor_flows.py` — checks + report:
       `check_config(mock, config, header_store, catalog_path)` (store header + sentinel
       validation with exact-mismatch detail, diary readable + append schema-matched,
       catalog parseable, malformed-config repair case), `check_versions(config,
@@ -94,17 +94,17 @@ naming it; optional-missing yields the reduced-features list (spec US2).
       `check_shell(config, adapter)` (ok/fail/skip — R12), and
       `assemble_report(...)` → `bb.doctor.report.v1` (outcome rule, `reduced_features`
       from manifest `enables`, `migrations` mirror)
-- [ ] T009 [P] [US2] Write `tests/contract/test_doctor_checks.py`: probe outcomes
+- [x] T009 [P] [US2] Write `tests/contract/test_doctor_checks.py`: probe outcomes
       asserted via the report artifact (storage/diary/alerting probes pass on an empty
       mock — empty result is a pass; artifacts schema-match-only recorded); header
       validate pass / exact-mismatch fail with zero writes; diary + catalog checks;
       version-seam mismatch ⇒ exact migration string (US2 scenario 4); shell
       configured-answering ⇒ ok, raising ⇒ fail, absent ⇒ skip-not-failed (FR-003)
-- [ ] T010 [P] [US2] Write `tests/contract/test_doctor_report.py`: report schema shape;
+- [x] T010 [P] [US2] Write `tests/contract/test_doctor_report.py`: report schema shape;
       one check per op and per verification; `red` iff required fail/unresolved
       ambiguous; optional-missing ⇒ `green` + exact disabled-features lists (US2
       scenario 3); `candidates` only on ambiguous; migrations mirror (FR-004)
-- [ ] T011 [US2] Write `commands/doctor.md`: run-outside-incidents framing, resolution
+- [x] T011 [US2] Write `commands/doctor.md`: run-outside-incidents framing, resolution
       protocol + explicit-choice rule, R6 probe table, verification checks, report
       semantics (loud required failure / reduced features), stamp write on green
       (content + location per contracts/doctor-protocol.md), drift re-validation —

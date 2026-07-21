@@ -55,9 +55,12 @@ Per required operation, in order:
 3. **More than one candidate** → `binding` check `ambiguous`, carrying the candidate tool
    names; the binding entry is written only after an explicit choice (never a silent
    pick). An unresolved ambiguity leaves the run non-green.
-4. **One candidate (or explicit choice)**: read-shaped ops are confirmed by the benign
-   probe (table below); mutating ops by schema match (probe kind `skip` with
-   `detail` recording schema-match-only; exercised end-to-end by setup's smoke test).
+4. **One candidate (or explicit choice)**: probes are **per capability**, not per op —
+   the capability's benign probe (table below) confirms reachability and shape for its
+   read path; every op without a probe row of its own (all mutating ops, plus read ops
+   the table doesn't name, e.g. `alerting.get_alert`) is confirmed by schema match
+   (mutating ops are exercised end-to-end by setup's smoke test; `artifacts` has no
+   probe at all, recorded as probe kind `skip` with schema-match-only detail).
 5. **Write** the binding entry in the exact key format above.
 
 **Drift re-validation**: with a committed binding map, doctor re-checks each entry against
@@ -109,10 +112,17 @@ outcomes. Produced by every doctor run (standalone or setup-invoked).
   comparisons (config block, store schema); `shell` is the notify round-trip
   (`skip` when no adapter configured).
 - `candidates` appears only on `ambiguous`.
-- **Outcome rule**: `red` iff any required-capability check is `fail` or any `ambiguous`
-  is unresolved; missing optional capabilities never affect `outcome` — they populate
-  `reduced_features` (exact `enables` lists of the missing capabilities). `migrations`
-  mirrors every `version`-check failure's exact migration string.
+- **Outcome rule**: `red` iff any check is `fail` or unresolved-`ambiguous` **except**
+  `binding`/`probe` checks belonging to an *optional* capability — optional capabilities
+  never affect `outcome`, whether missing (no check at all) or unresolvably ambiguous
+  (the `ambiguous` check is still surfaced for a later explicit choice, but the run stays
+  green; the capability appears in `reduced_features` iff none of its operations
+  resolved).
+  `config`/`version`/`shell` failures always red (a *configured* shell adapter that fails
+  its round-trip is a real fault; an unconfigured one is `skip`). `reduced_features`
+  carries the exact `enables` lists of every optional capability with no resolved
+  operations. `migrations` mirrors every `version`-check failure's exact migration
+  string.
 - Tests assert on this artifact, never on prose.
 
 ## Green stamp (`bb.stamp.v1`)
