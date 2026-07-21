@@ -34,18 +34,22 @@ fixtures.
 orphan a later task), the fixture catalog repo, and confirmation that the shipped-bundle
 boundary needs no change.
 
-- [ ] T001 Create the two surface skeletons that setup owns:
+- [x] T001 Create the two surface skeletons that setup owns:
       (a) `skills/catalog/SKILL.md` — frontmatter with `name: catalog` and a when-to-use
       description, a one-paragraph overview, and empty section stubs for *overview /
-      degradation / freshness & runbook references / non-goals*; plus the
-      `skills/catalog/references/` directory. US3 (T013) and US4 (T015) each fill their own
-      section and T017 completes it.
+      degradation / freshness & runbook references / non-goals*. US3 (T013) and US4 (T015)
+      each fill their own section and T017 completes it. The `skills/catalog/references/`
+      directory is **not** created here and needs no `.gitkeep` — git carries no empty
+      directory, so it materializes when T005 writes the first reference doc into it.
       (b) `tests/contract/test_catalog_prose.py` — module skeleton with the doc-set
-      discovery (`rglob("*.md")` over `skills/catalog/`) and its non-vanishing guard
-      (`SKILL.md`, `references/annotations.md`, `references/resolution.md` are all found).
-      T016/T018/T019/T020 each extend it. **Neither file is created inside a story**, so
-      dropping US3 or US4 per the scope-cut rule cannot orphan a Phase-6 task
-- [ ] T002 Create the fixture catalog repo under `tests/fixtures/catalog/`, exactly per
+      discovery (`rglob("*.md")` over `skills/catalog/`) and its non-vanishing guard.
+      The guard's **target** set is `{SKILL.md, references/annotations.md,
+      references/resolution.md}`, but it ships from T001 asserting only `SKILL.md`, since
+      the two reference docs do not exist yet — marked inline with the task that widens it.
+      T005 and T009 each widen it by their own doc (see those tasks); T016/T018/T019/T020
+      extend the module with gates. **Neither file is created inside a story**, so dropping
+      US3 or US4 per the scope-cut rule cannot orphan a Phase-6 task
+- [x] T002 Create the fixture catalog repo under `tests/fixtures/catalog/`, exactly per
       data-model.md §10's roster table — **11 entities yielding 8 parsed services**.
       `README.md` records research R2's format decision, stated as an *instruction* rather
       than a category: files are named `catalog-info.yaml` and written in **strict JSON
@@ -66,7 +70,7 @@ boundary needs no change.
       opposite order by path vs name; `zz-billing` depends on `nonexistent-svc`; `broken` is a
       truncated flow mapping, invalid as both YAML and JSON. Use only the canonical annotation
       keys from research R4
-- [ ] T003 [P] Verify — no edit expected (research R10) — that
+- [x] T003 [P] Verify — no edit expected (research R10) — that
       `tests/fixtures/packaging/intended-bundle.json`'s existing `skills/**` glob already
       names `skills/catalog/`, that `tests/**` stays outside the declared bundle so the
       fixtures and the reference encoding are never named for shipping, and that
@@ -122,7 +126,10 @@ its checkpoint is green.
       they read them off the catalog; the claim is about the model's field set only (converge
       finding). Reference the code capability with the literal phrase **"your code tool's
       file reads"** (FR-007's own wording — T018 asserts this exact string) and cite no code
-      operation name
+      operation name. **Also widen T001's non-vanishing guard** in
+      `tests/contract/test_catalog_prose.py` to include `references/annotations.md` — the
+      weakened guard is owned by the tasks that create the missing docs, not by a later gate
+      task, so it cannot survive to merge in its shipped-from-T001 form
 - [ ] T006 [P] [US2] Write `tests/fixtures/catalog/golden-models.json` in **exactly**
       data-model.md §10's pinned skeleton — top-level keyed by canonical service name, each
       value an object with sibling keys `model` (the six fields and nothing else), `linkage`,
@@ -185,10 +192,15 @@ fixture alerts and assert the resolved service, or the miss classification, for 
       one-hop blast-radius rule with its depth bound stated outright plus the dangling-entry
       rule (kept and surfaced, never filtered) (FR-006). Cite the ask-once *interaction* as
       slice 5's execution; use the literal phrase **"your code tool's file reads"** and cite
-      no code operation name
+      no code operation name. **Also widen T001's non-vanishing guard** to include
+      `references/resolution.md`, completing the target set T001 recorded
 - [ ] T010 [P] [US1] Write `tests/fixtures/catalog/resolution-matrix.json` — the **nine**
       cases of data-model.md §10's matrix table, each `{id, alert, expected: {outcome,
-      service?, candidates?, stage?}}`, using the alert payloads pinned there. The four cases
+      service?, candidates?, stage}}`, using the alert payloads pinned there. **`stage` is
+      mandatory on every non-`miss` case**, not optional: the `exact-name hit` payload
+      (`{name: "inventory-lag"}`) also contains `inventory` as a substring, so without an
+      asserted `stage == "exact"` a stage-1-broken implementation still returns the right
+      service by the wrong route and the case passes (converge/review finding). The four cases
       that only discriminate with the right payload, and must be written exactly as pinned:
       **exact-beats-substring** (tag matching `checkout`'s matcher **plus** a field containing
       `search-api` — two *different* services, so a stage-merging implementation returns

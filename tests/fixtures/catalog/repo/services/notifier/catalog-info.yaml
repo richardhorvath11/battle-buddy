@@ -1,0 +1,22 @@
+{
+  "apiVersion": "backstage.io/v1alpha1",
+  "kind": "Component",
+  "metadata": {
+    "name": "notifier",
+    "annotations": {
+      "oncall-harness/runbooks": [
+        "https://runbooks.example/notifier.md"
+      ],
+      "grafana/dashboard-selector": [
+        "https://dashboards.example/notifier"
+      ]
+    }
+  },
+  "spec": {
+    "type": "service",
+    "owner": "team-notify",
+    "dependsOn": [
+      "checkout"
+    ]
+  }
+}

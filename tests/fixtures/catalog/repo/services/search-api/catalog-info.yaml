@@ -1,0 +1,22 @@
+{
+  "apiVersion": "backstage.io/v1alpha1",
+  "kind": "Component",
+  "metadata": {
+    "name": "search-api",
+    "annotations": {
+      "oncall-harness/alert-match": [
+        "search-latency"
+      ],
+      "oncall-harness/runbooks": [
+        "https://runbooks.example/search-api.md"
+      ],
+      "grafana/dashboard-selector": [
+        "https://dashboards.example/search-api"
+      ]
+    }
+  },
+  "spec": {
+    "type": "service",
+    "owner": "team-search"
+  }
+}

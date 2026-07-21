@@ -1,0 +1,10 @@
+{
+  "apiVersion": "backstage.io/v1alpha1",
+  "kind": "Documentation",
+  "metadata": {
+    "name": "docs-site"
+  },
+  "spec": {
+    "owner": "team-docs"
+  }
+}

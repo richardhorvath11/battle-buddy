@@ -1,0 +1,28 @@
+{
+  "apiVersion": "backstage.io/v1alpha1",
+  "kind": "Component",
+  "metadata": {
+    "name": "checkout",
+    "annotations": {
+      "oncall-harness/alert-match": [
+        "checkout-5xx",
+        "shared-tag"
+      ],
+      "oncall-harness/runbooks": [
+        "https://runbooks.example/checkout.md"
+      ],
+      "grafana/dashboard-selector": [
+        "https://dashboards.example/checkout"
+      ],
+      "pagerduty.com/service-id": "PD-CHECKOUT",
+      "github.com/project-slug": "example-org/checkout"
+    }
+  },
+  "spec": {
+    "type": "service",
+    "owner": "team-checkout",
+    "dependsOn": [
+      "inventory"
+    ]
+  }
+}
