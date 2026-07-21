@@ -10,6 +10,7 @@ __pycache__/
 # macOS
 .DS_Store
 
-# Runtime droppings (session markers, local traces — design §2.1)
+# Runtime droppings (session markers, local traces, doctor stamp — design §2.1)
 .bb-session/
+.bb-doctor-stamp.json
 *.local.jsonl
