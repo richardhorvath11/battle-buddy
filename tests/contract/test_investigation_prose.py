@@ -878,3 +878,62 @@ def test_spawn_registration_states_every_spawn_registers():
         "SKILL.md's Spawn flow and role registration section does not "
         "state that every spawn registers regardless of cap status"
     )
+
+
+# ---------------------------------------------------------------------------
+# Polish / T022 — finalizing the SC-005 naming scan (research R8/R12; last
+# extension of this module per tasks.md's serialization note: T009 -> T012
+# -> T014 -> T018 -> T021 -> T022). Two guards close the loop opened at T009:
+#
+# 1. A non-vanishing expected-file *floor* over the full nine-file set (5
+#    agent docs + SKILL.md + 3 references) — asserted as a superset, not an
+#    exact set, so a future tenth prose doc is picked up by `SCAN_TARGETS`'
+#    rglob/glob automatically (section 1's docstring already promises this)
+#    without ever requiring this test to be edited to keep passing.
+# 2. A deny-list coverage sanity check: the merged `DENY_PATTERNS` imported
+#    at module load MUST still carry a representative sample of the
+#    code-host and observability vendor names slice 4 folded in (research
+#    R12(e)) — so a future refactor of the imported list that silently drops
+#    the vendor extensions (e.g. reverting to the bare slice-3 dict) fails
+#    here rather than silently narrowing section 1's scan.
+#
+# The `mcp__` raw scan and the deny-list scan in section 1 are already
+# parametrized over `SCAN_TARGETS` (`@pytest.mark.parametrize(...,
+# SCAN_TARGETS, ...)`), so once the floor below holds, those two
+# parametrized tests mechanically run over all nine files — no new scan is
+# added here.
+# ---------------------------------------------------------------------------
+
+
+def test_scan_targets_cover_the_nine_shipped_prose_docs():
+    expected_floor = {
+        "agents/triage.md",
+        "agents/deep-investigator.md",
+        "agents/log-diver.md",
+        "agents/deploy-analyst.md",
+        "agents/dependency-checker.md",
+        "skills/investigation/SKILL.md",
+        "skills/investigation/references/schemas.md",
+        "skills/investigation/references/briefing.md",
+        "skills/investigation/references/retrieval.md",
+    }
+    scanned = set(SCAN_IDS)
+    assert expected_floor <= scanned, (
+        "SCAN_TARGETS (%r) does not cover the nine-file SC-005 floor — "
+        "missing %r" % (sorted(scanned), sorted(expected_floor - scanned))
+    )
+
+
+@pytest.mark.parametrize(
+    "vendor", ["github", "prometheus", "grafana", "datadog"]
+)
+def test_deny_patterns_cover_expected_vendor_names(vendor):
+    # Two of these (github, prometheus) come from slice 4's vendor
+    # extensions; two (grafana, datadog) come from the slice-3 base dict
+    # imported underneath. Sampling across both origins means a refactor
+    # that drops either source is caught here, not just a full-list rewrite.
+    assert vendor in DENY_PATTERNS, (
+        "the merged DENY_PATTERNS no longer covers vendor %r — a future "
+        "refactor of test_command_capability_naming's imported/extended "
+        "deny-list has silently narrowed SC-005's coverage" % vendor
+    )

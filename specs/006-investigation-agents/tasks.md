@@ -321,20 +321,20 @@ validated against the protocol's `agents.json` shape.
 **Purpose**: Full-surface gates that need every file to exist, and the design-doc
 reconciliation the spec flags.
 
-- [ ] T022 Finalize the SC-005 naming scan in
+- [x] T022 Finalize the SC-005 naming scan in
       `tests/contract/test_investigation_prose.py` (serial — last link of the module
       chain, converge finding): non-vanishing expected-file set (all nine files —
       five agent docs + SKILL.md + three references); confirm the imported merged
       `DENY_PATTERNS` covers the code/observability vendor names; `mcp__` raw scan
       over the full set (FR-013)
-- [ ] T023 [P] Reconcile `bb-technical-design.md` §5.4's example ledger (research R8):
+- [x] T023 [P] Reconcile `bb-technical-design.md` §5.4's example ledger (research R8):
       replace with a validator-passing example (≥3 live, ≥1 fresh, non-fresh
       validated); version bump with change note per that doc's convention; PR body
       calls the edit out
-- [ ] T024 [P] Update `specs/006-investigation-agents/quickstart.md` scenario table if
+- [x] T024 [P] Update `specs/006-investigation-agents/quickstart.md` scenario table if
       any module names/paths drifted during implementation; confirm the FR-001–FR-014 →
       test mapping is complete (SC-001) and record it
-- [ ] T025 Run full `make verify`; confirm packaging boundary (new dirs covered by the
+- [x] T025 Run full `make verify`; confirm packaging boundary (new dirs covered by the
       existing bundle globs, no dev paths shipped — T002's verification), hermeticity
       (no credentials/network in new tests), and walk quickstart.md's scenario table
       end-to-end

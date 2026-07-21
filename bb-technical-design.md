@@ -2,10 +2,18 @@
 
 *Companion to `oncall-harness-requirements.md` (PRD v0.9). The PRD says what; this document says how.*
 
-**Version:** 1.2.2
+**Version:** 1.2.3
 **Status:** Approved design, pre-implementation
-**Last updated:** 2026-07-20
+**Last updated:** 2026-07-21
 **Audience:** Implementers building the MVP.
+
+**Changes in 1.2.3:** §5.4 example ledger reconciled to the validator's anchoring rules
+(slice 6, specs/006-investigation-agents, Assumptions): the checkpoint example carried a
+single hypothesis in the invariant phase `evidence-gathering`, which the merged slice-2
+validator rejects (≥3 live hypotheses, ≥1 live `fresh`, non-`fresh` validated). Replaced
+with a validator-passing three-hypothesis example (triage-provenance validated, a fresh
+hypothesis, and an invalidated recall) so the design doc and the normative schemas
+reference (`skills/investigation/references/schemas.md`) agree.
 
 **Changes in 1.2.2:** Slice-3 spec reconciliation (specs/003-session-store, Assumptions):
 §5.1's append-mostly sentence now names the full mutable-field set the sections it
@@ -520,8 +528,18 @@ The FR-4d report is **purely a rendering of the row + artifacts** — regenerabl
      "status": "live",
      "validation": "VALIDATED",
      "confidence": 0.6,
-     "evidence_for": [{"url": "...", "excerpt": "..."}],
-     "evidence_against": [{"url": "...", "excerpt": "..."}]}
+     "evidence_for": [{"url": "https://code.example/commit/abc123", "excerpt": "..."}]},
+    {"id": "h2", "statement": "...",
+     "provenance": "fresh",
+     "status": "live",
+     "confidence": 0.5,
+     "evidence_for": [{"url": "https://dashboards.example/svc-b/error-rate", "excerpt": "..."}]},
+    {"id": "h3", "statement": "...",
+     "provenance": "recall",
+     "status": "live",
+     "validation": "INVALIDATED",
+     "confidence": 0.15,
+     "evidence_against": [{"url": "https://dashboards.example/svc-a/alert-history", "excerpt": "..."}]}
   ],
   "services_touched": ["svc-a", "svc-b"],
   "tool_call_count": 37,
