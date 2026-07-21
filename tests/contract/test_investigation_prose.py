@@ -733,3 +733,148 @@ def test_specialist_findings_contract_states_empty_is_legitimate(doc_path):
         "%s's Findings contract section does not state that an empty "
         "findings summary is legitimate" % doc_path
     )
+
+
+# ---------------------------------------------------------------------------
+# US5 / T021 — launch conditions + spawn/role-registration pinned-property
+# gates (FR-009, FR-010, US5-AS1/AS3). Both sections now exist in
+# `skills/investigation/SKILL.md` (T019); this extension adds their
+# structural gates: the "Launch conditions for deep investigation" section's
+# exactly-three-labeled-conditions gate plus its named anchors, and the
+# "Spawn flow and role registration" section's protocol-tag, role-form,
+# mechanism/policy-split, fail-open, no-re-claim, and every-spawn anchors.
+# Per tasks.md's serialization note this module's next (and last) extension
+# is T022 (the finalized nine-file SC-005 non-vanishing guard).
+# ---------------------------------------------------------------------------
+
+LAUNCH_CONDITIONS_SECTION = _section(
+    SKILL_TEXT, "Launch conditions for deep investigation"
+)
+SPAWN_REGISTRATION_SECTION = _section(
+    SKILL_TEXT, "Spawn flow and role registration"
+)
+
+
+def test_all_us5_scoped_sections_were_found():
+    for name, section in (
+        ("Launch conditions for deep investigation", LAUNCH_CONDITIONS_SECTION),
+        ("Spawn flow and role registration", SPAWN_REGISTRATION_SECTION),
+    ):
+        assert section is not None, "SKILL.md has no `## %s` section" % name
+
+
+# --- Launch-conditions gates (US5-AS1, FR-009): exactly the three FR-5f
+# labeled conditions — no fourth — plus the confirm rule, autoLaunchDeep,
+# and the thin-orchestrator ledger-updates-only anchor. ---------------------
+
+
+@pytest.mark.parametrize("marker", ["(a)", "(b)", "(c)"])
+def test_launch_conditions_names_each_labeled_condition_marker(marker):
+    assert marker in LAUNCH_CONDITIONS_SECTION, (
+        "SKILL.md's Launch conditions section does not carry the labeled "
+        "condition marker %r" % marker
+    )
+
+
+def test_launch_conditions_names_exactly_three_conditions_never_a_fourth():
+    assert "(d)" not in LAUNCH_CONDITIONS_SECTION, (
+        "SKILL.md's Launch conditions section carries a fourth labeled "
+        "condition '(d)' — FR-5f pins exactly three"
+    )
+
+
+@pytest.mark.parametrize(
+    "anchor",
+    [
+        "no strong signal",
+        "promotion",
+        "always",
+        "fails verification",
+        "proposes",
+        "confirms",
+    ],
+)
+def test_launch_conditions_names_condition_anchor(anchor):
+    lowered = LAUNCH_CONDITIONS_SECTION.lower()
+    assert anchor.lower() in lowered, (
+        "SKILL.md's Launch conditions section does not carry the anchor "
+        "%r" % anchor
+    )
+
+
+def test_launch_conditions_names_auto_launch_deep_flag():
+    assert "autoLaunchDeep" in LAUNCH_CONDITIONS_SECTION, (
+        "SKILL.md's Launch conditions section does not name the "
+        "`autoLaunchDeep` configuration flag"
+    )
+
+
+def test_launch_conditions_states_ledger_updates_only_thin_orchestrator_rule():
+    lowered = LAUNCH_CONDITIONS_SECTION.lower()
+    assert "ledger updates" in lowered, (
+        "SKILL.md's Launch conditions section does not name the "
+        "ledger-updates-only anchor ('ledger updates')"
+    )
+    assert "raw" in lowered, (
+        "SKILL.md's Launch conditions section does not name the raw-"
+        "findings anchor ('raw')"
+    )
+
+
+# --- Spawn/role-registration gates (US5-AS3, FR-010): protocol tag, the
+# three role forms, the mechanism/policy split, the fail-open rule, the
+# no-re-claim-of-enforcement statement, and the every-spawn anchor. ---------
+
+
+def test_spawn_registration_names_the_protocol_tag():
+    assert "bb.local.v1" in SPAWN_REGISTRATION_SECTION, (
+        "SKILL.md's Spawn flow and role registration section does not name "
+        "the `bb.local.v1` protocol tag"
+    )
+
+
+@pytest.mark.parametrize("role_form", ["triage", "deep", "specialist:"])
+def test_spawn_registration_names_each_role_form(role_form):
+    assert role_form in SPAWN_REGISTRATION_SECTION, (
+        "SKILL.md's Spawn flow and role registration section does not name "
+        "role form %r" % role_form
+    )
+
+
+def test_spawn_registration_states_the_mechanism_policy_split():
+    assert "deterministic layer" in SPAWN_REGISTRATION_SECTION.lower(), (
+        "SKILL.md's Spawn flow and role registration section does not "
+        "attribute identity/enforcement to the deterministic layer"
+    )
+    assert "registration" in SPAWN_REGISTRATION_SECTION.lower(), (
+        "SKILL.md's Spawn flow and role registration section does not "
+        "attribute role registration to this skill"
+    )
+
+
+def test_spawn_registration_states_fail_open_for_unregistered_actors():
+    lowered = SPAWN_REGISTRATION_SECTION.lower()
+    assert "unregistered" in lowered, (
+        "SKILL.md's Spawn flow and role registration section does not name "
+        "the 'unregistered' actor case"
+    )
+    assert "fail open" in lowered or "uncapped" in lowered, (
+        "SKILL.md's Spawn flow and role registration section does not "
+        "state the fail-open/uncapped rule for unregistered actors"
+    )
+
+
+def test_spawn_registration_does_not_re_claim_enforcement():
+    lowered = SPAWN_REGISTRATION_SECTION.lower()
+    assert "re-claim" in lowered or "does not enforce" in lowered, (
+        "SKILL.md's Spawn flow and role registration section does not state "
+        "that this skill does not re-claim/enforce turn-cap enforcement"
+    )
+
+
+def test_spawn_registration_states_every_spawn_registers():
+    lowered = SPAWN_REGISTRATION_SECTION.lower()
+    assert "every spawn" in lowered or "regardless" in lowered, (
+        "SKILL.md's Spawn flow and role registration section does not "
+        "state that every spawn registers regardless of cap status"
+    )

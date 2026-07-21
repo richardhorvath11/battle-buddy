@@ -279,7 +279,7 @@ protocol-conforming (SC-003).
 **Independent Test**: Launch-condition inspection + simulated registration write
 validated against the protocol's `agents.json` shape.
 
-- [ ] T019 [US5] Fill `skills/investigation/SKILL.md` launch + spawn sections: exactly
+- [x] T019 [US5] Fill `skills/investigation/SKILL.md` launch + spawn sections: exactly
       the three FR-5f launch conditions — (a) triage returns no strong signal or
       recommends escalation (a budget-truncated verdict satisfies this via its own
       fields), (b) responder request with `/incident` promotion always launching, (c) a
@@ -295,7 +295,7 @@ validated against the protocol's `agents.json` shape.
       re-claim enforcement); v1 note — only the triage role carries a budget key, so
       specialist registration buys trace attribution and future per-role budgets (spec
       edge case)
-- [ ] T020 [US5] Write `tests/contract/test_role_registration.py` (research R6):
+- [x] T020 [US5] Write `tests/contract/test_role_registration.py` (research R6):
       simulate the documented spawn write against a temp state dir (merge into `roles`,
       never rewrite other entries); shape check — protocol tag `bb.local.v1`, `roles`
       a string→string map with non-empty string actor keys (no key grammar asserted —
@@ -307,7 +307,7 @@ validated against the protocol's `agents.json` shape.
       assert-on-artifacts); a seeded non-conforming role (e.g. `admin`) is rejected
       (SC-003); reuse/extend `tests/unit/test_local_state_protocol.py`'s existing
       agents.json coverage rather than duplicating it
-- [ ] T021 [US5] Extend `tests/contract/test_investigation_prose.py`: exactly three
+- [x] T021 [US5] Extend `tests/contract/test_investigation_prose.py`: exactly three
       launch-condition anchors + confirm rule + `autoLaunchDeep` named (US5-AS1);
       registration section carries the mechanism/policy-split and fail-open anchors
       without re-claiming enforcement (US5-AS3)

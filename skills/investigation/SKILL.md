@@ -101,8 +101,68 @@ anything (D-20).
 
 ## Launch conditions for deep investigation
 
-*(filled by a later task in this slice)*
+Deep investigation launches on exactly three conditions (FR-5f) — never a fourth:
+
+- **(a)** Triage returns **no strong signal**, or recommends escalation. A
+  budget-truncated verdict satisfies this condition on its own: `no_strong_signal`
+  and `budget_spent` are the verdict's own honest fields (see `agents/triage.md`'s
+  Output contract) — no separate escalation signal is invented anywhere in this
+  rule.
+- **(b)** The responder requests it. A `/incident` **promotion** **always**
+  launches deep investigation, unconditionally — a responder-driven promotion is
+  never routed back through the proposal/confirm step below.
+- **(c)** A triage-recommended fix **fails verification**.
+
+Outside of (b)'s always-launch case, the orchestrator **proposes** launching
+deep investigation and the responder **confirms** before it actually starts —
+deep investigation never launches silently on the orchestrator's own
+initiative. The workspace `battleBuddy` configuration's `autoLaunchDeep` flag
+is the one named exception: when set for an incident-severity session, it
+enables auto-launch without waiting on that confirm step.
+
+**Thin-orchestrator rule** (FR-5b, FR-009): once deep investigation is
+running, the orchestrator ingests **ledger updates** only — never **raw**
+specialist findings. This is the same reporting boundary
+`agents/deep-investigator.md`'s "Ledger ownership and synthesis" section pins
+from the deep investigator's side; this section states it from the
+launch/orchestrator side, and neither side re-states the other's normative
+detail.
 
 ## Spawn flow and role registration
 
-*(filled by a later task in this slice)*
+Every spawn — triage at session start and at each re-invocation, the deep
+investigator at launch, and every specialist at dispatch — writes an
+actor-key → role entry into the local-state protocol's `agents.json` roles
+map, in exactly this shape:
+
+```json
+{"protocol": "bb.local.v1", "roles": {"<actor-key>": "<role>"}}
+```
+
+`<role>` takes one of three forms: `triage`, `deep`, or `specialist:<name>` —
+the shipped specialist names are `log-diver`, `deploy-analyst`, and
+`dependency-checker`. Every spawn registers, regardless of whether its role
+carries a budget key today: a specialist dispatch is registered exactly as a
+triage or deep-investigator spawn is, with no exception carved out for the
+roles that currently have no cap.
+
+The write always **merges** the new entry into the existing `roles` map — it
+never rewrites or drops any other entry already present there. `<actor-key>`
+is the deterministic layer's derived actor identity (see the local-state
+protocol's `agents.json` section); this skill reads that key from the
+layer's own convention and never computes or derives one of its own.
+
+**Mechanism/policy split** (Constitution II): identity and enforcement
+belong to the deterministic layer; role registration belongs to this skill.
+An unregistered actor gets no turn cap at all — fail open, per the
+protocol's own rule, not a decision this skill makes — and this skill does
+not re-claim enforcement for itself anywhere in this flow; registering a
+role is bookkeeping, not a guarantee.
+
+**v1 note**: only the `triage` role carries a budget key
+(`budgets.triageTurnCap`) today. Registering a specialist's role buys trace
+attribution and headroom for future per-role budgets, not an enforced cap.
+An ad-hoc, unregistered specialist spawned outside this flow still traces
+normally — its actor key simply maps to no role, and that gap stays visible
+in the trace's actor keys rather than being hidden (see spec Edge Cases,
+"Unregistered specialist spawned ad hoc").
