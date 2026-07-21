@@ -1,0 +1,97 @@
+{
+  "records": [
+    {
+      "session_id": "incident-HND-77-2026-07-19",
+      "session_type": "incident",
+      "status": "open",
+      "fingerprint": "a1b2c3d4e5f60718",
+      "catalog_resolved": true,
+      "alert_signature": "handoff-svc: elevated latency",
+      "services": ["handoff-svc"],
+      "severity": "sev3",
+      "responder": "alice @ 2026-07-19T22:00:00Z",
+      "started_at": "2026-07-19T22:00:00Z",
+      "links": [
+        {
+          "url": "https://grafana.example.com/d/handoff-svc?from=1&to=2",
+          "excerpt": "p99 latency climbing since 21:40Z"
+        }
+      ]
+    },
+    {
+      "session_id": "incident-HND-88-2026-07-18",
+      "session_type": "incident",
+      "status": "handoff",
+      "fingerprint": "b2c3d4e5f6071829",
+      "catalog_resolved": true,
+      "alert_signature": "queue-worker: backlog growing",
+      "services": ["queue-worker"],
+      "severity": "sev3",
+      "responder": "bob @ 2026-07-19T08:00:00Z",
+      "started_at": "2026-07-18T14:00:00Z",
+      "links": [
+        {
+          "url": "https://grafana.example.com/d/queue-worker?from=3&to=4",
+          "excerpt": "consumer lag over 10 minutes"
+        }
+      ]
+    },
+    {
+      "session_id": "incident-HND-99-2026-07-15",
+      "session_type": "incident",
+      "status": "closed",
+      "fingerprint": "c3d4e5f607182930",
+      "catalog_resolved": true,
+      "alert_signature": "billing-api: failed webhook",
+      "services": ["billing-api"],
+      "severity": "sev4",
+      "responder": "carol @ 2026-07-15T09:30:00Z",
+      "started_at": "2026-07-15T09:00:00Z",
+      "closed_at": "2026-07-15T11:00:00Z",
+      "links": [
+        {
+          "url": "https://grafana.example.com/d/billing-api?from=5&to=6",
+          "excerpt": "webhook retries exhausted"
+        }
+      ]
+    },
+    {
+      "session_id": "incident-HND-55-2026-07-18",
+      "session_type": "incident",
+      "status": "open",
+      "fingerprint": "d4e5f60718293041",
+      "catalog_resolved": true,
+      "alert_signature": "checkout-api: 5xx spike",
+      "services": ["checkout-api"],
+      "severity": "sev2",
+      "responder": "dave @ 2026-07-18T09:00:00Z",
+      "started_at": "2026-07-18T09:00:00Z",
+      "links": [
+        {
+          "url": "https://runbooks.example/checkout-5xx",
+          "excerpt": "known 5xx runbook, checkout-api"
+        }
+      ],
+      "artifacts_folder_url": "battle-buddy/incident-HND-55-2026-07-18/"
+    },
+    {
+      "session_id": "incident-HND-55-2026-07-19",
+      "session_type": "incident",
+      "status": "open",
+      "fingerprint": "d4e5f60718293041",
+      "catalog_resolved": true,
+      "alert_signature": "checkout-api: 5xx spike",
+      "services": ["checkout-api"],
+      "severity": "sev2",
+      "responder": "erin @ 2026-07-19T09:30:00Z",
+      "started_at": "2026-07-19T09:30:00Z",
+      "links": [
+        {
+          "url": "https://dashboard.example/checkout-errors",
+          "excerpt": "error-rate dashboard snapshot at open"
+        }
+      ],
+      "artifacts_folder_url": "battle-buddy/incident-HND-55-2026-07-19/"
+    }
+  ]
+}
