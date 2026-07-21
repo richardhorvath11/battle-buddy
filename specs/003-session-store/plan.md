@@ -127,7 +127,9 @@ tests/helpers/store_flows.py         # the conventions' executable form (researc
                                      #   cites the skill section it executes; dev-only
 tests/contract/
 ├── test_store_schema_doc.py         # SC-006 cross-check; FR-002 mutation policy;
-│                                    #   FR-010 no-tool-names grep; FR-013 stability text
+│                                    #   FR-013 stability text
+├── test_skill_capability_naming.py  # FR-010 no-tool-names scan over all skill docs +
+│                                    #   operation-name fidelity vs contract.json
 ├── test_fingerprint_reference.py    # FR-003 consistency: doc version == helper VERSION ==
 │                                    #   golden-corpus version; doc examples recompute
 ├── test_retrieval_flow.py           # US1: stage 1/2/3, exclusions, cap+surfacing, downgrade

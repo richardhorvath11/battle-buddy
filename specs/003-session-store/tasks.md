@@ -39,7 +39,9 @@ exist before doc and tests can co-evolve safely.
 
 - [ ] T002 Write `skills/session-store/references/schema.md`: the full §5.1 column
       table (Column / Type / Mutation class / Notes per data-model.md — the SC-006
-      parse target), `session_id` key format, `bb.schema.v1` declaration + header-row
+      parse target), `session_id` key format **plus its source-ID parse rule** (strip
+      leading `{type}-` and trailing `-{YYYY-MM-DD}`; hyphens inside source ID legal —
+      analysis U1), `bb.schema.v1` declaration + header-row
       sentinel-cell representation (research R2/R8), the FR-002 append-mostly mutation
       policy (full enumerated mutable set, close-time group, write-once re-assertion
       rule), and the FR-013 tier-1 stability commitment
@@ -79,8 +81,11 @@ credentials, no network.
       exclusions (`session_type: test`, `status: superseded`) applied at every stage;
       stage 1 fingerprint exact-match with `catalog_resolved` downgrade (either row);
       stage 2 keyword overlap on `services`/`alert_signature`/`severity`; stage 3
-      cap 20 with truncation stated, never silent; empty result = normal fresh-
-      investigation outcome
+      cap 20 with truncation stated, never silent — cap keeps the first 20 matches in
+      insertion order (converge finding 3); exclusions and stage-2 overlap computed
+      client-side over a full read, store-side filter only for stage 1's fingerprint
+      equality (contract has field-equality only; converge finding 2); empty result =
+      normal fresh-investigation outcome
 - [ ] T007 [P] [US1] Create `tests/fixtures/store/seed-retrieval.json` (mock
       `load_seed` format): exact-fingerprint match row, keyword-overlap-only rows,
       `session_type: test` and `status: superseded` rows that would otherwise match,
@@ -88,7 +93,8 @@ credentials, no network.
       the cap case
 - [ ] T008 [US1] Implement `retrieve_candidates` in `tests/helpers/store_flows.py`
       executing retrieval.md's stages step-by-step over `read_records` (each step
-      cites its skill section)
+      cites its skill section), returning the pinned surfacing shape
+      `{candidates, classification, truncated, total_matched}` (analysis A1)
 - [ ] T009 [US1] Write `tests/contract/test_retrieval_flow.py`: US1 AS-1–AS-5 plus the
       empty/all-excluded-store edge case (spec Edge Cases), asserting candidate sets,
       downgrade classification, cap truncation surfaced, and exclusions at every stage
@@ -128,7 +134,12 @@ landing the row.
       write log, read-back gates marker clearance, diary-failure → `diary_pending` +
       row never skipped, failed read-back leaves marker), artifact-failure edge (row
       lands, link omitted), `not_found` reconciliation edge, and the R10
-      pending-recovery read (`read_records` filter `{diary_pending: true}`) (SC-002)
+      pending-recovery read (`read_records` filter `{diary_pending: true}`) (SC-002);
+      the open-time twin asserted explicitly — append → read-back sets
+      `open_write_confirmed: true`, a failed/mismatched open read-back leaves it
+      `false` (FR-008; converge finding 1);
+      failure injection stays contract-valid — empty diary `content` / empty artifact
+      `name` → `invalid_input`, no monkeypatching (analysis A2)
 
 **Checkpoint**: `make verify` green — US1+US2 = both P1 stories complete (MVP seam).
 
@@ -147,13 +158,14 @@ overflow round-trip via `get_file`, and the flagged-persist path.
 - [ ] T014 [US3] Fill SKILL.md's checkpoint section: `triage_verdict` (seq 0) vs
       `latest_checkpoint`; serialized-length guard at 45,000 chars — at the guard fits
       the cell, strictly above stores full document via artifacts `put_file` at write
-      time with cell holding `{"overflow": "<link>", "seq": n}` (readers MUST follow);
+      time under `battle-buddy/<session_id>/checkpoint-<seq>.json` (analysis U2) with
+      cell holding `{"overflow": "<link>", "seq": n}` (readers MUST follow);
       history accumulates one line per checkpoint at
       `.bb-session/staging/checkpoints.jsonl`, uploaded at close as
       `checkpoints.jsonl` (research R1); mandatory `bb-validate` before every write,
       one re-prompt with the error list, second failure persists flagged
       `"schema_valid": false` and surfaces the degradation; one-row-read resume rule
-- [ ] T015 [US3] Record the additive `staging/checkpoints.jsonl` entry in
+- [ ] T015 [P] [US3] Record the additive `staging/checkpoints.jsonl` entry in
       `specs/002-deterministic-layer/contracts/local-state-protocol.md` (staging/
       section): accumulation lifecycle, upload name, and the no-version-bump rationale
       (no existing format or consumer-parse change — research R1)
@@ -189,8 +201,12 @@ merge-at-close producing one canonical + one `superseded` row.
       `update_record` write; mandatory ownership re-read immediately before every
       checkpoint write — failed check ⇒ no write, session informed, read-only;
       join-at-open detection by source ID + non-terminal status (`open`|`handoff`),
-      never a recomputed session ID (cross-day rationale); merge-at-close — earliest
-      `started_at` canonical, artifact links folded in, duplicate `status: superseded`;
+      never a recomputed session ID (cross-day rationale) — row-side source ID via
+      schema.md's session_id parse rule, matched client-side over non-terminal rows
+      (analysis U1); merge-at-close — earliest `started_at` canonical, fold-in shape =
+      duplicate's `links` entries + its `artifacts_folder_url` wrapped as a
+      `{url, excerpt}` entry appended into canonical `links`, nothing else moves
+      (analysis U3), duplicate `status: superseded`;
       race bound: at most one stale checkpoint, store edit history as audit trail
 - [ ] T020 [P] [US4] Create `tests/fixtures/store/seed-ownership.json`: same-source-ID
       rows with yesterday-dated `session_id` in `open` and `handoff` status, a
@@ -226,8 +242,10 @@ store; assert folder-qualified names, the mapping, and links resolving via `get_
       because evidence is `{url, excerpt}` (execution of report generation + timeline
       derivation deferred to slice 5, documented as such)
 - [ ] T024 [US5] Write `tests/contract/test_artifact_layout.py`: US5 AS-1–AS-3 —
-      uploads land under the session's folder path with the four names (driven through
-      `close_session`), the `trace.jsonl` → `tool-trace.jsonl` mapping holds, every
+      uploads land under the session's folder path with the four names asserted by
+      presence, not folder exclusivity — overflow `checkpoint-<seq>.json` files may
+      coexist (driven through `close_session`), the `trace.jsonl` → `tool-trace.jsonl`
+      mapping holds, every
       row artifact link resolves to the uploaded content via `get_file`, and the
       regenerability property (row + artifacts carry `{url, excerpt}` evidence with no
       information needed beyond them)
@@ -269,7 +287,9 @@ reconciliation the spec flags.
 - **US1 (Phase 3)**: T005/T006/T007 parallel after Phase 2; T008 needs T003+T006;
   T009 needs T007+T008; T010 needs T005.
 - **US2 (Phase 4)**: T011 after T001; T012 needs T003+T011; T013 needs T012. US2 is
-  independent of US1 (different files throughout).
+  independently testable from US1 (different SKILL/reference files and different
+  `store_flows` functions — but both stories edit `store_flows.py`, so their flow
+  tasks never run in parallel).
 - **US3 (Phase 5)**: T014 after T011 (same file, sequential); T015/T016 parallel;
   T017 needs T012 (state-dir plumbing) + T014 + T016; T018 needs T017.
 - **US4 (Phase 6)**: T019 after T014 (same file); T021 needs T017 (extends
@@ -278,8 +298,9 @@ reconciliation the spec flags.
 - **Polish**: T025/T026 parallel after all docs exist; T027 anytime after Phase 5
   (needs the R1 pin landed); T028 last.
 
-**SKILL.md serialization note**: T011 → T014 → T019 → T023 all edit SKILL.md — always
-sequential, never parallel-dispatched.
+**Serialization note**: T011 → T014 → T019 → T023 all edit SKILL.md, and
+T003/T008/T012/T017/T021 all edit `tests/helpers/store_flows.py` — each chain is
+always sequential, never parallel-dispatched.
 
 ## Parallel Example: User Story 1
 

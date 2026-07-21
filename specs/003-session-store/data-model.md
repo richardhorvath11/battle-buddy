@@ -48,8 +48,11 @@ compares names, order, and mutation class against the test-side constants
   `triage_verdict` (seq 0) or `latest_checkpoint` (seq ≥ 1). At exactly 45,000 the cell
   holds it (store rejects only strictly-above; spec edge case).
 - **Overflow**: serialized length > 45,000 — full document to artifacts
-  (`put_file`) at write time; cell holds `{"overflow": "<link>", "seq": n}`. Readers
-  MUST follow the link.
+  (`put_file`) at write time under the name
+  `battle-buddy/<session_id>/checkpoint-<seq>.json`; cell holds
+  `{"overflow": "<link>", "seq": n}`. Readers MUST follow the link. These files are
+  additional to the four canonical artifacts — the folder's canonical set is asserted
+  by presence, not exclusivity.
 - **Validation gate** (FR-006): `bb-validate` before every write; fail → one re-prompt
   with the error list; second fail → persist flagged `"schema_valid": false`, surfaced.
 - **History**: every checkpoint appends one line to
@@ -85,12 +88,22 @@ records `open_write_confirmed: true`.
 
 ## Retrieval (design §5.5; FR-007)
 
-Stage 0 exclusion filter everywhere: drop `session_type: test` and
-`status: superseded`. Stage 1 fingerprint exact match — hit = near-certain known issue,
-downgraded to "candidate" if either row has `catalog_resolved: false`. Stage 2 (no
-stage-1 hit): keyword overlap on `services` / `alert_signature` / `severity`. Stage 3:
-hand ≤ 20 candidates to triage; if more matched, state the truncation — never silent.
-Empty result at every stage = normal fresh-investigation outcome, not an error.
+Exclusions at every stage (applied before each stage's match): drop
+`session_type: test` and `status: superseded`. Stage 1 fingerprint exact match — hit =
+near-certain known issue, downgraded to "candidate" if either row has
+`catalog_resolved: false`. Stage 2 (no stage-1 hit): keyword overlap on `services` /
+`alert_signature` / `severity`. Stage 3: hand ≤ 20 candidates to triage; if more
+matched, state the truncation — never silent. Surfacing shape (the deterministic form
+tests assert): the retrieval result is `{candidates, classification, truncated,
+total_matched}`, where `truncated: true` with the pre-cap `total_matched` is the
+statement handed to the triage stage. Contract note (mirrors the ownership section):
+`read_records` offers only field-equality filters in insertion order, so the
+exclusions and stage-2 keyword/list overlap are computed client-side over a full read;
+only stage 1's `{fingerprint: X}` match may use a store-side filter. At the cap, the
+first 20 matches in insertion order survive — the contract's one ordering guarantee,
+keeping the truncated set reproducible (relevance ranking is stage-3 agent work, out
+of this slice). Empty result at every stage = normal fresh-investigation outcome, not
+an error.
 
 ## Ownership (design §4, D-18; FR-009)
 
@@ -98,10 +111,17 @@ Empty result at every stage = normal fresh-investigation outcome, not an error.
   `update_record` write.
 - Pre-write re-read: every checkpoint write reads the row's `responder` first; mismatch →
   no write, session informed + read-only.
-- Join-at-open: match on `source_id` embedded in the alert + `status ∈ {open, handoff}`,
-  never a recomputed `session_id`.
-- Merge-at-close: earliest `started_at` is canonical; fold duplicate's artifact links
-  into canonical `links`; duplicate → `status: superseded`.
+- Join-at-open: match on source ID + `status ∈ {open, handoff}`, never a recomputed
+  `session_id`. Row-side source ID is **derived by parsing `session_id`**: strip the
+  leading `{type}-` (type is the closed `session_type` enum) and the trailing
+  `-{YYYY-MM-DD}` (fixed-format date); everything between is the source ID verbatim —
+  hyphens inside it are legal (`page-ALERT-123-2026-07-19` → `ALERT-123`). The contract
+  exposes only field-equality filters, so the flow reads non-terminal rows and matches
+  client-side by this parse.
+- Merge-at-close: earliest `started_at` is canonical; fold-in shape: the duplicate's
+  `links` entries plus its `artifacts_folder_url` (wrapped as a `{url, excerpt}` entry)
+  append into the canonical row's `links` — nothing else moves; duplicate →
+  `status: superseded`.
 
 ## Local state touched (protocol v1 + R1 addition)
 
