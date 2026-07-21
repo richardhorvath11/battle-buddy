@@ -259,22 +259,22 @@ store; assert folder-qualified names, the mapping, and links resolving via `get_
 **Purpose**: The cross-cutting requirements that span all docs, and the design-doc
 reconciliation the spec flags.
 
-- [ ] T025 [P] Write `tests/contract/test_skill_capability_naming.py`: FR-010 — scan
+- [x] T025 [P] Write `tests/contract/test_skill_capability_naming.py`: FR-010 — scan
       every `skills/session-store/` file for concrete MCP server/tool-name patterns
       (e.g. `mcp__`, known server names) and assert none; operation names
       (`append_record`, `put_file`, `append_entry`, …) and store-medium nouns (Sheet,
       Drive, cell) are the permitted vocabulary; assert each documented operation name
       exists in `tools/bb-mock-mcp/contract.json` (operation-contract fidelity)
-- [ ] T026 [P] Update `specs/003-session-store/quickstart.md` scenario table if any
+- [x] T026 [P] Update `specs/003-session-store/quickstart.md` scenario table if any
       module names/paths drifted during implementation; confirm the FR-001–FR-013 →
       test mapping is complete (SC-001) and record it in the table
-- [ ] T027 Reconcile `bb-technical-design.md` per the spec's flagged assumptions (spec
+- [x] T027 Reconcile `bb-technical-design.md` per the spec's flagged assumptions (spec
       Assumptions: mutable-field set, checkpoint-history representation, §9 rehydrate
       row): §5.1's append-mostly sentence names the full FR-002 mutable set; §5.4's
       "appends to `checkpoints.jsonl` in Drive" reworded to local accumulation +
       close-time upload; §9's mid-investigation rehydrate row drops the remote
       `checkpoints.jsonl` fallback; version bump 1.2.1 → 1.2.2 with change note
-- [ ] T028 Run full `make verify` + walk quickstart.md's scenario table end-to-end;
+- [x] T028 Run full `make verify` + walk quickstart.md's scenario table end-to-end;
       confirm zero storage code outside `tests/` (packaging test) and hermeticity (no
       credentials/network anywhere in new tests)
 
