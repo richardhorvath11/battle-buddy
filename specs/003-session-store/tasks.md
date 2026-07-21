@@ -117,7 +117,7 @@ failure paths (FR-008, research R10).
 from `write_log.entries`, marker clearance only on read-back success, and failure paths
 landing the row.
 
-- [ ] T011 [US2] Fill SKILL.md's close-flow + open-flow section: pinned write order
+- [x] T011 [US2] Fill SKILL.md's close-flow + open-flow section: pinned write order
       with the ordering claim scoped to close-flow writes; both read-back confirmation
       points (open-time `open_write_confirmed`, close-time deletion-is-cleared per
       local-state protocol v1); diary failure → row lands `diary_pending: true` with
@@ -125,12 +125,12 @@ landing the row.
       failure → row proceeds, links omitted, gap surfaced (spec edge case); `not_found`
       on row update → re-locate by source ID + non-terminal status, never retry-blind;
       timeline derived from trace + checkpoint history, never prose recall
-- [ ] T012 [US2] Implement `open_session` (append → read-back → marker
+- [x] T012 [US2] Implement `open_session` (append → read-back → marker
       `open_write_confirmed`) and `close_session` (diary → staged artifacts → row
       update with re-asserted write-once values → read-back → marker delete; failure
       paths per SKILL.md) in `tests/helpers/store_flows.py`, operating on a
       caller-supplied local state dir per protocol v1
-- [ ] T013 [US2] Write `tests/contract/test_close_flow.py`: US2 AS-1–AS-4 (ordering via
+- [x] T013 [US2] Write `tests/contract/test_close_flow.py`: US2 AS-1–AS-4 (ordering via
       write log, read-back gates marker clearance, diary-failure → `diary_pending` +
       row never skipped, failed read-back leaves marker), artifact-failure edge (row
       lands, link omitted), `not_found` reconciliation edge, and the R10
