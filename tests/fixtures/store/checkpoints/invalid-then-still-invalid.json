@@ -1,0 +1,53 @@
+[
+  {
+    "schema": "bb.ledger.v1",
+    "seq": 3,
+    "phase": "triage-seeded",
+    "hypotheses": [
+      {
+        "id": "h1",
+        "statement": "elevated retry storm from client SDK regression",
+        "provenance": "recall",
+        "status": "live",
+        "confidence": 0.4,
+        "evidence_for": [
+          {
+            "url": "https://grafana.example.com/d/jkl?from=7&to=8",
+            "excerpt": "matches prior client SDK regression"
+          }
+        ],
+        "evidence_against": []
+      }
+    ],
+    "services_touched": [
+      "checkout-api"
+    ],
+    "tool_call_count": 2
+  },
+  {
+    "schema": "bb.ledger.v1",
+    "seq": 3,
+    "phase": "triage-seeded",
+    "hypotheses": [
+      {
+        "id": "h1",
+        "statement": "elevated retry storm from client SDK regression",
+        "provenance": "recall",
+        "status": "live",
+        "confidence": 0.4,
+        "evidence_for": [
+          {
+            "url": "https://grafana.example.com/d/jkl?from=7&to=8",
+            "excerpt": "matches prior client SDK regression"
+          }
+        ],
+        "evidence_against": [],
+        "validation": "VALIDATED"
+      }
+    ],
+    "services_touched": [
+      "checkout-api"
+    ],
+    "tool_call_count": 2
+  }
+]

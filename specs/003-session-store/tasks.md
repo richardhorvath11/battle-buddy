@@ -155,7 +155,7 @@ FR-006, research R1/R9).
 invalid) through `store_flows.write_checkpoint`; assert cell contents, history lines,
 overflow round-trip via `get_file`, and the flagged-persist path.
 
-- [ ] T014 [US3] Fill SKILL.md's checkpoint section: `triage_verdict` (seq 0) vs
+- [x] T014 [US3] Fill SKILL.md's checkpoint section: `triage_verdict` (seq 0) vs
       `latest_checkpoint`; serialized-length guard at 45,000 chars — at the guard fits
       the cell, strictly above stores full document via artifacts `put_file` at write
       time under `battle-buddy/<session_id>/checkpoint-<seq>.json` (analysis U2) with
@@ -165,19 +165,19 @@ overflow round-trip via `get_file`, and the flagged-persist path.
       `checkpoints.jsonl` (research R1); mandatory `bb-validate` before every write,
       one re-prompt with the error list, second failure persists flagged
       `"schema_valid": false` and surfaces the degradation; one-row-read resume rule
-- [ ] T015 [P] [US3] Record the additive `staging/checkpoints.jsonl` entry in
+- [x] T015 [P] [US3] Record the additive `staging/checkpoints.jsonl` entry in
       `specs/002-deterministic-layer/contracts/local-state-protocol.md` (staging/
       section): accumulation lifecycle, upload name, and the no-version-bump rationale
       (no existing format or consumer-parse change — research R1)
-- [ ] T016 [P] [US3] Create `tests/fixtures/store/checkpoints/` fixtures: valid
+- [x] T016 [P] [US3] Create `tests/fixtures/store/checkpoints/` fixtures: valid
       `bb.ledger.v1` document, invalid+fixed pair, invalid+still-invalid pair
       (research R9), and an oversize template the test inflates past 45,000 chars
-- [ ] T017 [US3] Implement `write_checkpoint` in `tests/helpers/store_flows.py`:
+- [x] T017 [US3] Implement `write_checkpoint` in `tests/helpers/store_flows.py`:
       ownership pre-read (cites the US4 section; passes trivially for the owner) →
       `bb_validate` on the ordered candidate list (one re-prompt, then flag) → guard
       check → in-cell `update_record` or `put_file`+pointer → history line append to
       the local staging file
-- [ ] T018 [US3] Write `tests/contract/test_checkpoint_conventions.py`: US3 AS-1–AS-4
+- [x] T018 [US3] Write `tests/contract/test_checkpoint_conventions.py`: US3 AS-1–AS-4
       plus the exactly-at-guard edge (45,000 chars lands in-cell, zero store
       rejections — SC-005), overflow round-trip recovering the full document,
       history-line accumulation matching every write, and the twice-invalid path

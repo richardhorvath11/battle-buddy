@@ -18,6 +18,12 @@ import re
 from datetime import date
 from pathlib import Path
 
+# Slice-2's real validator (bin/bb_validate.py) — importable because
+# tests/conftest.py puts REPO_ROOT/bin on sys.path before any test module
+# (and therefore this helper) is collected. FR-006/research R9: checkpoint
+# writes bind to the real validator, never a mock of it.
+import bb_validate
+
 # ---------------------------------------------------------------------------
 # Schema version (schema.md "Schema version")
 # ---------------------------------------------------------------------------
@@ -479,3 +485,166 @@ def close_session(
         "readback_confirmed": confirmed,
         "marker_cleared": marker_cleared,
     }
+
+
+# ---------------------------------------------------------------------------
+# Checkpoints (SKILL.md "Checkpoints", FR-005, FR-006, research R1/R9) — T017
+# (US3). ``state_dir`` is the same caller-supplied local state directory
+# ``open_session``/``close_session`` use; the history file lives at
+# ``state_dir/staging/checkpoints.jsonl`` (R1 — the artifact contract has no
+# append op, so per-checkpoint history accumulates locally and uploads at
+# close under the artifact name ``checkpoints.jsonl``).
+# ---------------------------------------------------------------------------
+
+
+def _serialize_checkpoint(document):
+    """SKILL.md "Checkpoints" -> "Cell guard": the pinned serialization —
+    sorted keys, compact separators, no whitespace. This is the SAME
+    serialization the 45,000-char guard measures and the cell/overflow
+    artifact stores, so the boundary this convention checks and the boundary
+    the store itself enforces (``single_field_limit_chars``, strictly-above
+    rejection) can never disagree."""
+    return json.dumps(document, sort_keys=True, separators=(",", ":"))
+
+
+def write_checkpoint(mock, state_dir, session_id, candidates, responder, seq):
+    """SKILL.md "Checkpoints" section, executed step by step.
+
+    ``candidates`` is the ordered produce-then-re-prompt list (research R9):
+    ``candidates[0]`` is the producing agent's first attempt; ``candidates[1]``
+    stands for the one re-prompt and is only consulted if ``candidates[0]``
+    fails validation (callers that know their document is already valid may
+    pass a single-element list).
+
+    Cell selection: ``seq == 0`` -> ``triage_verdict``; ``seq >= 1`` ->
+    ``latest_checkpoint`` (SKILL.md "Representation").
+
+    Returns an outcome dict: ``{"written", "read_only", "taken_over_by"
+    (denial path only), "cell", "overflowed", "link", "serialized_len",
+    "schema_valid", "validator_errors", "history_line_count",
+    "update_result", "put_result" (overflow path only)}``.
+    """
+    state_dir = Path(state_dir)
+    staging_dir = state_dir / "staging"
+    staging_dir.mkdir(parents=True, exist_ok=True)
+
+    # Step 0 (SKILL.md "Checkpoints" -> "Ownership pre-read"; forward-cites
+    # "Session ownership", filled by T019): re-read the row's responder cell
+    # before any mutating op. A mismatch means the session was taken over —
+    # no write (not even the history line), caller goes read-only.
+    existing = mock.invoke(
+        "storage", "read_records", {"filter": {"session_id": session_id}}
+    )
+    rows = existing["records"]
+    current_responder = rows[0].get("responder") if rows else None
+    if current_responder != responder:
+        return {
+            "written": False,
+            "read_only": True,
+            "taken_over_by": current_responder,
+        }
+
+    # Step 1 (SKILL.md "Validation gate"): validate candidates[0] with the
+    # real bb_validate; on failure take candidates[1] (the one re-prompt);
+    # on a second failure persist candidates[1] flagged
+    # "schema_valid": false rather than dropping data.
+    validator_errors = []
+    first_errors = bb_validate.validate(candidates[0])
+    validator_errors.append(first_errors)
+    if not first_errors:
+        winning_doc = candidates[0]
+        schema_valid = True
+    else:
+        second_errors = bb_validate.validate(candidates[1])
+        validator_errors.append(second_errors)
+        if not second_errors:
+            winning_doc = candidates[1]
+            schema_valid = True
+        else:
+            winning_doc = dict(candidates[1])
+            winning_doc["schema_valid"] = False
+            schema_valid = False
+
+    cell = "triage_verdict" if seq == 0 else "latest_checkpoint"
+
+    # Step 2 (SKILL.md "Cell guard"): serialize, measure against the
+    # contract's own single_field_limit_chars constant (never a second,
+    # possibly-drifting hardcoded 45000), and either write the full document
+    # in-cell or divert it to the artifact store at write time.
+    serialized = _serialize_checkpoint(winning_doc)
+    serialized_len = len(serialized)
+    cell_guard_chars = mock.schema_registry.constants["single_field_limit_chars"]
+
+    overflowed = False
+    link = None
+    put_result = None
+    if serialized_len <= cell_guard_chars:
+        cell_value = serialized
+    else:
+        overflowed = True
+        artifact_name = "battle-buddy/{}/checkpoint-{}.json".format(session_id, seq)
+        put_result = mock.invoke(
+            "artifacts", "put_file", {"name": artifact_name, "content": serialized}
+        )
+        link = put_result.get("link")
+        cell_value = _serialize_checkpoint({"overflow": link, "seq": seq})
+
+    update_result = mock.invoke(
+        "storage",
+        "update_record",
+        {"session_id": session_id, "fields": {cell: cell_value}},
+    )
+
+    # Step 3 (SKILL.md "History"): append one line to
+    # staging/checkpoints.jsonl — {"seq", "document"}, wrapped so this
+    # write's ordinal never collides with a ledger checkpoint's own internal
+    # "seq" field.
+    history_path = staging_dir / "checkpoints.jsonl"
+    history_entry = _serialize_checkpoint({"seq": seq, "document": winning_doc})
+    with history_path.open("a", encoding="utf-8") as f:
+        f.write(history_entry + "\n")
+    history_line_count = sum(
+        1 for line in history_path.read_text(encoding="utf-8").splitlines() if line
+    )
+
+    return {
+        "written": True,
+        "read_only": False,
+        "cell": cell,
+        "overflowed": overflowed,
+        "link": link,
+        "serialized_len": serialized_len,
+        "schema_valid": schema_valid,
+        "validator_errors": validator_errors,
+        "history_line_count": history_line_count,
+        "update_result": update_result,
+        "put_result": put_result,
+    }
+
+
+def read_latest_checkpoint(mock, session_id):
+    """SKILL.md "Checkpoints" -> "One-row-read resume rule".
+
+    Reads the row once, takes ``latest_checkpoint`` if set, else
+    ``triage_verdict`` (true only when checkpoint zero is the sole
+    checkpoint so far), and follows an overflow pointer via ``get_file``
+    when present. Never touches the local checkpoint history file — the row
+    (plus at most one artifact read) is the entire resume path. Returns the
+    full checkpoint document, or ``None`` if the row carries no checkpoint at
+    all.
+    """
+    result = mock.invoke(
+        "storage", "read_records", {"filter": {"session_id": session_id}}
+    )
+    rows = result["records"]
+    if not rows:
+        return None
+    row = rows[0]
+    cell_value = row.get("latest_checkpoint") or row.get("triage_verdict")
+    if not cell_value:
+        return None
+    parsed = json.loads(cell_value)
+    if isinstance(parsed, dict) and "overflow" in parsed:
+        file_result = mock.invoke("artifacts", "get_file", {"link": parsed["overflow"]})
+        return json.loads(file_result["content"])
+    return parsed

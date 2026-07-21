@@ -127,9 +127,79 @@ executes in slice 5.
 
 ## Checkpoints
 
-_Stub — filled by T014 (US3): `triage_verdict` vs `latest_checkpoint`, the 45,000-char
-cell guard and overflow-pointer representation, checkpoint-history accumulation, and
-the `bb-validate` re-prompt-then-flag gate._
+### Representation — `triage_verdict` vs `latest_checkpoint`
+
+Checkpoint zero — the triage verdict — lives in the row's `triage_verdict` cell. Every
+later checkpoint (the deep investigator's ledger, checkpointed on every update) lives in
+`latest_checkpoint`, overwriting the previous value on each write — the row only ever
+holds the *latest* state, never a running history (`references/schema.md`'s column
+table).
+
+**One-row-read resume rule**: the latest state is always recoverable from
+`latest_checkpoint` — or `triage_verdict` if no `latest_checkpoint` has landed yet —
+alone, following its overflow link (below) when present. That is one `read_records`
+call and at most one artifact `get_file` call; resuming an investigation never scans
+the checkpoint history.
+
+### Cell guard — the 45,000-character boundary
+
+Every checkpoint write serializes the winning document with `json.dumps`, sorted keys,
+compact separators, no whitespace — the pinned serialization this guard measures *and*
+the one the cell (or overflow artifact) stores, so the boundary this convention checks
+and the boundary the store's field-size limit enforces can never disagree.
+
+- **≤ 45,000 characters** (the boundary itself included — the store's field-size limit
+  rejects only values strictly above it): the full serialized document goes straight
+  into the cell.
+- **> 45,000 characters**: the full document is written to the artifact store via
+  `put_file` **at write time** — never deferred to close — under the folder-qualified
+  name `battle-buddy/<session_id>/checkpoint-<seq>.json`, so its link exists
+  immediately. The cell then holds an overflow pointer,
+  `{"overflow": "<link>", "seq": n}` (also serialized the same way). Readers **MUST**
+  follow the link — a cell holding an overflow pointer is never itself the checkpoint.
+
+Because the guard decision is made from the exact serialized length the store would
+check, a checkpoint write is never attempted that the store's field-size limit would
+reject: the write either already fits the cell, or is diverted to the artifact store
+first.
+
+### History — session-local accumulation, uploaded at close
+
+The artifact contract has no append operation, so the full checkpoint history cannot
+accumulate remotely mid-session (research R1). Instead, every checkpoint write —
+checkpoint zero included, and an overflowed checkpoint's *full* document included, never
+just its pointer — appends one line to `.bb-session/staging/checkpoints.jsonl`. Each
+line is a JSON object `{"seq": n, "document": <the full checkpoint document as
+written, including the "schema_valid": false flag when the validation gate below set
+one>}` — wrapped rather than merged into the document so this write's ordinal `n` never
+collides with a ledger checkpoint's own internal `seq` field (its ledger-turn counter,
+a different number). At close, this file uploads under the artifact name
+`checkpoints.jsonl` (this skill's "Artifact layout" section). The history file is the
+complete record; the row cell is only ever the latest state.
+
+### Validation gate — `bb-validate` before every write
+
+Before any checkpoint write lands — in the cell or via overflow — the candidate document
+passes slice 2's validator (`bb-validate`). The pinned failure path (D-14, Constitution
+VI):
+
+1. Validate the producing agent's document.
+2. **On failure**: re-prompt the producing agent once, handing back the validator's
+   error list, and validate the re-prompted document.
+3. **On a second failure**: persist the second document anyway, flagged
+   `"schema_valid": false`, and surface the degradation to the responder. A checkpoint
+   is never dropped over a schema fight — losing an investigation's state is worse than
+   persisting an unvalidated one at 3am.
+
+### Ownership pre-read
+
+Every checkpoint write **re-reads the row's `responder` cell first** — before
+validating or writing anything else. (This is the ownership model's rule; the full
+model — the `responder` token, take-over-as-a-write, join-at-open, merge-at-close —
+lives in the "Session ownership" section below, filled by a later story.) If the cell
+no longer names the writing session's responder, the session has been taken over: no
+write is performed — not the validation-gated document, not the history line — the
+session is told it was taken over, and it goes read-only.
 
 ## Session ownership
 
