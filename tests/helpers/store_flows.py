@@ -332,6 +332,8 @@ def close_session(
     diary_content,
     staged_artifacts,
     expected_session_id=None,
+    owned_by=None,
+    row_write_retries=0,
 ):
     """SKILL.md "Open and close flow" -> "Close — pinned write order".
 
@@ -372,10 +374,39 @@ def close_session(
     filter used to find it — this parameter is the honest, contract-valid way
     to exercise the "confirmation fails" branch).
 
+    ``owned_by``/``row_write_retries`` (slice-5 research R13 — additive,
+    keyword-only, default-off; both defaults preserve this function's
+    slice-3 behavior exactly):
+
+    - ``owned_by``: when set, the row's ``responder`` cell is re-read
+      **immediately before** step 3's ``update_record`` — the closest point
+      to the write the ownership model's "immediately before" rule (SKILL.md
+      "Pre-write ownership re-read") can express for a step that isn't a
+      checkpoint write. On a mismatch (the cell no longer names
+      ``owned_by``), this function returns **immediately**, read-only:
+      no row update, no read-back, no marker clearance — but the diary/
+      artifact writes steps 1-2 already performed stand (contracts doc
+      "Close-time ownership scope": earlier writes are additive, harmless).
+      ``None`` (the default) skips this check entirely — byte-for-byte the
+      slice-3 behavior.
+    - ``row_write_retries``: a bounded number of times step 3's
+      ``update_record`` is re-issued when its result carries an error whose
+      code is **not** ``"not_found"`` (the ``TransientFaultInjector``
+      stand-in for FR-008's transient-row-write-failure path). A
+      ``not_found`` result is never retried here — it takes the existing
+      reconciliation path below immediately, unchanged. Retrying only
+      re-issues step 3 itself; steps 1-2 (diary, artifacts) are never
+      re-run, so a retried close never double-writes the diary. ``0`` (the
+      default) issues the call exactly once — byte-for-byte the slice-3
+      behavior.
+
     Returns an outcome dict: ``{"diary_link", "diary_pending", "uploaded":
     {local_name: {"uploaded_name", "link"}}, "omitted_artifacts":
     [local_name, ...], "update_result", "not_found_reconciliation",
-    "readback_confirmed", "marker_cleared"}``.
+    "readback_confirmed", "marker_cleared", "read_only", "taken_over_by"}``
+    — the last two are additive (R13): ``False``/``None`` on every path
+    except the ``owned_by`` mismatch above, which returns early with
+    ``read_only: True`` and ``taken_over_by`` naming the current responder.
     """
     state_dir = Path(state_dir)
     if expected_session_id is None:
@@ -438,9 +469,48 @@ def close_session(
 
     fields.update(write_once_reassert)
 
+    # R13 ownership pre-read — immediately before step 3's update_record,
+    # the closest point to the write this rule can occupy for a non-
+    # checkpoint write. A mismatch returns read-only right here: no row
+    # update, no read-back, no marker clearance; steps 1-2 above already
+    # landed and stand (contracts doc "Close-time ownership scope").
+    if owned_by is not None:
+        ownership_check = mock.invoke(
+            "storage", "read_records", {"filter": {"session_id": session_id}}
+        )
+        ownership_rows = ownership_check["records"]
+        current_responder = ownership_rows[0].get("responder") if ownership_rows else None
+        if current_responder != owned_by:
+            return {
+                "diary_link": diary_link,
+                "diary_pending": diary_pending,
+                "uploaded": uploaded,
+                "omitted_artifacts": omitted_artifacts,
+                "update_result": None,
+                "not_found_reconciliation": None,
+                "readback_confirmed": False,
+                "marker_cleared": False,
+                "read_only": True,
+                "taken_over_by": current_responder,
+            }
+
     update_result = mock.invoke(
         "storage", "update_record", {"session_id": session_id, "fields": fields}
     )
+    # R13 bounded retry — only for a non-not_found error result; a
+    # not_found result is never retried (it takes the reconciliation path
+    # below immediately, unchanged). Re-issues step 3 only — steps 1-2 never
+    # re-run, so a retried close never double-writes the diary.
+    retries_left = row_write_retries
+    while (
+        "error" in update_result
+        and update_result["error"].get("code") != "not_found"
+        and retries_left > 0
+    ):
+        retries_left -= 1
+        update_result = mock.invoke(
+            "storage", "update_record", {"session_id": session_id, "fields": fields}
+        )
 
     not_found_reconciliation = None
     if "error" in update_result and update_result["error"].get("code") == "not_found":
@@ -458,13 +528,19 @@ def close_session(
 
     # Step 4 (SKILL.md close step 4 — read-back): only a confirmed
     # session_id match clears the local marker (deletion-is-cleared,
-    # protocol v1).
+    # protocol v1). The read-back can only confirm a row update that
+    # actually landed: a lingering update error (e.g. an exhausted R13
+    # retry) must never false-confirm on the row's mere existence — the
+    # open-time row pre-exists, so an existence-only check would delete
+    # local state while the store row stays open, defeating D-11's
+    # must-not-lose backstop.
     readback = mock.invoke(
         "storage", "read_records", {"filter": {"session_id": session_id}}
     )
     readback_records = readback["records"]
     confirmed = (
-        len(readback_records) == 1
+        "error" not in update_result
+        and len(readback_records) == 1
         and readback_records[0].get("session_id") == expected_session_id
     )
 
@@ -484,6 +560,8 @@ def close_session(
         "not_found_reconciliation": not_found_reconciliation,
         "readback_confirmed": confirmed,
         "marker_cleared": marker_cleared,
+        "read_only": False,
+        "taken_over_by": None,
     }
 
 

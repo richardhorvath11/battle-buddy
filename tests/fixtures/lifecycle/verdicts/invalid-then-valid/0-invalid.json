@@ -1,0 +1,22 @@
+{
+  "schema": "bb.verdict.v1",
+  "session_id": "page-ALERT-456-2026-07-21",
+  "candidates": [
+    {
+      "confidence": 0.6,
+      "provenance": "fresh",
+      "evidence": [
+        {
+          "url": "https://grafana.example.com/d/search-errors",
+          "excerpt": "5xx rate above baseline since 08:40"
+        }
+      ]
+    }
+  ],
+  "severity": "sev3",
+  "no_strong_signal": false,
+  "budget_spent": {
+    "turns": 6,
+    "seconds": 40
+  }
+}
