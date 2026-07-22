@@ -176,7 +176,13 @@ class FakeCmux(object):
         self.captured.append(request)
 
         if self.fault == TIMEOUT:
-            return True  # accepted, recorded, never answered
+            # A wedged app: the connection stays *open* and no reply ever comes,
+            # so the client's own socket timeout is what has to fire. Simply
+            # returning here would let the handler's recv time out and close the
+            # connection, which the client sees as a mid-write death — a
+            # different fault class, silently making this one a duplicate.
+            self._stop.wait(timeout=30.0)
+            return False
         if self.fault == MID_WRITE_DEATH:
             conn.sendall(b'{"id": "partial", "ok": tr')  # truncated mid-frame
             return False
