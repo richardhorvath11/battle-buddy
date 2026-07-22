@@ -24,6 +24,8 @@ by hand against the documented rules, not by running the implementation
 under test.
 """
 
+import re
+
 import pytest
 
 from conftest import fixture_path, load_fixture
@@ -431,4 +433,25 @@ def test_empty_offer_is_not_commit_ready_and_carries_no_snippet():
         "a non-commit-ready offer carries no snippet: handing over a "
         "paste-ready block the module elsewhere calls harmful is the failure "
         "this pins against"
+    )
+
+
+def test_fixup_offer_docstring_lists_its_real_return_keys():
+    # A staleness class that recurred across two converge rounds: the return
+    # shape gained `commit_ready`, and the four-key list survived in
+    # data-model.md, then tasks.md, then the function's own docstring — the
+    # copy a reader hits first. Pinned so the next shape change cannot leave
+    # a stale list behind quietly.
+    import inspect
+
+    from helpers import catalog_reference
+
+    docstring = inspect.getdoc(catalog_reference.fixup_offer)
+    actual = set(fixup_offer(MISS_ALERT, "checkout", CATALOG))
+    documented = set(re.findall(r'``"?([a-z_]+)"?``|"([a-z_]+)"', docstring))
+    documented = {a or b for a, b in documented}
+    missing = sorted(actual - documented)
+    assert not missing, (
+        "fixup_offer's docstring must name every key it returns; missing %r"
+        % missing
     )

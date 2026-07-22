@@ -951,19 +951,32 @@ def test_annotations_doc_documents_exactly_the_catalog_parts():
     )
 
 
-def test_annotations_doc_names_no_warning_kind_the_encoding_never_emits():
-    # The reverse direction. Renaming or losing a kind is caught above; a doc
-    # that GAINS a kind the encoding never emits was not, which is the half
-    # "both ways" actually means.
-    quoted = set(re.findall(r"`([a-z_]+)`", ANNOTATIONS_DOC_TEXT))
-    kind_shaped = {token for token in quoted if token.endswith(("_owner", "_dependency", "_entity", "_name"))}
-    unknown = sorted(kind_shaped - WARNING_KINDS - {"metadata_name"})
-    assert not unknown, (
-        "annotations.md names warning-kind-shaped identifier(s) %r that "
-        "catalog_reference.WARNING_KINDS does not emit — a consumer would "
-        "branch on a kind that never arrives" % unknown
+def test_annotations_doc_names_no_snake_case_identifier_the_encoding_lacks():
+    # The reverse direction, done TOTALLY rather than by suffix family. An
+    # earlier version only noticed invented kinds that reused one of the four
+    # real kinds' suffixes, so `orphan_service` — the likelier shape for an
+    # invented kind, a new noun — sailed through while its comment claimed the
+    # direction was closed.
+    #
+    # Every snake_case identifier the doc quotes must be one the encoding
+    # actually has: a warning kind, a model field, a catalog part, or a
+    # linkage internal name. Anything else is the doc publishing a contract
+    # the encoding will never honor.
+    known = (
+        set(WARNING_KINDS)
+        | set(MODEL_FIELDS)
+        | set(CATALOG_PARTS)
+        | set(LINKAGE_ANNOTATIONS.values())
+        | {"catalog_resolved", "runbook_refs"}  # slice-3 fields this doc cites
     )
-
+    quoted = set(re.findall(r"`([a-z][a-z0-9]*(?:_[a-z0-9]+)+)`", ANNOTATIONS_DOC_TEXT))
+    unknown = sorted(quoted - known)
+    assert not unknown, (
+        "annotations.md quotes snake_case identifier(s) %r that the encoding "
+        "does not define — a consumer would branch on a name that never "
+        "arrives. Known: warning kinds, model fields, catalog parts, linkage "
+        "internal names, and the two slice-3 fields this doc cites." % unknown
+    )
 
 def test_annotations_doc_states_there_is_no_error_path():
     section = _markdown_section("What a parse yields", ANNOTATIONS_DOC_TEXT)
