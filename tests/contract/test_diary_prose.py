@@ -34,12 +34,46 @@ red by design ("a skill added without one is silently exempt"). T001 lands:
   fence exemption — a literal tool-call string has no legitimate fenced use
   here either, the same posture ``test_skill_capability_naming.py`` takes.
 
-  **The deferral-list mask is NOT built here.** The merged set bans
-  ``confluence`` and ``notion``, and FR-004 *requires* ``SKILL.md`` to name
-  them — alongside git-markdown — as explicitly deferred adapters. T013
-  (US2) lands that sentence and its mask together, in the same task: a mask
-  with nothing yet to mask is the vacuous gate this repo's own precedent
-  warns about.
+T013 (US2) lands ``SKILL.md``'s Write flow section together with a
+**deferral-list mask**, in the same task, per its own note above: the merged
+set bans ``confluence`` and ``notion``, and FR-004 *requires* ``SKILL.md`` to
+name them — alongside git-markdown — as explicitly deferred adapters. A mask
+with nothing yet to mask is the vacuous gate this repo's own precedent warns
+about, so the two land together rather than the mask arriving first.
+
+**Why the mask is legitimate** (Constitution VII): the deny-list exists to
+stop a skill from naming a concrete product or server as something it
+*integrates with* — the "make this HTTP call to that Google API" shape.
+FR-004's deferral sentence does the opposite: it names Confluence, Notion,
+and git-markdown as adapters this v1 explicitly does **not** wire up. A
+deferral list is a boundary statement about non-integration, not an
+integration by name, so masking it before the scan is not an exemption from
+Constitution VII — it is recognizing that this one sentence was never the
+violation the rule targets in the first place.
+
+The mask is **sentence-scoped**, not vendor-word-scoped, unlike
+``test_catalog_prose.py``'s ``_mask_canonical_annotation_keys`` (which masks
+an open *set* of legitimate key substrings, because catalog annotation keys
+are a vocabulary, not a single sentence). Here there is exactly one reviewed
+claim to exempt, so the mask target is that sentence's own literal text,
+verbatim (``DEFERRED_ADAPTERS_SENTENCE``) — removed wherever it occurs,
+never a bare "confluence" or "notion" strip, and never a whole line or
+paragraph around it. That keeps the exemption narrow on purpose: the same
+vendor word written *anywhere else* in ``skills/diary/`` prose — including
+immediately after the sentence on the same line — the regression this whole
+scan exists to catch — still fails, because nothing outside the exact
+sentence is touched by the mask.
+``test_vendor_word_outside_the_deferral_sentence_still_fails`` pins that
+half directly against a synthetic same-line decoy naming both merged-in
+vendors (Confluence and Notion); the mask's own inputs cannot provide it
+since no other sentence in the shipped prose is supposed to name a vendor
+at all.
+
+The mask is also **file-scoped**, applied to ``SKILL.md`` only. FR-004's
+deferral sentence is required in ``SKILL.md`` alone —
+``references/format.md`` deliberately names no vendor at all — so every
+other doc under ``skills/diary/`` is scanned with no mask applied, and gets
+no exemption it never earned.
 
 Later tasks extend this same module in place, never replace it:
 
@@ -82,11 +116,7 @@ MD_IDS = [p.relative_to(SKILLS_DIR).as_posix() for p in MD_FILES]
 
 
 def test_scan_finds_the_known_diary_docs():
-    # Full target set is {"SKILL.md", "references/format.md"} — but
-    # references/format.md does not exist until T008 (US1) writes it. T008
-    # is the task that widens this assertion to the full target set; until
-    # then only SKILL.md's presence is asserted.
-    assert {"SKILL.md"} <= set(MD_IDS)
+    assert {"SKILL.md", "references/format.md"} <= set(MD_IDS)
 
 
 # ---------------------------------------------------------------------------
@@ -115,13 +145,103 @@ def test_no_concrete_mcp_tool_name_marker(doc_path):
     )
 
 
+# ---------------------------------------------------------------------------
+# T013 — the deferral-list mask. FR-004 requires SKILL.md's Write flow
+# section to name Confluence, Notion, and git-markdown as explicitly
+# deferred adapters; the merged DENY_PATTERNS above bans "confluence" and
+# "notion" unconditionally. See the module docstring for why masking this
+# one sentence before the deny scan is legitimate rather than a loophole.
+#
+# The mask applies to ``SKILL.md`` only. FR-004's deferral sentence is
+# required in ``SKILL.md`` alone — ``references/format.md`` deliberately
+# names no vendor at all — so the exemption is scoped to the one doc that
+# earns it; the reference doc gets no free exemption it never asked for.
+# ---------------------------------------------------------------------------
+
+# Verbatim — must match skills/diary/SKILL.md's Write flow section exactly.
+# A whole-sentence literal, not a vendor-word fragment: the mask below
+# removes exactly this string, nothing shorter and nothing broader.
+DEFERRED_ADAPTERS_SENTENCE = (
+    "Confluence, Notion, and git-markdown adapters are explicitly deferred."
+)
+
+
+def _mask_deferred_adapters_sentence(text):
+    """Remove the one FR-004 deferral sentence, verbatim, before the
+    deny-list scan runs. Whole-sentence removal rather than a vendor-word
+    strip: the mask exempts this exact, reviewed claim and nothing else, so
+    the same vendor word written anywhere else in the prose — a slip back
+    toward naming a real integration — still fails the scan below.
+    """
+    return text.replace(DEFERRED_ADAPTERS_SENTENCE, "")
+
+
 @pytest.mark.parametrize("doc_path", MD_FILES, ids=MD_IDS)
 def test_no_concrete_server_product_name_outside_fences(doc_path):
     text = doc_path.read_text(encoding="utf-8")
-    prose = _strip_fenced_blocks(text)
+    stripped = _strip_fenced_blocks(text)
+    # Scoped to SKILL.md: that is the only doc FR-004 requires the deferral
+    # sentence in, so every other doc — references/format.md included —
+    # gets the deny scan with no mask applied at all.
+    prose = _mask_deferred_adapters_sentence(stripped) if doc_path.name == "SKILL.md" else stripped
     hits = sorted(name for name, pattern in DENY_PATTERNS.items() if pattern.search(prose))
     assert not hits, (
         "%s names a concrete MCP server/product in normative prose: %r — "
         "SC-006 permits only capability/operation names, never a vendor or "
-        "product name (Constitution VII)" % (doc_path, hits)
+        "product name (Constitution VII), with the single FR-004 "
+        "deferred-adapters sentence masked out first when doc_path is "
+        "SKILL.md" % (doc_path, hits)
+    )
+
+
+def test_deferred_adapters_sentence_is_present_and_masked_scan_passes():
+    """Control half (i): the mask has something real to exempt (the FR-004
+    sentence actually landed in SKILL.md, verbatim — not survivorship
+    because it was never written), and masking it removes every deny-list
+    hit that sentence alone causes.
+    """
+    skill_md = next(p for p in MD_FILES if p.name == "SKILL.md")
+    text = skill_md.read_text(encoding="utf-8")
+    assert DEFERRED_ADAPTERS_SENTENCE in text, (
+        "expected the FR-004 deferred-adapters sentence verbatim in "
+        "SKILL.md — DEFERRED_ADAPTERS_SENTENCE has nothing to exempt "
+        "without it, which would make the mask vacuous"
+    )
+
+    masked = _mask_deferred_adapters_sentence(_strip_fenced_blocks(text))
+    hits = sorted(name for name, pattern in DENY_PATTERNS.items() if pattern.search(masked))
+    assert not hits, (
+        "masking DEFERRED_ADAPTERS_SENTENCE out of SKILL.md should remove "
+        "every deny-list hit that sentence alone causes; survivor(s): %r"
+        % hits
+    )
+
+
+def test_vendor_word_outside_the_deferral_sentence_still_fails():
+    """Control half (ii): the mask exempts the one reviewed sentence, never
+    the bare vendor word wherever it appears — and the mask is scoped to
+    that exact sentence, not to the line or paragraph it sits in. A vendor
+    mention placed on the SAME LINE, immediately after the deferral
+    sentence, is the discriminating case: a line- or paragraph-scoped mask
+    would swallow it right along with the sentence it is anchored to, while
+    the shipped literal-sentence mask removes only the exact reviewed text
+    and leaves the trailing mention intact. This is the load-bearing half: a
+    mask built as a vendor-word strip, or widened to line/paragraph scope,
+    would pass this file's real content today AND silently swallow a real
+    violation tomorrow; only a synthetic decoy proves the difference.
+
+    Both merged-in vendors get named here (Confluence and Notion), not just
+    one — the exemption covers both, and a decoy naming only one would never
+    notice if the other's pattern dropped out of the merged DENY_PATTERNS.
+    """
+    decoy = (
+        DEFERRED_ADAPTERS_SENTENCE
+        + " Some teams pipe entries into Confluence or Notion directly instead."
+    )
+    masked = _mask_deferred_adapters_sentence(_strip_fenced_blocks(decoy))
+    hits = sorted(name for name, pattern in DENY_PATTERNS.items() if pattern.search(masked))
+    assert hits == ["confluence", "notion"], (
+        "expected masking to remove only the deferral sentence, leaving a "
+        "same-line, same-vendor-word mention right after it still caught by "
+        "the deny-list scan for both merged-in vendors; got hits=%r" % hits
     )

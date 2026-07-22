@@ -107,13 +107,24 @@ two-digit and both take the padded token, while `4` takes the unpadded one.
 Worked cases: `2026-07-21` → `YYYY-MM-DD`; `21 Jul 2026` → `DD Mon YYYY`;
 `July 4, 2026` → `Month D, YYYY`; `07/21/2026` → `MM/DD/YYYY`.
 
+**A line already written in the pattern language is date-bearing, and its pattern is itself**
+(unambiguous). A run of these tokens with literal separators — `YYYY-MM-DD` — reads as the
+pattern `YYYY-MM-DD`. This exists because a *template* renders its date slot in the pattern
+language rather than as a date, and `MINIMAL_DEFAULT_TEXT` is exactly such a template: without
+this rule its title line is not date-bearing, `title` is `null`, all eight headings fall into
+`sections`, and §6's declared structure is unreachable. A real entry containing the literal
+string `YYYY-MM-DD` is a template line by any reading, so the rule costs nothing.
+
 **`field_order`** normalization: lowercase, trailing `:` stripped, internal whitespace
 collapsed. Sources, in document order: every `sections` heading's `text`, plus every
-line-initial `Label:` inline field, where a label is **letter-anchored** — it must start with
-an ASCII letter (`^[A-Za-z][^:\n]{0,39}:`). The anchor is load-bearing, not tidiness: a
-timeline line opening with a clock time (`14:12 alert fired`) is the one thing that looks like
-a label while varying per entry, and admitting it would make an otherwise-uniform diary
-classify as inconsistent. Duplicates keep their first occurrence. The `title` is
+line-initial `Label:` inline field, where a label must start with an ASCII letter **and its
+colon must not be preceded by a digit** (`^[A-Za-z][^:\n]{0,39}(?<!\d):`). Both halves are
+load-bearing, not tidiness: a clock time is the one thing that looks like a label while varying
+per entry, and admitting it would make an otherwise-uniform diary classify as inconsistent. The
+letter anchor alone is **not sufficient** — `At 14:12 the alert fired` starts with a letter and
+yields the label `at 14`. The digit lookbehind is what actually excludes it. (Found during
+implementation: the letter-anchor-only rule an earlier draft pinned would have broken the
+baseline fixture.) Duplicates keep their first occurrence. The `title` is
 excluded.
 
 An entry with no headings and no inline fields yields empty lists and whatever `date_format`
@@ -222,12 +233,15 @@ depth-1 read, so the extra entries exist to make drift *observable*.
 `sections`, `date_format` `{pattern: "YYYY-MM-DD", ambiguous: false}`, and the seven
 corresponding `field_order` labels.
 
-**Two names, deliberately.** The text and the `Structure` are separate constants because the
-`Structure` cannot be derived from the text: the skeleton's title line contains the literal
-tokens `YYYY-MM-DD` rather than a date, so extraction would find no date-bearing line. They
-are kept in agreement mechanically instead — a gate asserts `extract_structure`'s `sections`
-and `field_order` over `MINIMAL_DEFAULT_TEXT` equal `MINIMAL_DEFAULT`'s, with `date_format`
-compared separately for that reason.
+**Two names, deliberately** — but for one reason only, and it is not the one an earlier draft
+gave. `extract_structure(MINIMAL_DEFAULT_TEXT)` *does* reproduce `MINIMAL_DEFAULT` exactly,
+including `date_format`, thanks to §3's pattern-language rule. They are still two hand-written
+constants because deriving one from the other **at import time** would make this Phase-2
+module depend on a Phase-3 function — a circular dependency. The agreement is gated instead:
+T023 asserts `extract_structure(MINIMAL_DEFAULT_TEXT)` equals `MINIMAL_DEFAULT` **in full**,
+every part including `title` and `date_format`. That is a strictly stronger gate than the
+partial comparison an earlier draft settled for, and it is available precisely because the
+skeleton is written in the pattern language.
 
 The three causal sections carry their proposal labels **in the heading text itself**, so the
 labels survive any transform that preserves heading text (Constitution V). The `Evidence`

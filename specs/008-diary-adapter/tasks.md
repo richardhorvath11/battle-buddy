@@ -144,7 +144,7 @@ is what keeps green.
 **Purpose**: the reference-encoding module and the constants every story asserts against.
 **Blocking** — US1 and US3 both import this module.
 
-- [ ] T004 Create `tests/helpers/diary_reference.py` with the module docstring that states, in
+- [x] T004 Create `tests/helpers/diary_reference.py` with the module docstring that states, in
       the house style of `tests/helpers/catalog_reference.py`, what this module **is** (the
       dev-only CI instrument that lets `skills/diary/`'s documented rules be exercised by
       hermetic tests instead of asserted on prose — Constitution VIII) and what it **is NOT**
@@ -152,8 +152,8 @@ is what keeps green.
       scenario-harness territory). Stdlib only (`json`, `re`, `inspect`, `pathlib`); plain
       functions over plain dicts, no classes, no dataclasses; each step's comment citing the
       prose section it encodes. Nothing here ships (Constitution I; FR-008).
-- [ ] T005 Add the module-level constants to `tests/helpers/diary_reference.py`, exported so
-      the prose gates (T021) can assert them **both ways** — a doc naming a notice the encoding
+- [x] T005 Add the module-level constants to `tests/helpers/diary_reference.py`, exported so
+      the prose gates (T023) can assert them **both ways** — a doc naming a notice the encoding
       never emits is as wrong as one losing a notice:
       `NOTICE_KINDS = frozenset({"template_malformed", "entries_inconsistent",
       "date_ambiguous", "template_candidate"})`;
@@ -166,8 +166,10 @@ is what keeps green.
       `Structure`), as **two hand-written constants**. They are not derived from each other:
       the skeleton's title line contains the literal tokens `YYYY-MM-DD` rather than a date, so
       extraction finds no date-bearing line there — deriving at import would both contradict
-      §6's declared `date_format` and create a Phase-2→Phase-3 circular dependency. T021 gates
-      their agreement instead. Comment both facts at the constant.
+      a Phase-2→Phase-3 circular dependency. That is the **only** reason: thanks to
+      data-model §3's pattern-language rule, `extract_structure(MINIMAL_DEFAULT_TEXT)` does
+      reproduce `MINIMAL_DEFAULT` exactly, `date_format` included — so T023 gates their
+      agreement **in full**, not partially. Comment that at the constant.
 
 **Checkpoint**: `make verify` green — the module imports cleanly and asserts nothing yet.
 
@@ -181,7 +183,7 @@ is what keeps green.
 template-configured selects the template; template-absent matches observed structure; goldens
 match field-for-field, including the empty-diary default and freshest-wins.
 
-- [ ] T006 [US1] Implement extraction in `tests/helpers/diary_reference.py`:
+- [x] T006 [US1] Implement extraction in `tests/helpers/diary_reference.py`:
       `extract_structure(content) -> Structure` per data-model.md §3, returning
       `{title, sections, date_format, field_order}`.
       Heading recognition is exactly two shapes — `atx` (`#{1,6} <text>`, `level` = the `#`
@@ -206,7 +208,7 @@ match field-for-field, including the empty-diary default and freshest-wins.
       plus line-initial `Label:` inline fields. An entry with no headings and no inline fields
       yields empty lists and whatever `date_format` was found — a legal empty-shaped structure,
       never an exception.
-- [ ] T007 [US1] Add `resolve_date_ambiguity(structures) -> structures` to
+- [x] T007 [US1] Add `resolve_date_ambiguity(structures) -> structures` to
       `tests/helpers/diary_reference.py` (data-model §3.1): scan every structure from one read;
       if **any** carries an unambiguous numeric date, adopt its component order for all of them
       and clear every `ambiguous` flag; if none does, leave the flags standing. It runs
@@ -215,7 +217,7 @@ match field-for-field, including the empty-diary default and freshest-wins.
       separate named function because a single-entry `extract_structure` cannot answer a
       cross-entry question, and hiding the step inside `resolve_format` would leave the
       per-entry goldens undefined.
-- [ ] T008 [US1] Write `skills/diary/references/format.md` — the normative rules T006/T007/T009
+- [x] T008 [US1] Write `skills/diary/references/format.md` — the normative rules T006/T007/T009
       encode, and the doc Phase 6's gates read. It must state, in prose an agent can follow:
       the resolution decision in order (configured template wins outright, **and no
       recent-entry read is needed for formatting** when it does; malformed template falls back
@@ -244,7 +246,7 @@ match field-for-field, including the empty-diary default and freshest-wins.
       sentence and is vacuous without it); and that row fields are not inputs to any of this.
       Then widen T001's non-vanishing guard in `tests/contract/test_diary_prose.py` to the full
       target set `{SKILL.md, references/format.md}` and delete the inline note pointing here.
-- [ ] T009 [US1] Implement the decision and the transform in
+- [x] T009 [US1] Implement the decision and the transform in
       `tests/helpers/diary_reference.py`:
       `resolve_format(template, entries) -> FormatResolution` per data-model.md §4 — `None`
       template means absent; a non-string or blank template is malformed, emits
@@ -266,7 +268,7 @@ match field-for-field, including the empty-diary default and freshest-wins.
       (level 2 when empty), so **no content is ever dropped**.
       Date rendering lives in a separate `render_date(date_format, date)` and is deliberately
       **not** part of the resolution path or of `apply_format`.
-- [ ] T010 [US1] Write the two expectation fixtures:
+- [x] T010 [US1] Write the two expectation fixtures:
       `tests/fixtures/diary/golden-structures.json` — fixture-set name → **a list of expected
       `Structure`, one per entry, in fixture order** (extraction is per-entry, so a single
       structure per set is not well-defined for the inconsistent and disambiguating sets), each
@@ -278,7 +280,7 @@ match field-for-field, including the empty-diary default and freshest-wins.
       non-string as a JSON number, non-string as a JSON object (two rows — "not a string" has
       more than one shape), empty string, whitespace-only. Notices are compared as **sets and
       exactly**, never "contains", so a spurious extra notice fails.
-- [ ] T011 [US1] Write `tests/contract/test_diary_format.py`, parametrized off the two
+- [x] T011 [US1] Write `tests/contract/test_diary_format.py`, parametrized off the two
       expectation fixtures (no hand-written expectations in the module):
       the resolution matrix — `source`, the exact notice set, and the resolved structure per
       case;
@@ -321,7 +323,7 @@ match field-for-field, including the empty-diary default and freshest-wins.
 returns a link, that link is the value handed onward for the row, and the write log shows
 exactly one diary append per drafted close.
 
-- [ ] T012 [US2] Fill `skills/diary/SKILL.md`'s **interface** section: the two-operation
+- [x] T012 [US2] Fill `skills/diary/SKILL.md`'s **interface** section: the two-operation
       skill-level contract `read_recent(n) -> entries[]` (most recent first) and
       `write_entry(content) -> url`, the realization onto the operation contract
       (`write_entry` ≡ `append_entry`, `url` ≡ `link`; `read_recent` keeps its name), the
@@ -332,7 +334,7 @@ exactly one diary append per drafted close.
       is *why* "never creates diaries" holds — a pin derived from the contract, not an
       aspiration. Reference the diary capability's operations only; name no product and no
       server (FR-006).
-- [ ] T013 [US2] Fill `skills/diary/SKILL.md`'s **write flow** section: the append targets
+- [x] T013 [US2] Fill `skills/diary/SKILL.md`'s **write flow** section: the append targets
       **the team's configured diary through the diary capability** — append-only, no diary
       creation, no alternate destination — and the returned link is what the close flow carries
       into the session row's diary field, the linkage that makes the entry findable from the
@@ -350,7 +352,7 @@ exactly one diary append per drafted close.
       *outside* that sentence still fails. Record the reasoning in the module docstring: a
       deferral list states what this adapter does **not** integrate with, which is the opposite
       of the integration-by-name Constitution VII forbids.
-- [ ] T014 [US2] Fill `skills/diary/SKILL.md`'s **drafting handoff** section per
+- [x] T014 [US2] Fill `skills/diary/SKILL.md`'s **drafting handoff** section per
       data-model.md §7: the inputs the close flow supplies (in-session evidence links; services
       and severity; resolution; the labeled causal proposals; the locally staged pre-upload
       artifact content **including the tool trace and checkpoint history**), and what is not an
@@ -368,14 +370,14 @@ exactly one diary append per drafted close.
       Output is entry content in the resolved format, and causal proposal labels pass through
       format matching **verbatim**: the adapter never strips, rewords, or promotes them
       (Constitution V; the labeling rule itself is slice 5's FR-007).
-- [ ] T015 [US2] Add `write_entry(invoke, content) -> {"url", "error"}` to
+- [x] T015 [US2] Add `write_entry(invoke, content) -> {"url", "error"}` to
       `tests/helpers/diary_reference.py` — the documented write flow's executable form, so the
       linkage assertion has a **subject**: it calls the `append_entry` operation, returns the
       contract's `link` as `url`, and passes an error envelope through untouched. Without it,
       a test asserting "the returned link is what the row receives" compares a value to itself
       and there is no artifact in between that could hold the transform the assertion claims to
       catch. Comment that it encodes the flow, not a shipped adapter.
-- [ ] T016 [US2] Write `tests/contract/test_diary_write.py` against `bb-mock-mcp`. It
+- [x] T016 [US2] Write `tests/contract/test_diary_write.py` against `bb-mock-mcp`. It
       **consumes and does not duplicate** slice 1's `tests/contract/test_diary.py`, which
       already gates append→link, `n` validation and the raw error envelope — cite it in the
       module docstring and assert only the consumption layer:
@@ -406,12 +408,12 @@ exactly one diary append per drafted close.
 entries used for structure extraction are the n most recent, in order, with no re-sort step
 anywhere in the documented flow.
 
-- [ ] T017 [US3] Add `consume_recent(entries) -> {"freshest", "considered"}` to
+- [x] T017 [US3] Add `consume_recent(entries) -> {"freshest", "considered"}` to
       `tests/helpers/diary_reference.py`: returns `entries[0]` as `freshest` (or `None` when
       empty) and the entries **unchanged** as `considered`. It exists to make "consumed as-is"
       an executable claim rather than a prose one; the comment says that, and says the function
       must never grow a sort.
-- [ ] T018 [US3] Write `tests/contract/test_diary_ordering.py`. Slice 1's
+- [x] T018 [US3] Write `tests/contract/test_diary_ordering.py`. Slice 1's
       `tests/contract/test_diary.py` already gates the mock's raw newest-first behavior,
       short reads and empty reads — cite it in the docstring and assert the consumption layer:
       seed the mock from `entries-consistent.json` by iterating `reversed(entries)` and
@@ -485,10 +487,10 @@ T020–T023 all append to `tests/contract/test_diary_prose.py`, so they are **no
       ways**; the four `STRUCTURE_PARTS` likewise named in the doc and asserted both ways (it is
       exported in T005 precisely so it has a gate); the minimal-default skeleton quoted in
       `references/format.md` asserted byte-identical to `MINIMAL_DEFAULT_TEXT`; and the
-      two-constant agreement T005 deferred here — `extract_structure(MINIMAL_DEFAULT_TEXT)`'s
-      `sections` and `field_order` equal `MINIMAL_DEFAULT`'s, with `date_format` compared
-      separately and the reason (the skeleton's title carries literal tokens, not a date)
-      recorded at the assertion.
+      two-constant agreement T005 deferred here — `extract_structure(MINIMAL_DEFAULT_TEXT)`
+      equals `MINIMAL_DEFAULT` **in full**, every part including `title` and `date_format`
+      (data-model §3's pattern-language rule is what makes the skeleton's own title line
+      date-bearing, so no part needs a carve-out).
 - [ ] T024 Add the **packaging ratchet and boundary** gates to
       `tests/contract/test_diary_prose.py` (FR-008): `skills/diary/` contains no `*.py` file,
       and `tests/helpers/diary_reference.py` is named by **no** glob in
