@@ -76,7 +76,11 @@ Catalog {
 `Warning {kind, service, detail, sources[]}` — `kind` ∈ `duplicate_name` | `ignored_entity` |
 `missing_owner` | `dangling_dependency`.
 
-`Failure {source_path, reason}` — one entry per file that could not be parsed.
+`Failure {source_path, reason}` — one entry per file that could not be parsed, **plus one
+for an unreadable repo root**: a root that does not exist, or is not a directory, yields a
+single `Failure` naming it. Without that, a caller could not tell "the team's catalog repo
+is unreachable" (spec's Edge Cases) from "the repo contains no `catalog-info.yaml`", since
+a directory walk over a missing path yields nothing and raises nothing.
 
 **Nothing here is an error path.** A `Catalog` is always returned; FR-004's "no partial
 annotation ever errors a session" and the malformed-file isolation rule are the same
@@ -215,7 +219,7 @@ an action. Signature is pinned so the test can assert literals:
 
 ```
 fixup_offer(alert, service_name, catalog)
-  -> Fixup { source_path, annotation_key, annotation_value, snippet }
+  -> Fixup { source_path, annotation_key, annotation_value, commit_ready, snippet }
 ```
 
 - `annotation_key` is always `oncall-harness/alert-match`.
@@ -226,7 +230,14 @@ fixup_offer(alert, service_name, catalog)
   already in the catalog; when it is absent entirely, the **conventional path for a new
   entity**, pinned as `services/<service_name>/catalog-info.yaml` (relative to the repo root,
   §3's relativity rule).
-- `snippet` is the paste-ready annotation block containing the key and value.
+- `commit_ready` is `False` exactly when `annotation_value` is `""` — the alert offered
+  nothing discriminating. `snippet` is then `""`: the harness must never hand over a
+  paste-ready block it would refuse to honor on the read side. Committing
+  `alert_matchers: [""]` gives a service a matcher that matches every sparse alert, and
+  the exact stage's own emptiness guard exists to defend against exactly that. Producing
+  it and then defending against it would be the harness arguing with itself.
+- `snippet` is the paste-ready annotation block containing the key and value, rendered in
+  the fixtures' strict-JSON style.
 
 The responder commits it. **No agent writes to the catalog** — it is human-curated,
 PR-reviewed data (design §2 division of knowledge, Constitution I).
@@ -305,7 +316,8 @@ implementation would pass every case and §5's ordering pin would be untested.
 
 ### Resolution matrix cases
 
-Nine cases minimum; each `{id, alert, expected}`.
+Ten cases minimum; each `{id, alert, expected}`. `stage` is mandatory on every
+non-`miss` case.
 
 | Case | Alert (abbrev.) | Expectation |
 |---|---|---|
@@ -318,6 +330,7 @@ Nine cases minimum; each `{id, alert, expected}`.
 | miss | tags `["disk-pressure"]`, fields `{name: "node-9 disk pressure"}` | `miss` |
 | sparse alert | tags `[]`, fields `{name: ""}` | `miss`, no exception |
 | reverse-direction probe | fields `{name: "ledger"}` | `miss` — `ledger` is a strict substring of `ledger-svc`, so a reversed implementation resolves it and fails here |
+| name is a substring-stage input only | fields `{name: "notifier"}` | `substring` / `notifier` — the value EQUALS a service name, so an implementation that adds the service's own name as an exact-stage input returns `exact` and fails. Subject is matcher-less on purpose: the case also proves the substring stage still reaches a service the exact stage cannot |
 
 ### `golden-models.json` structure (pinned — T006 and T007 are parallel)
 

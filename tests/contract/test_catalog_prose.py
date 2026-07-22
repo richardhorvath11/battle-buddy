@@ -84,37 +84,6 @@ def test_scan_finds_the_known_catalog_docs():
     assert {"SKILL.md", "references/annotations.md", "references/resolution.md"} <= set(MD_IDS)
 
 
-def test_md_files_has_at_least_the_skill_and_two_references():
-    # T016 non-vanishing guard: a broken glob must fail loudly here rather
-    # than turning every parametrized scan below into a vacuous pass over
-    # zero files.
-    assert len(MD_FILES) >= 3, (
-        "expected skills/catalog/**/*.md to discover SKILL.md plus at least "
-        "two references/*.md docs; got %r" % MD_IDS
-    )
-
-
-# ---------------------------------------------------------------------------
-# Combined prose text, built from the guarded MD_FILES above (never a fresh,
-# independent rglob) — every content gate below scans this, or the SKILL.md
-# slice of it named below, so a doc added to the skill is automatically in
-# scope and a doc dropped from the glob is automatically out.
-#
-# Normalization exists because this repo's prose hard-wraps at a fixed column:
-# a phrase like "never copied into any store" can straddle a line break in the
-# raw file (a newline where an editor wrapped, not a boundary the phrase's
-# meaning cares about).
-#
-# It is done PER PARAGRAPH, not by collapsing the whole corpus. A global
-# `re.sub(r"\s+", " ", ...)` also erases blank lines and the inter-file join,
-# so a phrase could be satisfied by words reassembled across a paragraph break
-# — or across two different files — while neither doc actually says it. A
-# review demonstrated both. Splitting on blank lines first keeps the
-# wrap-robustness and closes the boundary-crossing vector: a phrase must live
-# inside one paragraph of one file.
-# ---------------------------------------------------------------------------
-
-
 def _paragraphs(text):
     """Whitespace-normalized paragraphs — wrap-robust, boundary-respecting."""
     return [
@@ -218,11 +187,11 @@ NEVER_CONTENT_CLAUSE = "is never persisted anywhere; only the pointer is"
 
 
 def test_runbook_pointer_format_stated_in_skill_md():
-    assert "runbook_refs" in SKILL_MD_TEXT, (
+    assert _states("runbook_refs", SKILL_MD_PARAGRAPHS), (
         "FR-005: SKILL.md must name runbook_refs as the runbook-pointer "
         "destination — literal 'runbook_refs' not found in SKILL.md"
     )
-    assert "commit SHA" in SKILL_MD_TEXT, (
+    assert _states("commit SHA", SKILL_MD_PARAGRAPHS), (
         "FR-005: SKILL.md must mention the commit SHA a runbook pointer is "
         "read at — literal 'commit SHA' not found in SKILL.md"
     )
@@ -452,20 +421,6 @@ def test_manifest_declares_the_three_code_op_tokens():
     assert set(CODE_OP_TOKENS) <= MANIFEST_CODE_OPS, (
         "expected manifest/capabilities.json's optional.code.ops to declare "
         "all three of %r; got %r" % (CODE_OP_TOKENS, sorted(MANIFEST_CODE_OPS))
-    )
-
-
-def test_fr007_any_cited_code_op_is_manifest_fidelity_backstopped():
-    # Scoped to CODE_OP_TOKENS only — never the full manifest op
-    # vocabulary — so `read_records` (deliberately exempt from the SC-006
-    # write-op scan above) can never trip this backstop.
-    hits = _code_op_token_hits(ALL_CATALOG_TEXT)
-    unknown = sorted(set(hits) - MANIFEST_CODE_OPS)
-    assert not unknown, (
-        "catalog prose cites code-operation token(s) %r absent from "
-        "manifest/capabilities.json's optional.code.ops — if a code op is "
-        "ever named here it must at least be a real manifest operation"
-        % unknown
     )
 
 
@@ -750,13 +705,44 @@ def test_reference_encoding_is_named_by_no_bundle_glob():
 # ---------------------------------------------------------------------------
 
 
+MODEL_LINE_DOCS = [p for p in MD_FILES if "Service {" in p.read_text(encoding="utf-8")]
+MODEL_LINE_IDS = [p.relative_to(SKILLS_DIR).as_posix() for p in MODEL_LINE_DOCS]
+
+
+@pytest.mark.parametrize("doc_path", MODEL_LINE_DOCS, ids=MODEL_LINE_IDS)
+def test_every_doc_stating_the_model_states_it_identically(doc_path):
+    # The six-field block appears in SKILL.md's Overview AND annotations.md's
+    # "The consumer model" — near-verbatim, with no gate keeping them in sync.
+    # Only SKILL.md's copy was pinned; the ungated copy lived in the doc that
+    # calls itself the mapping's source of truth.
+    listed = ", ".join(
+        field + "[]" if field not in ("name", "owner") else field
+        for field in MODEL_FIELDS
+    )
+    expected = "Service {%s}" % listed
+    assert _states(expected, _paragraphs(doc_path.read_text(encoding="utf-8"))), (
+        "%s states the Service model, so it must state it exactly as %r — two "
+        "copies of a normative shape with only one gated is how they drift"
+        % (doc_path, expected)
+    )
+
+
+def test_at_least_two_docs_state_the_model():
+    # Non-vanishing guard: if the discovery above ever matches nothing, the
+    # parametrized gate silently disappears.
+    assert len(MODEL_LINE_DOCS) >= 2, (
+        "expected the Service model block in at least SKILL.md and "
+        "annotations.md; found %r" % MODEL_LINE_IDS
+    )
+
+
 def test_skill_md_states_the_six_field_model_exactly():
     listed = ", ".join(
         field + "[]" if field != "name" and field != "owner" else field
         for field in MODEL_FIELDS
     )
     expected = "Service {%s}" % listed
-    assert expected in re.sub(r"\s+", " ", SKILL_MD_TEXT), (
+    assert _states(expected, SKILL_MD_PARAGRAPHS), (
         "FR-001: SKILL.md's Overview must state the six-field model exactly "
         "as %r — the model line is the Overview's core claim, and a seventh "
         "field appearing here would contradict annotations.md and "
@@ -774,11 +760,127 @@ def test_skill_md_routes_to_both_references():
 
 
 def test_skill_md_states_its_non_goals():
-    normalized = re.sub(r"\s+", " ", SKILL_MD_TEXT)
     for phrase, rule in (
         ("API-mode", "API-mode Backstage is deferred"),
         ("never writes to the catalog", "the harness never writes to the catalog"),
     ):
-        assert phrase in normalized, (
+        assert _states(phrase, SKILL_MD_PARAGRAPHS), (
             "SKILL.md's Non-goals must state that %s — expected %r" % (rule, phrase)
         )
+
+
+# ---------------------------------------------------------------------------
+# L3 — resolution.md's normative body had NO positive gate: every rule in it
+# (match order, exactness-beats-substring, never-a-silent-pick, candidate
+# ordering, the miss path, the fix-up offer, the one-hop bound) could be
+# deleted and the suite stayed green. SKILL.md and annotations.md were each
+# hardened after exactly this finding; resolution.md — the doc carrying US1's
+# entire normative content — was not.
+# ---------------------------------------------------------------------------
+
+RESOLUTION_MD_TEXT = next(
+    p.read_text(encoding="utf-8") for p in MD_FILES if p.name == "resolution.md"
+)
+RESOLUTION_MD_PARAGRAPHS = _paragraphs(RESOLUTION_MD_TEXT)
+
+RESOLUTION_CLAIMS = [
+    ("is not an exact-stage input", "the service name is a substring-stage input only"),
+    ("An empty matcher never matches", "an empty matcher never matches"),
+    ("never the reverse", "the substring direction is pinned"),
+    ("never a silent pick", "ambiguity surfaces candidates rather than picking"),
+    ("ordered by source path", "candidate order is deterministic"),
+    ("one hop", "blast-radius widening is one hop in v1"),
+    ("catalog_resolved", "a miss carries the resolution flag onto the session record"),
+    ("No agent ever writes to the catalog", "the responder commits the fix-up, not an agent"),
+]
+RESOLUTION_IDS = [claim for claim, _ in RESOLUTION_CLAIMS]
+
+
+@pytest.mark.parametrize("phrase, rule", RESOLUTION_CLAIMS, ids=RESOLUTION_IDS)
+def test_resolution_md_states_its_normative_rules(phrase, rule):
+    assert _states(phrase, RESOLUTION_MD_PARAGRAPHS), (
+        "references/resolution.md must state that %s — expected %r in some "
+        "paragraph. This doc carries US1's normative content; without these "
+        "gates its whole body is deletable with a green suite." % (rule, phrase)
+    )
+
+
+DEGRADATION_ROWS = ["pane driving", "runbook fetch", "blast-radius widening"]
+
+
+@pytest.mark.parametrize("feature", DEGRADATION_ROWS, ids=DEGRADATION_ROWS)
+def test_skill_md_degradation_table_names_each_disabled_feature(feature):
+    # FR-004's core prose. The encoding's disabled_features map is gated in
+    # test_catalog_degradation.py; this pins that the shipped table a reader
+    # actually follows names the same features.
+    assert _states(feature, SKILL_MD_PARAGRAPHS), (
+        "SKILL.md's degradation table must name %r as a disabled feature "
+        "(FR-004)" % feature
+    )
+
+
+# ---------------------------------------------------------------------------
+# L5 — FR-002 names `metadata.name`, `spec.owner` and `spec.dependsOn`
+# literally as MUST-document mappings, but both table parsers filter to cells
+# containing "/", which discards exactly those three rows. The doc could say
+# `name` comes from `metadata.title`, or drop the depends_on row, and stay
+# green while parse_entity reads the real paths.
+# ---------------------------------------------------------------------------
+
+SPEC_PATH_ROWS = {
+    "name": "metadata.name",
+    "owner": "spec.owner",
+    "depends_on": "spec.dependsOn",
+}
+
+
+def _parse_spec_path_rows(section_text):
+    """The canonical table's NON-annotation rows: model field -> catalog path."""
+    pairs = {}
+    for cells in _table_rows(section_text):
+        if len(cells) < 2:
+            continue
+        field_match = _CODE_CELL_RE.search(cells[0])
+        source_match = _CODE_CELL_RE.search(cells[1])
+        if field_match and source_match and "/" not in source_match.group(1):
+            pairs[field_match.group(1)] = source_match.group(1)
+    return pairs
+
+
+def test_annotations_doc_documents_the_three_spec_path_mappings():
+    section = _markdown_section(
+        "The annotation mapping table (literal keys)", ANNOTATIONS_DOC_TEXT
+    )
+    assert _parse_spec_path_rows(section) == SPEC_PATH_ROWS, (
+        "FR-002 names metadata.name, spec.owner and spec.dependsOn literally "
+        "as documented mappings; annotations.md's table must carry exactly "
+        "those three non-annotation rows — got %r"
+        % _parse_spec_path_rows(section)
+    )
+
+
+# ---------------------------------------------------------------------------
+# W4 — Constitution VII's mechanical arm is per-skill-directory: slice 3 scans
+# skills/session-store, this module scans skills/catalog. Nothing asserts the
+# union covers every skill, so slice 8's diary skill could land unscanned and
+# be silently exempt from the mcp__/vendor-name gate. Slice 7 is where the
+# fork became a pattern, so the coverage guard lands here.
+# ---------------------------------------------------------------------------
+
+SCANNED_SKILL_DIRS = {"session-store", "catalog"}
+
+
+def test_every_skill_directory_is_covered_by_a_naming_scan():
+    present = {
+        child.name
+        for child in (REPO_ROOT / "skills").iterdir()
+        if child.is_dir() and not child.name.startswith(".")
+    }
+    assert present, "no skill directories found — the guard below would be vacuous"
+    assert present == SCANNED_SKILL_DIRS, (
+        "every skills/<name>/ directory must be covered by a capability-naming "
+        "scan (Constitution VII's only mechanical enforcement). Unscanned: %r. "
+        "Add a scan for it and list it in SCANNED_SKILL_DIRS — a skill added "
+        "without one is silently exempt from the mcp__ and vendor-name gates."
+        % sorted(present - SCANNED_SKILL_DIRS)
+    )

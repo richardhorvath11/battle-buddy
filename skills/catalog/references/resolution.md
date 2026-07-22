@@ -18,6 +18,14 @@ stage's input, and only that. A service with an empty `alert_matchers` list ther
 cannot match at the exact stage at all — this is exactly the documented missing-alert-match
 degradation, not a separate failure mode.
 
+**An empty matcher never matches anything.** An `alert_matchers` entry that is the empty
+string is skipped, not compared. Read literally, "equals any of the alert's field values"
+would let an empty matcher match every alert with an empty field — and that is not
+hypothetical: a catalog can acquire an empty matcher from a fix-up offer committed for a
+sparse alert. A service with `alert_matchers: [""]` would then swallow every sparse alert
+in the team's estate. The offer side refuses to produce that (see "The fix-up offer"
+below); this rule is the read side of the same guard, and either alone is insufficient.
+
 ### 2. Substring stage — runs only if the exact stage matched nothing
 
 For every service: a hit when the **service's name** occurs as a substring of any alert
@@ -79,9 +87,26 @@ The miss path's answer is also turned into a ready-to-commit annotation snippet:
   the catalog, or — when the service is absent from the catalog entirely — the
   conventional path `services/<service-name>/catalog-info.yaml`.
 - **snippet** is the paste-ready annotation block containing that key and value, ready to
-  drop into the target file as-is.
+  drop into the target file as-is — rendered in the same strict-JSON style the catalog
+  files themselves use:
 
-**The responder commits it. No agent ever writes to the catalog.** The catalog is
+  ```
+  "oncall-harness/alert-match": [
+    "checkout-5xx"
+  ]
+  ```
+
+**An offer with an empty value is not commit-ready, and carries no snippet.** When the
+alert offers nothing discriminating — no `name`, no `service_hint`, no tags — the pinned
+order bottoms out at the empty string, and there is nothing worth committing. Do not
+render a snippet in that case and do not invite the responder to commit one: an empty
+matcher in a real catalog would match every sparse alert (see "Exact stage" above). Ask
+the responder for a discriminating value instead, or leave the catalog untouched.
+
+**The responder commits it. No agent ever writes to the catalog.** This is not carried by
+instruction alone: the harness's credentials are read-only by default (Constitution
+Platform Constraints), so the boundary rests on a deterministic layer rather than on an
+agent choosing to honor a sentence. The catalog is
 human-curated, PR-reviewed data, and that boundary is the whole point of reading it fresh
 through your code tool's file reads each session rather than owning a copy of it.
 

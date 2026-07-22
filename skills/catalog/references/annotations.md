@@ -78,6 +78,32 @@ session.
   radius on the assumption that an unknown name is invalid is worse than surfacing a wide
   one with a note attached.
 - **ignored entity** — a non-service `kind`, per the entity-classification rule above.
+- **duplicate name** — two entities declaring the same `metadata.name`, per the tie-break
+  rule above.
+
+The four warning kinds a consumer branches on are exactly `missing_owner`,
+`dangling_dependency`, `ignored_entity`, and `duplicate_name`. A warning names the service
+the *offending entity declared* — for a duplicate-group loser that is a name whose winning
+entity came from a different file, so a warning's service name is not a key into the
+resolved service set.
+
+## What a parse yields
+
+Reading a catalog repo produces the resolved services plus the quality signals gathered
+along the way — five things, and a consumer can rely on all five being present even when
+the catalog is a mess:
+
+| Part | Contents |
+|---|---|
+| services | canonical name → the six-field `Service`, duplicates already resolved |
+| linkage | canonical name → its linkage values (`paging_id`, `repo_slug`), an entry per service |
+| sources | canonical name → the repo-relative path of the file the winning entity came from |
+| warnings | the catalog-quality signals above, in the four kinds listed |
+| failures | one entry per file that could not be parsed, naming the file and why |
+
+**There is no error path.** A parse always yields all five; a malformed file, an
+unreadable repo root, a non-service entity, a duplicate, and a missing owner each land in
+`warnings` or `failures` rather than aborting anything.
 
 ## Linkage annotations
 

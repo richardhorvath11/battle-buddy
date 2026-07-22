@@ -39,10 +39,11 @@ warning list, a scan result — never on prose opinion.
 | Multi-substring surfaces candidates | `outcome == "ambiguous"`, `["ledger-svc", "search-api"]` | `test_catalog_resolution.py` |
 | Exact beats substring **globally** | `outcome == "exact"`, `stage == "exact"`, `candidates == []`, on an alert whose exact and substring candidates are **different services** (a stage-merging implementation returns `ambiguous`). Note: "the substring stage never runs" is not observable from `Resolution` — this is the assertable form | `test_catalog_resolution.py` |
 | Candidates are source-path ordered | multi-exact returns `["checkout", "billing"]` **in order** — path order inverts name order for that pair, so a name-sorting implementation fails | `test_catalog_resolution.py` |
+| Name is a substring-stage input only | an alert field EQUALING a service name resolves `substring`, not `exact` — the only test pinning D-22's sixth pin | `test_catalog_resolution.py` |
 | Substring direction pinned | reverse-direction probe (`"ledger"`, a strict substring of `ledger-svc`) resolves `miss` | `test_catalog_resolution.py` |
 | Edge: sparse alert | empty/absent fields → `miss`, no exception | `test_catalog_resolution.py` |
 | Edge: duplicate `metadata.name` | lexicographically-first source path canonical; one `duplicate_name` warning naming both paths | `test_catalog_model.py` (a parse-time property) |
-| **SC-003** | every `resolution-matrix.json` case classifies exactly as expected; zero cases return a service on an ambiguous outcome; `len(CASES) >= 9` | `test_catalog_resolution.py` |
+| **SC-003** | every `resolution-matrix.json` case classifies exactly as expected; zero cases return a service on an ambiguous outcome; `len(CASES) >= 10` | `test_catalog_resolution.py` |
 
 ### US2 — One service shape for the whole system (P1)
 

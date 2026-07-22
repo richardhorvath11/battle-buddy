@@ -30,6 +30,7 @@ import pytest
 
 from conftest import fixture_path, load_fixture
 from helpers.catalog_reference import (
+    parse_entity,
     DEGRADED_FEATURES_BY_FIELD,
     blast_radius,
     disabled_features,
@@ -318,4 +319,76 @@ def test_load_catalog_never_errors_over_a_messy_fixture_repo():
         "load_catalog's services must be non-empty despite every messy "
         "condition the fixture repo packs in at once — degradation never "
         "errors the whole session"
+    )
+
+
+# ---------------------------------------------------------------------------
+# Pins that the fixture roster structurally cannot reach — asserted on
+# synthetic catalogs. A whole-diff review found both stated in data-model.md
+# and spec.md with no test anywhere.
+# ---------------------------------------------------------------------------
+
+
+def test_a_dependson_cycle_is_harmless_under_the_one_hop_bound():
+    # spec.md's "dependsOn cycles or depth" edge case. One-hop traversal makes
+    # a cycle harmless BY CONSTRUCTION, which is exactly why it is worth
+    # pinning: a later multi-hop change would recurse forever here, and this
+    # is the test that would say so instead of the suite hanging.
+    catalog = {
+        "services": {
+            "a": {"depends_on": ["b"]},
+            "b": {"depends_on": ["a"]},
+        },
+        "sources": {},
+    }
+    assert blast_radius("a", catalog) == ["b"]
+    assert blast_radius("b", catalog) == ["a"]
+
+
+def test_a_self_dependency_does_not_recurse_either():
+    catalog = {"services": {"a": {"depends_on": ["a"]}}, "sources": {}}
+    assert blast_radius("a", catalog) == ["a"], (
+        "a service depending on itself is a catalog-authoring oddity, not a "
+        "traversal problem — one hop returns it and stops"
+    )
+
+
+def test_an_unreadable_repo_root_is_surfaced_as_a_failure():
+    # spec.md's "catalog repo unreachable" edge case, encoding side. A walk
+    # over a missing path yields nothing and raises nothing, so without this
+    # a caller cannot tell an unreachable repo from an empty one — and every
+    # other absence in the module produces a Failure or a Warning.
+    catalog = load_catalog(str(fixture_path("catalog", "no-such-repo-root")))
+    assert catalog["services"] == {}
+    assert len(catalog["failures"]) == 1, (
+        "an unreadable repo root yields exactly one Failure naming it — not a "
+        "silent empty catalog indistinguishable from a repo with no services"
+    )
+    assert "not a readable directory" in catalog["failures"][0]["reason"]
+
+
+def test_a_duplicate_losers_own_warning_survives_resolution():
+    # data-model.md's "Warning provenance across duplicate resolution" pin,
+    # unreachable from the roster because every fixture entity declares an
+    # owner. The rule: a loser's own catalog-quality warning stays in the
+    # stream, and warning["service"] names what the offending entity
+    # DECLARED — not a key into the resolved service set.
+    winner = {
+        "kind": "Component",
+        "metadata": {"name": "dup"},
+        "spec": {"owner": "team-a"},
+    }
+    loser = {"kind": "Component", "metadata": {"name": "dup"}, "spec": {}}
+    winner_result = parse_entity(winner, "services/aaa/catalog-info.yaml")
+    loser_result = parse_entity(loser, "services/zzz/catalog-info.yaml")
+    assert [w["kind"] for w in winner_result["warnings"]] == []
+    assert [w["kind"] for w in loser_result["warnings"]] == ["missing_owner"], (
+        "the loser's own missing_owner fires at parse time, before duplicate "
+        "resolution has any say — which is why it survives into the catalog's "
+        "warning stream even though its entity is dropped"
+    )
+    assert loser_result["warnings"][0]["service"] == "dup", (
+        "the warning names the name the offending entity DECLARED; the "
+        "resolved 'dup' service comes from the other file entirely, so this "
+        "is not a key into catalog['services']"
     )

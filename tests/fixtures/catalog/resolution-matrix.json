@@ -1,5 +1,5 @@
 {
-  "description": "T010 resolution matrix for the catalog alert-to-service resolver. Nine alert payloads paired with expected outcomes (exact / substring / ambiguous / miss), each derived by hand by walking the parsed services and their alert_matchers/name in tests/fixtures/catalog/repo/services/*/catalog-info.yaml (and golden-models.json) against the documented two-stage rule set \u2014 NOT by running or importing tests/helpers/catalog_reference.py, whose resolve() implementation these cases exist to check.",
+  "description": "T010 resolution matrix for the catalog alert-to-service resolver. Ten alert payloads paired with expected outcomes (exact / substring / ambiguous / miss), each derived by hand by walking the parsed services and their alert_matchers/name in tests/fixtures/catalog/repo/services/*/catalog-info.yaml (and golden-models.json) against the documented two-stage rule set \u2014 NOT by running or importing tests/helpers/catalog_reference.py, whose resolve() implementation these cases exist to check.",
   "cases": [
     {
       "id": "exact-tag-hit",

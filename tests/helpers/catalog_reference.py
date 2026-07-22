@@ -100,6 +100,29 @@ def _parse_linkage(metadata):
     return linkage
 
 
+def _ignored_entity_reason(source_path, kind, kind_is_service, name_is_valid):
+    """Name the condition that actually failed, not both.
+
+    A 3am reader of "kind X or missing name" has to go re-derive which half
+    fired. Both booleans are already computed at the call site, so the
+    message can simply say.
+    """
+    if not kind_is_service and not name_is_valid:
+        return (
+            "entity at {} has kind {!r}, which is not service-shaped, and no "
+            "usable metadata.name — ignored, never parsed into the model"
+        ).format(source_path, kind)
+    if not kind_is_service:
+        return (
+            "entity at {} has kind {!r}, which is not service-shaped — "
+            "ignored, never parsed into the model"
+        ).format(source_path, kind)
+    return (
+        "entity at {} has a service-shaped kind {!r} but a missing or empty "
+        "metadata.name — ignored, never parsed into the model"
+    ).format(source_path, kind)
+
+
 def parse_entity(document, source_path):
     """One ``catalog-info.yaml`` document (already ``json.loads``-parsed) ->
     ``{"service": <Service or None>, "linkage": <dict>, "warnings":
@@ -143,11 +166,7 @@ def parse_entity(document, source_path):
             "kind": "ignored_entity",
             "service": name if name_is_valid else None,
             "detail": (
-                "entity at {} has kind {!r} (not service-shaped per "
-                "SERVICE_KINDS={!r}) or missing/empty metadata.name — "
-                "ignored, never parsed into the model".format(
-                    source_path, kind, sorted(SERVICE_KINDS)
-                )
+                _ignored_entity_reason(source_path, kind, kind_is_service, name_is_valid)
             ),
             "sources": [source_path],
         }
@@ -238,13 +257,34 @@ def load_catalog(repo_root):
       authorizes no filter; shrinking a blast radius silently would be the
       opposite of this slice's surfaced-not-fatal posture).
 
-    Warnings ``parse_entity`` raises for every file — including those of a
+    Warnings ``parse_entity`` returns for every file — including those of a
     duplicate group's dropped losers — are carried into the catalog's
     ``warnings`` list unconditionally.
     """
     repo_root = Path(repo_root)
     warnings = []
     failures = []
+
+    # An unreadable root is the one absence that would otherwise be silent.
+    # ``rglob`` on a nonexistent path — or on a path that is a regular file —
+    # yields nothing and raises nothing, so a caller could not tell "the
+    # team's catalog repo is unreachable" from "the repo contains no
+    # catalog-info.yaml". That distinction is exactly the catalog-unreachable
+    # case SKILL.md promises is surfaced, and every other absence in this
+    # module produces a Failure or a Warning. This one does too.
+    if not repo_root.is_dir():
+        return {
+            "services": {},
+            "linkage": {},
+            "sources": {},
+            "warnings": [],
+            "failures": [
+                {
+                    "source_path": repo_root.as_posix(),
+                    "reason": "catalog repo root is not a readable directory",
+                }
+            ],
+        }
     # name -> [(source_path, Service, linkage_dict), ...], collected across
     # every service-shaped entity before any duplicate is resolved, so
     # resolution never depends on which file the walk visited first.
@@ -334,12 +374,15 @@ def _match_strings(alert):
     surprising, undocumented behavior no prose describes).
     """
     alert = _as_dict(alert)
+    # ``tags`` deliberately does NOT go through ``_as_list``: that helper
+    # wraps a bare scalar string into a one-element list, which is right for
+    # an annotation value but wrong here — a scalar ``tags`` is malformed
+    # input, not a single tag, and silently accepting it would invent a
+    # matching surface no prose describes. ``fields`` has no such nuance.
     tags = alert.get("tags")
     if not isinstance(tags, list):
         tags = []
-    fields = alert.get("fields")
-    if not isinstance(fields, dict):
-        fields = {}
+    fields = _as_dict(alert.get("fields"))
 
     strings = [tag for tag in tags if isinstance(tag, str)]
     strings.extend(value for value in fields.values() if isinstance(value, str))
@@ -381,8 +424,10 @@ def _exact_stage_hits(match_strings, catalog):
     """
     normalized_alert_strings = set(_normalize(s) for s in match_strings)
     hits = []
-    for name, service in catalog.get("services", {}).items():
-        for matcher in service.get("alert_matchers", []):
+    for name, service in _as_dict(_as_dict(catalog).get("services")).items():
+        if not isinstance(name, str):
+            continue
+        for matcher in _as_list(_as_dict(service).get("alert_matchers")):
             if not isinstance(matcher, str):
                 continue
             normalized_matcher = _normalize(matcher)
@@ -401,7 +446,9 @@ def _substring_stage_hits(match_strings, catalog):
     service name ``ledger-svc``) exists to catch a flipped ``in`` check."""
     normalized_values = [_normalize(s) for s in match_strings]
     hits = []
-    for name in catalog.get("services", {}):
+    for name in _as_dict(_as_dict(catalog).get("services")):
+        if not isinstance(name, str):
+            continue
         normalized_name = _normalize(name)
         for value in normalized_values:
             if normalized_name and normalized_name in value:
@@ -477,9 +524,7 @@ def _discriminating_field(alert):
     by construction — this is a fixed lookup order, never a judgment call
     about which field "looks more meaningful"."""
     alert = _as_dict(alert)
-    fields = alert.get("fields")
-    if not isinstance(fields, dict):
-        fields = {}
+    fields = _as_dict(alert.get("fields"))
 
     name = fields.get("name")
     if isinstance(name, str) and name:
@@ -522,20 +567,35 @@ def fixup_offer(alert, service_name, catalog):
     """
     annotation_value = _discriminating_field(alert)
 
-    sources = catalog.get("sources", {})
+    sources = _as_dict(catalog).get("sources", {})
+    if not isinstance(sources, dict):
+        sources = {}
     if service_name in sources:
         source_path = sources[service_name]
     else:
         source_path = "services/{}/catalog-info.yaml".format(service_name)
 
     annotation_key = "oncall-harness/alert-match"
-    value_json = json.dumps([annotation_value], indent=2)
-    snippet = '"{}": {}'.format(annotation_key, value_json)
+
+    # An empty discriminating value makes the offer NOT commit-ready, and the
+    # caller is told so rather than being handed a paste-ready snippet that
+    # would harm the team. ``_exact_stage_hits`` guards against a committed
+    # empty matcher on the read side; this is the same rule enforced on the
+    # write side, so the harness never *produces* the thing it defends
+    # against. Committing `alert_matchers: [""]` would give that service a
+    # matcher that swallows every sparse alert.
+    commit_ready = bool(annotation_value)
+    if commit_ready:
+        value_json = json.dumps([annotation_value], indent=2)
+        snippet = '"{}": {}'.format(annotation_key, value_json)
+    else:
+        snippet = ""
 
     return {
         "source_path": source_path,
         "annotation_key": annotation_key,
         "annotation_value": annotation_value,
+        "commit_ready": commit_ready,
         "snippet": snippet,
     }
 

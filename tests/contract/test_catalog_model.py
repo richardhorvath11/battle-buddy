@@ -264,33 +264,24 @@ def test_duplicate_orders_resolves_to_the_lexicographically_first_source():
 # ---------------------------------------------------------------------------
 
 
-def test_billing_dangling_dependency_kept_and_warned():
+def test_billing_dangling_dependency_is_kept_in_the_model():
+    # Model-side claim only: the entry survives into the Service. The warning
+    # that accompanies it is US3's concern and is asserted in
+    # test_catalog_degradation.py — asserted in both places it was the same
+    # signal counted twice.
     assert "nonexistent-svc" in CATALOG["services"]["billing"]["depends_on"], (
         "FR-006 requires a dangling dependsOn entry to be KEPT in the model, "
         "never filtered — billing's depends_on must still name nonexistent-svc"
-    )
-    dangling = [
-        w
-        for w in CATALOG["warnings"]
-        if w["kind"] == "dangling_dependency" and w["service"] == "billing"
-    ]
-    assert len(dangling) == 1, (
-        "exactly one dangling_dependency warning is expected for billing; "
-        "got %d: %r" % (len(dangling), dangling)
-    )
-    assert "nonexistent-svc" in dangling[0]["detail"], (
-        "the dangling_dependency warning must name the absent service "
-        "(nonexistent-svc) it is about, not just billing itself"
     )
 
 
 def test_missing_owner_vocabulary_has_no_false_positive_on_this_roster():
     # Positive case deliberately absent from the fixture roster: every fixture
     # service (README.md's roster table) carries a non-empty spec.owner, so
-    # missing_owner has nothing to fire on here. This asserts the negative
-    # half only — that the vocabulary is exercised without spuriously firing
-    # on a fully-owned roster; a fixture exercising the positive case would
-    # need its own dedicated entity, out of scope for T007.
+    # missing_owner has nothing to fire on here. This test asserts the negative
+    # half — the vocabulary is exercised without spuriously firing. The
+    # positive half is covered at the function boundary below, in
+    # test_absent_owner_defaults_to_empty_string_and_warns.
     missing_owner = [w for w in CATALOG["warnings"] if w["kind"] == "missing_owner"]
     assert not missing_owner, (
         "every fixture service declares spec.owner — a missing_owner warning "
@@ -305,15 +296,12 @@ def test_missing_owner_vocabulary_has_no_false_positive_on_this_roster():
 # ---------------------------------------------------------------------------
 
 
-def test_broken_file_isolated_as_a_failure_all_others_still_parse():
-    failures = CATALOG["failures"]
-    assert len(failures) == 1, (
-        "exactly one Failure is expected — the fixture repo's single "
-        "unparseable file; got %d: %r" % (len(failures), failures)
-    )
-    assert failures[0]["source_path"] == "services/broken/catalog-info.yaml", (
-        "the Failure must name the broken file itself, not some other entity"
-    )
+def test_broken_file_does_not_prevent_the_other_services_parsing():
+    # The model-side half only. test_catalog_degradation.py owns US3 AS-3's
+    # full failure-isolation assertion (the Failure count, its source_path,
+    # and the reason) — duplicating those here was three assertions of
+    # duplicated signal, and this module's own docstring already scopes it to
+    # "the other 8 services still parse".
     assert len(CATALOG["services"]) == 8, (
         "a malformed file must degrade to a Failure for that file only — the "
         "other 8 fixture services must still parse; got %d: %r"

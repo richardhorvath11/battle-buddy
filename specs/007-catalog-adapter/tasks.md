@@ -194,7 +194,7 @@ fixture alerts and assert the resolved service, or the miss classification, for 
       slice 5's execution; use the literal phrase **"your code tool's file reads"** and cite
       no code operation name. **Also widen T001's non-vanishing guard** to include
       `references/resolution.md`, completing the target set T001 recorded
-- [x] T010 [P] [US1] Write `tests/fixtures/catalog/resolution-matrix.json` — the **nine**
+- [x] T010 [P] [US1] Write `tests/fixtures/catalog/resolution-matrix.json` — the **ten**
       cases of data-model.md §10's matrix table, each `{id, alert, expected: {outcome,
       service?, candidates?, stage}}`, using the alert payloads pinned there. **`stage` is
       mandatory on every non-`miss` case**, not optional: the `exact-name hit` payload
@@ -210,7 +210,7 @@ fixture alerts and assert the resolved service, or the miss classification, for 
       strict substring of `ledger-svc`, so a reversed implementation resolves it instead of
       missing); **sparse alert** (empty tags and an empty field value)
 - [x] T011 [US1] Write `tests/contract/test_catalog_resolution.py`: every matrix case
-      classifies exactly as expected (SC-003) via parametrize, with `assert len(CASES) >= 9`
+      classifies exactly as expected (SC-003) via parametrize, with `assert len(CASES) >= 10`
       as the non-vanishing guard; a cross-cutting assertion that **no** `ambiguous` outcome
       anywhere in the matrix carries a `service` (zero silent picks, counted); the multi-exact
       case's `candidates` list is asserted in **order**, not as a set (that is what makes the

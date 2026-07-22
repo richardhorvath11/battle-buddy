@@ -6,9 +6,10 @@ Ties ``tests/helpers/catalog_reference.py``'s ``resolve``/``fixup_offer``
 ``skills/catalog/references/resolution.md``'s "The match order" / "The
 fix-up offer":
 
-- **SC-003** ("every documented resolution-matrix case classifies exactly as
-  expected"): the full expectation — outcome, service/candidates,
-  stage-or-absence — for every case in the matrix.
+- **SC-003** ("The resolution matrix classifies 100% correctly: exact beats
+  substring, multi-match surfaces choices, misses reach the ask-once path —
+  zero silent picks across all fixture cases"): the full expectation —
+  outcome, service/candidates, stage-or-absence — for every case.
 - The matrix's headline claim, "never a silent pick": counted across the
   whole matrix, no ``ambiguous`` resolution ever carries a ``service`` key.
 - Sparse/degenerate alerts never raise — only ever resolve to ``miss``.
@@ -236,8 +237,12 @@ def test_fixup_offer_for_a_service_already_in_the_catalog():
         "source_path",
         "annotation_key",
         "annotation_value",
+        "commit_ready",
         "snippet",
-    }, "fixup_offer must return exactly the four documented keys; got %r" % sorted(offer)
+    }, "fixup_offer must return exactly the five documented keys; got %r" % sorted(offer)
+    assert offer["commit_ready"] is True, (
+        "an offer with a real discriminating value is commit-ready"
+    )
     assert offer["annotation_key"] == "oncall-harness/alert-match", (
         "annotation_key is always the literal oncall-harness/alert-match"
     )
@@ -404,4 +409,24 @@ def test_fixup_offer_annotation_value_prefers_service_hint_over_tags():
     assert offer["annotation_value"] == "the-hint", (
         "service_hint outranks the first tag in the pinned order; got %r"
         % offer["annotation_value"]
+    )
+
+
+def test_empty_offer_is_not_commit_ready_and_carries_no_snippet():
+    # The harness must never *produce* the thing _exact_stage_hits defends
+    # against on the read side: committing `alert_matchers: [""]` gives a
+    # service a matcher that swallows every sparse alert. When the alert
+    # offers nothing discriminating, the offer is marked not-commit-ready and
+    # carries no paste-ready snippet at all — there is nothing to paste.
+    offer = fixup_offer({"alert_id": "sparse", "tags": [], "fields": {}}, "x", CATALOG)
+    assert offer["annotation_value"] == "", "the pinned final fallback is the empty string"
+    assert offer["commit_ready"] is False, (
+        "an offer with an empty discriminating value is not commit-ready — a "
+        "responder committing it would give the service a matcher that "
+        "matches every sparse alert"
+    )
+    assert offer["snippet"] == "", (
+        "a non-commit-ready offer carries no snippet: handing over a "
+        "paste-ready block the module elsewhere calls harmful is the failure "
+        "this pins against"
     )
