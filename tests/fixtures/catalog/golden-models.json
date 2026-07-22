@@ -1,0 +1,106 @@
+{
+  "billing": {
+    "model": {
+      "name": "billing",
+      "owner": "team-billing",
+      "runbooks": ["https://runbooks.example/billing.md"],
+      "dashboards": ["https://dashboards.example/billing"],
+      "alert_matchers": ["billing-lag", "shared-tag"],
+      "depends_on": ["nonexistent-svc"]
+    },
+    "linkage": {},
+    "disabled_features": [],
+    "source_path": "services/zz-billing/catalog-info.yaml"
+  },
+  "checkout": {
+    "model": {
+      "name": "checkout",
+      "owner": "team-checkout",
+      "runbooks": ["https://runbooks.example/checkout.md"],
+      "dashboards": ["https://dashboards.example/checkout"],
+      "alert_matchers": ["checkout-5xx", "shared-tag"],
+      "depends_on": ["inventory"]
+    },
+    "linkage": { "paging_id": "PD-CHECKOUT", "repo_slug": "example-org/checkout" },
+    "disabled_features": [],
+    "source_path": "services/checkout/catalog-info.yaml"
+  },
+  "inventory": {
+    "model": {
+      "name": "inventory",
+      "owner": "team-inventory",
+      "runbooks": ["https://runbooks.example/inventory.md"],
+      "dashboards": [],
+      "alert_matchers": ["inventory-lag"],
+      "depends_on": ["ledger-svc"]
+    },
+    "linkage": {},
+    "disabled_features": ["pane_driving"],
+    "source_path": "services/inventory/catalog-info.yaml"
+  },
+  "ledger-svc": {
+    "model": {
+      "name": "ledger-svc",
+      "owner": "team-ledger",
+      "runbooks": [],
+      "dashboards": ["https://dashboards.example/ledger-svc"],
+      "alert_matchers": ["ledger-write-fail"],
+      "depends_on": ["payments-api"]
+    },
+    "linkage": {},
+    "disabled_features": ["runbook_fetch"],
+    "source_path": "services/ledger-svc/catalog-info.yaml"
+  },
+  "notifier": {
+    "model": {
+      "name": "notifier",
+      "owner": "team-notify",
+      "runbooks": ["https://runbooks.example/notifier.md"],
+      "dashboards": ["https://dashboards.example/notifier"],
+      "alert_matchers": [],
+      "depends_on": ["checkout"]
+    },
+    "linkage": {},
+    "disabled_features": ["alert_resolution"],
+    "source_path": "services/notifier/catalog-info.yaml"
+  },
+  "orders": {
+    "model": {
+      "name": "orders",
+      "owner": "team-orders-eu",
+      "runbooks": ["https://runbooks.example/orders-eu.md"],
+      "dashboards": ["https://dashboards.example/orders-eu"],
+      "alert_matchers": ["orders-queue"],
+      "depends_on": ["checkout"]
+    },
+    "linkage": {},
+    "disabled_features": [],
+    "source_path": "services/orders-eu/catalog-info.yaml"
+  },
+  "payments-api": {
+    "model": {
+      "name": "payments-api",
+      "owner": "team-payments",
+      "runbooks": [],
+      "dashboards": [],
+      "alert_matchers": [],
+      "depends_on": []
+    },
+    "linkage": {},
+    "disabled_features": ["alert_resolution", "blast_radius_widening", "pane_driving", "runbook_fetch"],
+    "source_path": "services/payments-api/catalog-info.yaml"
+  },
+  "search-api": {
+    "model": {
+      "name": "search-api",
+      "owner": "team-search",
+      "runbooks": ["https://runbooks.example/search-api.md"],
+      "dashboards": ["https://dashboards.example/search-api"],
+      "alert_matchers": ["search-latency"],
+      "depends_on": []
+    },
+    "linkage": {},
+    "disabled_features": ["blast_radius_widening"],
+    "source_path": "services/search-api/catalog-info.yaml"
+  }
+}

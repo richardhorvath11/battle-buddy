@@ -104,6 +104,16 @@ becomes canonical; every other member is dropped and one `duplicate_name` warnin
 naming all source paths. Deterministic by construction — no dependence on directory-walk
 order.
 
+### Warning provenance across duplicate resolution (pinned)
+
+Warnings are collected per *file*, before duplicate resolution runs, so a
+`duplicate_name` loser's own warnings (e.g. a `missing_owner` on `orders-us`) stay in the
+catalog's `warnings` list even though its entity was dropped. That is deliberate: the
+warning stream is a record of catalog *quality*, and a quality problem in a file that lost a
+tie-break is still a problem in the team's repo — the fix-up path is the correction vehicle
+for both. Consumers reading the stream must therefore treat `warning["service"]` as "the
+name the offending entity declared", not "a key into `catalog["services"]`".
+
 ### Dangling `dependsOn` (surfaced, never dropped)
 
 A `depends_on` entry naming a service absent from the catalog is **kept** — FR-006 authorizes

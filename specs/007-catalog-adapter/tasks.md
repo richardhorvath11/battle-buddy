@@ -97,7 +97,7 @@ its golden model field-for-field, empty-list defaults included.
 **⚠️ Blocking**: US1 and US3 both consume `load_catalog`; no story work past this phase until
 its checkpoint is green.
 
-- [ ] T004 Create `tests/helpers/catalog_reference.py` — the dev-only reference encoding
+- [x] T004 Create `tests/helpers/catalog_reference.py` — the dev-only reference encoding
       (research R3), stdlib only (`json`, `pathlib`, `re`), plain functions over plain dicts,
       module docstring stating what it is (the CI instrument for the documented rules; never
       shipped; at runtime the "parser" is an agent reading files through the code capability)
@@ -115,7 +115,7 @@ its checkpoint is green.
       naming all paths; `depends_on` entries naming absent services are **kept** and surfaced
       as `dangling_dependency` warnings, never filtered out; a file that fails to parse yields
       one `Failure` and never raises
-- [ ] T005 [P] [US2] Write `skills/catalog/references/annotations.md` — the normative
+- [x] T005 [P] [US2] Write `skills/catalog/references/annotations.md` — the normative
       annotation mapping (FR-002): the literal-key table from data-model.md §1, the
       multi-valued parsing rule, entity classification, the duplicate-name tie-break, the
       `RunbookRef {url, commit?}` pointer format (research R11), the catalog-quality warnings
@@ -130,13 +130,13 @@ its checkpoint is green.
       `tests/contract/test_catalog_prose.py` to include `references/annotations.md` — the
       weakened guard is owned by the tasks that create the missing docs, not by a later gate
       task, so it cannot survive to merge in its shipped-from-T001 form
-- [ ] T006 [P] [US2] Write `tests/fixtures/catalog/golden-models.json` in **exactly**
+- [x] T006 [P] [US2] Write `tests/fixtures/catalog/golden-models.json` in **exactly**
       data-model.md §10's pinned skeleton — top-level keyed by canonical service name, each
       value an object with sibling keys `model` (the six fields and nothing else), `linkage`,
       `disabled_features` (a JSON **list**), and `source_path` — for each of the **eight**
       services the fixture repo yields (11 entities minus `docs-site`, ignored; `broken`,
       failed; and `orders-us`, the duplicate loser)
-- [ ] T007 [US2] Write `tests/contract/test_catalog_model.py`: every golden's `model`
+- [x] T007 [US2] Write `tests/contract/test_catalog_model.py`: every golden's `model`
       sub-object matches `load_catalog`'s parsed `Service` field-for-field including
       empty-list defaults (SC-002); the minimal service parses to a valid model with four
       empty lists (AS-2); a parsed `Service`'s keys are **exactly** the six model fields,
