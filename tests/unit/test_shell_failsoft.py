@@ -112,6 +112,62 @@ def test_the_mid_write_death_fault_is_fast_by_contrast(tmp_path):
     assert elapsed < bb_shell.SOCKET_TIMEOUT_SECONDS * 0.9
 
 
+@pytest.mark.parametrize("argv,expected", [
+    (["open-pane", "htop", "--workspace", "W"],
+     "bb-shell: open htop  [workspace: W]\n"),
+    (["close-workspace", "W"], "bb-shell: close workspace W\n"),
+])
+def test_a_well_formed_reply_of_the_wrong_shape_still_degrades(argv, expected, tmp_path):
+    """Review finding: `malformed_line` covers bytes that do not parse. It does
+    NOT cover a reply that parses cleanly, says ok:true, and carries a `result`
+    that is not an object — the nastiest shape, because nothing fails until a
+    caller reads a field. That crashed with an uncaught AttributeError, i.e. a
+    shell failure surfacing as a session error, which FR-005 forbids outright.
+    Only the verbs that read a result can reach it."""
+    write_cmux_settings(tmp_path)
+    with FakeCmux(fault="wrong_shape") as fake:
+        code, out, err = run_cmux(argv, tmp_path, fake.path)
+    assert code == 0
+    assert out == expected
+    assert err.strip()
+
+
+@pytest.mark.parametrize("argv", [
+    ["notify", "m"],
+    ["navigate-pane", "surface:4", "https://x"],
+])
+def test_verbs_that_ignore_the_result_are_unaffected_by_its_shape(argv, tmp_path):
+    """The other half of the finding, and why wrong_shape is not in the
+    every-verb matrix: these calls genuinely succeeded, so asserting a fallback
+    here would assert a bug."""
+    write_cmux_settings(tmp_path)
+    with FakeCmux(fault="wrong_shape") as fake:
+        code, out, err = run_cmux(argv, tmp_path, fake.path)
+    assert (code, out, err) == (0, "", "")
+
+
+@pytest.mark.parametrize("payload", [["a"], "text", 7, True])
+def test_non_object_results_are_normalized_at_the_boundary(payload, tmp_path):
+    """Fixed where the shape enters the program, not by broadening the except
+    clause — a stray AttributeError elsewhere would be our bug, and should stay
+    loud in development."""
+    class _Sock(object):
+        def __init__(self):
+            self.sent = b""
+
+        def sendall(self, data):
+            self.sent += data
+
+        def recv(self, _size):
+            return json.dumps(
+                {"id": "bb-1", "ok": True, "result": payload}
+            ).encode() + b"\n"
+
+    backend = bb_shell.CmuxBackend("/unused")
+    backend._sock = _Sock()
+    assert backend.call("workspace.list", {}) == {}
+
+
 @pytest.mark.parametrize("fault", ALL_FAULTS)
 def test_the_diagnostic_note_names_the_failure(fault, tmp_path):
     """'Noted in diagnostics' means a responder can tell *why* they are looking

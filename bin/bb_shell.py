@@ -341,7 +341,14 @@ class CmuxBackend(object):
                 % (method, error.get("message", "no message"),
                    error.get("code", "no code"))
             )
-        return response.get("result") or {}
+        result = response.get("result")
+        # A well-formed reply whose `result` is not an object is still a
+        # malformed reply — and it is the shape that bites, because the JSON
+        # parses cleanly and only blows up later when a caller reads a field.
+        # Normalizing here keeps that failure inside the fail-soft seam instead
+        # of surfacing as an AttributeError traceback (FR-005: a shell failure
+        # never becomes a session error).
+        return result if isinstance(result, dict) else {}
 
     # -- verbs -------------------------------------------------------------
 

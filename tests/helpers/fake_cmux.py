@@ -65,8 +65,17 @@ TIMEOUT = "timeout"
 MID_WRITE_DEATH = "mid_write_death"
 ERROR_RESPONSE = "error_response"
 MALFORMED_LINE = "malformed_line"
+WRONG_SHAPE = "wrong_shape"
 
+#: The classes every verb must degrade on — data-model.md §6's matrix.
 ALL_FAULTS = (ABSENT, REFUSED, TIMEOUT, MID_WRITE_DEATH, ERROR_RESPONSE, MALFORMED_LINE)
+
+#: WRONG_SHAPE is deliberately *not* in ALL_FAULTS: a reply whose `result` is
+#: not an object is harmless to verbs that never read the result (notify,
+#: navigate-pane succeed correctly), and only reaches the verbs that resolve a
+#: workspace. Folding it into the every-verb matrix would assert a fallback that
+#: should not happen. It gets targeted tests instead.
+ALL_FAULT_MODES = ALL_FAULTS + (WRONG_SHAPE,)
 
 
 class FakeCmux(object):
@@ -78,7 +87,7 @@ class FakeCmux(object):
     """
 
     def __init__(self, fault=None, workspaces=None, results=None):
-        if fault is not None and fault not in ALL_FAULTS:
+        if fault is not None and fault not in ALL_FAULT_MODES:
             raise ValueError("unknown fault mode: %r" % (fault,))
         self._dir = _short_tempdir()
         self.path = os.path.join(self._dir, "s.sock")
@@ -188,6 +197,11 @@ class FakeCmux(object):
             return False
         if self.fault == MALFORMED_LINE:
             conn.sendall(b"not json at all\n")
+            return True
+        if self.fault == WRONG_SHAPE:
+            # Parses cleanly, ok:true — but `result` is not an object. The
+            # nastiest shape: nothing fails until a caller reads a field.
+            conn.sendall(self._frame(request.get("id"), True, ["unexpected"]))
             return True
 
         request_id = request.get("id")

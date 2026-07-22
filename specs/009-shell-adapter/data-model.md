@@ -116,9 +116,17 @@ is a shell failure the socket-level list would miss.
 | 4 | mid-write death | accept, partial read, close | app crashed mid-call |
 | 5 | error response | `{"ok": false, "error": {…}}` | method/params rejected |
 | 6 | malformed line | truncated or non-JSON bytes | protocol drift |
+| 7 | wrong-shaped result | `ok:true` with a non-object `result` | protocol drift |
 
 Classes 5 and 6 are not socket faults but **must degrade identically** — the requirement is
 "a shell failure never surfaces as a session error", not "a socket failure".
+
+Class 7 was added during review, after it crashed with an uncaught `AttributeError`: a reply
+that parses cleanly and says `ok:true` while carrying a non-object `result` is the shape that
+bites, because nothing fails until a caller reads a field. It is **not** part of the
+every-verb matrix — verbs that never read a result (`notify`, `navigate-pane`) genuinely
+succeed, and asserting a fallback for them would assert a bug. It is fixed by normalizing at
+the boundary, not by widening the `except` clause.
 
 **Per-invocation independence** (FR-009, US2 AS3): repeated faults in one session produce
 identical fallbacks — no lockout, no retry, no backoff, no health memory. Tested as N
