@@ -882,7 +882,13 @@ def test_annotations_doc_documents_the_three_spec_path_mappings():
 # fork became a pattern, so the coverage guard lands here.
 # ---------------------------------------------------------------------------
 
-SCANNED_SKILL_DIRS = {"session-store", "catalog"}
+# Extended for skills/investigation/ ahead of slice 6's impl reaching main:
+# that skill IS covered by a naming scan (test_investigation_prose.py scans
+# skills/investigation/**/*.md plus agents/*.md), so listing it here is
+# truthful, not a rubber stamp. This guard fired on a trial merge of slices
+# 5-7 together, which is exactly what it exists for — a skill arriving
+# without a scan must not land quietly.
+SCANNED_SKILL_DIRS = {"session-store", "catalog", "investigation"}
 
 
 def test_every_skill_directory_is_covered_by_a_naming_scan():
@@ -892,20 +898,25 @@ def test_every_skill_directory_is_covered_by_a_naming_scan():
         if child.is_dir() and not child.name.startswith(".")
     }
     assert present, "no skill directories found — the guard below would be vacuous"
-    assert present == SCANNED_SKILL_DIRS, (
+    # SUBSET, not equality: the safety property is "no skill exists without a
+    # scan", and that is one-directional. A name listed here whose directory
+    # has not landed yet is fine — this branch lists `investigation` ahead of
+    # slice 6's skill reaching main, so the guard stays green both before and
+    # after that merge rather than going red in between.
+    unscanned = sorted(present - SCANNED_SKILL_DIRS)
+    assert not unscanned, (
         "every skills/<name>/ directory must be covered by a capability-naming "
         "scan (Constitution VII's only mechanical enforcement). Unscanned: %r. "
         "Add a scan for it and list it in SCANNED_SKILL_DIRS — a skill added "
         "without one is silently exempt from the mcp__ and vendor-name gates."
-        % sorted(present - SCANNED_SKILL_DIRS)
+        % unscanned
     )
 
 
 # ---------------------------------------------------------------------------
 # Converge round 1 hardened resolution.md's pre-existing body, then added new
 # normative prose to annotations.md with no gate — the same defect, freshly
-# committed. Round 2 caught it. These gate that prose against the encoding's
-# own identifiers, both ways, so the doc cannot rename or lose one silently.
+# committed. These gate that prose against the encoding's own identifiers.
 # ---------------------------------------------------------------------------
 
 WARNING_KIND_IDS = sorted(WARNING_KINDS)
