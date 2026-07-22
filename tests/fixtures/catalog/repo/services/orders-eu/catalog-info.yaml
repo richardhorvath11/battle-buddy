@@ -1,0 +1,25 @@
+{
+  "apiVersion": "backstage.io/v1alpha1",
+  "kind": "Component",
+  "metadata": {
+    "name": "orders",
+    "annotations": {
+      "oncall-harness/alert-match": [
+        "orders-queue"
+      ],
+      "oncall-harness/runbooks": [
+        "https://runbooks.example/orders-eu.md"
+      ],
+      "grafana/dashboard-selector": [
+        "https://dashboards.example/orders-eu"
+      ]
+    }
+  },
+  "spec": {
+    "type": "service",
+    "owner": "team-orders-eu",
+    "dependsOn": [
+      "checkout"
+    ]
+  }
+}
