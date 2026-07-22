@@ -1,0 +1,22 @@
+{
+  "schema": "bb.verdict.v1",
+  "session_id": "page-ALERT-999-2026-07-21",
+  "candidates": [
+    {
+      "statement": "billing worker queue backed up",
+      "confidence": 0.5,
+      "provenance": "fresh",
+      "evidence": [
+        {
+          "url": "https://grafana.example.com/d/billing-queue",
+          "excerpt": "queue depth over 50k for 20 minutes"
+        }
+      ]
+    }
+  ],
+  "no_strong_signal": false,
+  "budget_spent": {
+    "turns": 5,
+    "seconds": 30
+  }
+}

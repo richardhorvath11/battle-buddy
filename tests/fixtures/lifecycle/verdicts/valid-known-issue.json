@@ -1,0 +1,46 @@
+{
+  "schema": "bb.verdict.v1",
+  "session_id": "page-ALERT-123-2026-07-21",
+  "known_issue": {
+    "matched_session_id": "page-ALERT-090-2026-06-02",
+    "prior_resolution": "rolled back deploy",
+    "validation": "VALIDATED"
+  },
+  "candidates": [
+    {
+      "statement": "recent deploy regressed the cache layer",
+      "confidence": 0.72,
+      "provenance": "recall",
+      "validation": "VALIDATED",
+      "evidence": [
+        {
+          "url": "https://grafana.example.com/d/checkout-latency",
+          "excerpt": "p99 latency climbed to 4.1s immediately after deploy 8f2c1"
+        }
+      ]
+    },
+    {
+      "statement": "connection pool exhausted under load",
+      "confidence": 0.65,
+      "provenance": "fresh",
+      "evidence": [
+        {
+          "url": "https://grafana.example.com/d/checkout-latency",
+          "excerpt": "connection pool utilization pinned at 100% during the window"
+        },
+        {
+          "url": "https://grafana.example.com/d/checkout-errors",
+          "excerpt": "5xx rate spike coincides with pool saturation"
+        }
+      ]
+    }
+  ],
+  "severity": "sev3",
+  "flap_assessment": "real",
+  "next_step": "deep_investigation",
+  "no_strong_signal": false,
+  "budget_spent": {
+    "turns": 9,
+    "seconds": 61
+  }
+}

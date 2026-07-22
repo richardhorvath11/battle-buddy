@@ -1,0 +1,14 @@
+[
+  {
+    "session_id": "page-ALERT-321-2026-07-18",
+    "session_type": "page",
+    "status": "open",
+    "fingerprint": "ceb3e3f49c137d1a",
+    "catalog_resolved": false,
+    "alert_signature": "al-search-5xx",
+    "services": ["search"],
+    "severity": "sev3",
+    "responder": "carol",
+    "started_at": "2026-07-18T12:00:00+00:00"
+  }
+]
