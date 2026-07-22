@@ -60,8 +60,10 @@ import pytest
 from conftest import REPO_ROOT
 from helpers.catalog_reference import (
     CANONICAL_ANNOTATIONS,
+    CATALOG_PARTS,
     LINKAGE_ANNOTATIONS,
     MODEL_FIELDS,
+    WARNING_KINDS,
 )
 from test_skill_capability_naming import DENY_PATTERNS as _SLICE3_DENY_PATTERNS
 
@@ -85,7 +87,7 @@ def test_scan_finds_the_known_catalog_docs():
 
 
 def _paragraphs(text):
-    """Whitespace-normalized paragraphs — wrap-robust, boundary-respecting.
+    r"""Whitespace-normalized paragraphs — wrap-robust, boundary-respecting.
 
     Per paragraph, deliberately, never a global ``re.sub(r"\s+", " ", text)``
     over the whole corpus. A global collapse also erases blank lines and the
@@ -906,11 +908,10 @@ def test_every_skill_directory_is_covered_by_a_naming_scan():
 # own identifiers, both ways, so the doc cannot rename or lose one silently.
 # ---------------------------------------------------------------------------
 
-WARNING_KINDS = ("missing_owner", "dangling_dependency", "ignored_entity", "duplicate_name")
-CATALOG_PARTS = ("services", "linkage", "sources", "warnings", "failures")
+WARNING_KIND_IDS = sorted(WARNING_KINDS)
 
 
-@pytest.mark.parametrize("kind", WARNING_KINDS, ids=WARNING_KINDS)
+@pytest.mark.parametrize("kind", WARNING_KIND_IDS, ids=WARNING_KIND_IDS)
 def test_annotations_doc_names_every_warning_kind_identifier(kind):
     assert kind in ANNOTATIONS_DOC_TEXT, (
         "annotations.md must name the warning-kind identifier %r — a "
@@ -928,13 +929,39 @@ def test_annotations_doc_declares_the_warning_vocabulary_closed():
     )
 
 
-@pytest.mark.parametrize("part", CATALOG_PARTS, ids=CATALOG_PARTS)
-def test_annotations_doc_documents_every_catalog_part(part):
+def test_annotations_doc_documents_exactly_the_catalog_parts():
+    # Parses the table rather than testing `part in section`: "services",
+    # "warnings" and "failures" all appear in that section's surrounding
+    # prose, so a substring check passed with three of the five rows deleted
+    # — and passed with the table header destroyed entirely.
     section = _markdown_section("What a parse yields", ANNOTATIONS_DOC_TEXT)
-    assert part in section, (
-        "annotations.md's 'What a parse yields' must document the %r part of "
-        "a parse result — plan.md's own rule puts shapes a consuming slice "
-        "needs in the shipped references, not only under specs/" % part
+    rows = [cells[0] for cells in _table_rows(section) if cells and cells[0]]
+    # The header is asserted, not skipped: a review destroyed the table
+    # structurally and the old substring check stayed green.
+    assert rows[:1] == ["Part"], (
+        "expected a `| Part | Contents |` table in 'What a parse yields'; "
+        "got first row %r — the table's structure is part of the contract"
+        % rows[:1]
+    )
+    documented = rows[1:]
+    assert documented == list(CATALOG_PARTS), (
+        "annotations.md's 'What a parse yields' table must document exactly "
+        "the catalog's parts, in order, one row each — got %r, encoding "
+        "declares %r" % (documented, list(CATALOG_PARTS))
+    )
+
+
+def test_annotations_doc_names_no_warning_kind_the_encoding_never_emits():
+    # The reverse direction. Renaming or losing a kind is caught above; a doc
+    # that GAINS a kind the encoding never emits was not, which is the half
+    # "both ways" actually means.
+    quoted = set(re.findall(r"`([a-z_]+)`", ANNOTATIONS_DOC_TEXT))
+    kind_shaped = {token for token in quoted if token.endswith(("_owner", "_dependency", "_entity", "_name"))}
+    unknown = sorted(kind_shaped - WARNING_KINDS - {"metadata_name"})
+    assert not unknown, (
+        "annotations.md names warning-kind-shaped identifier(s) %r that "
+        "catalog_reference.WARNING_KINDS does not emit — a consumer would "
+        "branch on a kind that never arrives" % unknown
     )
 
 

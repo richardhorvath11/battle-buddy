@@ -76,11 +76,19 @@ Catalog {
 `Warning {kind, service, detail, sources[]}` — `kind` ∈ `duplicate_name` | `ignored_entity` |
 `missing_owner` | `dangling_dependency`.
 
-`Failure {source_path, reason}` — one entry per file that could not be parsed, **plus one
-for an unreadable repo root**: a root that does not exist, or is not a directory, yields a
-single `Failure` naming it. Without that, a caller could not tell "the team's catalog repo
-is unreachable" (spec's Edge Cases) from "the repo contains no `catalog-info.yaml`", since
-a directory walk over a missing path yields nothing and raises nothing.
+`Failure {source_path, reason}` — one entry per file that could not be parsed, **plus a
+single entry when the root itself is the problem**, in two flavors:
+
+| Root condition | `source_path` | `reason` |
+|---|---|---|
+| exists but is not a readable directory (or does not exist) | the root as given | not a readable directory |
+| unset, empty, `.`, or not a path at all | `""` | unset or not a path |
+
+Without these, a caller could not tell "the team's catalog repo is unreachable" (spec's
+Edge Cases) from "the repo contains no `catalog-info.yaml`": a directory walk over a
+missing path yields nothing and raises nothing, and an empty-string root wrapped by a
+caller (`Path(config.get("catalog_root", ""))` → `Path(".")`) would walk the working
+directory and answer with whatever it found there.
 
 **Nothing here is an error path.** A `Catalog` is always returned; FR-004's "no partial
 annotation ever errors a session" and the malformed-file isolation rule are the same
@@ -92,8 +100,8 @@ property expressed at field and file scope.
 `fixture_path("catalog", "repo")`. Every `source_path` is relative to that root, so the
 canonical `orders` entity's path is `services/orders-eu/catalog-info.yaml`, never
 `repo/services/…` and never absolute — **with one documented exception**: the
-unreadable-root `Failure` names the root as the caller gave it, because when the root
-itself is the problem there is nothing to be relative to. Lexicographic ordering (below) is applied to exactly
+two root-condition `Failure`s above, which name the root as the caller gave it or carry
+an empty path — when the root itself is the problem there is nothing to be relative to. Lexicographic ordering (below) is applied to exactly
 this string.
 
 ### Entity classification (edge case: non-service entities)

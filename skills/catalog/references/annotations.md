@@ -99,7 +99,7 @@ the catalog is a mess:
 | linkage | canonical name → its linkage values (`paging_id`, `repo_slug`), an entry per service |
 | sources | canonical name → the repo-relative path of the file the winning entity came from |
 | warnings | the catalog-quality signals above, in the four kinds listed |
-| failures | one entry per file that could not be parsed, naming the file and why — plus one naming the repo root itself when the root is unreadable, which is the one entry whose path is not repo-relative |
+| failures | one entry per file that could not be parsed, naming the file and why; plus a single entry when the repo root itself is the problem — unreadable, or unset. Those two are the only entries whose path is not repo-relative: an unreadable root names itself, an unset one has no path to name |
 
 **There is no error path.** A parse always yields all five; a malformed file, an
 unreadable repo root, a non-service entity, a duplicate, and a missing owner each land in

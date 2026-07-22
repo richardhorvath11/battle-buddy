@@ -26,6 +26,8 @@ Everything here asserts on ``disabled_features``/``blast_radius``/
 ``test_catalog_model.py`` and ``test_catalog_resolution.py``.
 """
 
+from pathlib import Path
+
 import pytest
 
 from conftest import fixture_path, load_fixture
@@ -413,3 +415,59 @@ def test_a_duplicate_losers_own_warning_survives_resolution(tmp_path):
         "'dup' service came from the other file entirely, so this is not a "
         "key into catalog['services']"
     )
+
+
+UNSET_ROOTS = ["", None, 0, [], Path("")]
+UNSET_ROOT_IDS = ["empty-string", "none", "zero", "empty-list", "path-of-empty-string"]
+
+
+@pytest.mark.parametrize("root", UNSET_ROOTS, ids=UNSET_ROOT_IDS)
+def test_an_unset_or_non_path_repo_root_is_surfaced_not_walked(root):
+    # Path("") is Path("."), so an unset config value that a caller has
+    # already wrapped would otherwise walk the CURRENT WORKING DIRECTORY and
+    # return whatever services happened to be under it — the worst possible
+    # answer to "is the catalog repo reachable?". Every spelling is rejected.
+    catalog = load_catalog(root)
+    assert catalog["services"] == {}, (
+        "an unset root must never resolve services — %r walked something" % (root,)
+    )
+    assert len(catalog["failures"]) == 1, (
+        "an unset root is surfaced as exactly one Failure, never a silent "
+        "empty catalog; got %r" % catalog["failures"]
+    )
+    assert "unset or not a path" in catalog["failures"][0]["reason"]
+
+
+@pytest.mark.parametrize("root", UNSET_ROOTS + ["/nonexistent/xyz"], ids=UNSET_ROOT_IDS + ["missing-dir"])
+def test_every_early_return_yields_the_same_catalog_shape(root):
+    # The catalog shape was hand-written in three places; deleting a key from
+    # either early-return copy was invisible while deleting it from the main
+    # return failed instantly. Pinned against the real parse's shape.
+    good = load_catalog(fixture_path("catalog", "repo"))
+    assert set(load_catalog(root)) == set(good), (
+        "every return path yields the same five-part catalog shape — a part "
+        "added to one and not the others is exactly the drift this catches"
+    )
+
+
+def test_blast_radius_survives_a_malformed_services_collection():
+    assert blast_radius("a", {"services": ["not", "a", "dict"]}) == [], (
+        "blast_radius promises it never raises for a malformed catalog; a "
+        "non-dict services collection is the shape that used to break it"
+    )
+
+
+def test_resolution_survives_a_malformed_sources_collection():
+    # _candidates_by_source reads catalog["sources"] to order candidates; a
+    # malformed sources collection used to raise there while its sibling
+    # fixup_offer was guarded in the same commit.
+    catalog = {
+        "services": {
+            "a": {"alert_matchers": ["shared"]},
+            "b": {"alert_matchers": ["shared"]},
+        },
+        "sources": "junk",
+    }
+    resolution = resolve({"alert_id": "x", "tags": ["shared"], "fields": {}}, catalog)
+    assert resolution["outcome"] == "ambiguous"
+    assert sorted(resolution["candidates"]) == ["a", "b"]

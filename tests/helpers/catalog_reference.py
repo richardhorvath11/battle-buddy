@@ -40,6 +40,14 @@ LINKAGE_ANNOTATIONS = {  # annotation key -> internal linkage name
     "github.com/project-slug": "repo_slug",
 }
 SERVICE_KINDS = frozenset({"Component", "Service"})
+# The catalog-quality warning vocabulary, exported so the prose gate can
+# assert it both ways rather than against a test-local copy — a doc naming a
+# fifth kind the encoding never emits is as wrong as one losing a kind.
+WARNING_KINDS = frozenset(
+    {"missing_owner", "dangling_dependency", "ignored_entity", "duplicate_name"}
+)
+# The parts of a parse result, same reasoning.
+CATALOG_PARTS = ("services", "linkage", "sources", "warnings", "failures")
 MODEL_FIELDS = ("name", "owner", "runbooks", "dashboards", "alert_matchers", "depends_on")
 
 
@@ -98,6 +106,21 @@ def _parse_linkage(metadata):
         if isinstance(value, str) and value:
             linkage[linkage_name] = value
     return linkage
+
+
+def _empty_catalog(failures):
+    """The catalog shape with no services — the single constructor for every
+    early return. Three hand-written copies of this literal had accumulated
+    (the main return plus two early returns), and deleting a key from either
+    early copy was invisible to the suite while deleting it from the main
+    return failed instantly. One constructor, one shape."""
+    return {
+        "services": {},
+        "linkage": {},
+        "sources": {},
+        "warnings": [],
+        "failures": failures,
+    }
 
 
 def _ignored_entity_reason(source_path, kind, kind_is_service, name_is_valid):
@@ -265,19 +288,15 @@ def load_catalog(repo_root):
     # Path("."), which would silently walk the current working directory —
     # the worst possible answer to "is the catalog repo reachable?". An unset
     # config value is the most plausible way a caller gets here.
-    if not isinstance(repo_root, (str, Path)) or not str(repo_root):
-        return {
-            "services": {},
-            "linkage": {},
-            "sources": {},
-            "warnings": [],
-            "failures": [
-                {
-                    "source_path": "",
-                    "reason": "catalog repo root is unset or not a path",
-                }
-            ],
-        }
+    if not isinstance(repo_root, (str, Path)) or str(repo_root) in ("", "."):
+        # ``str(Path(""))`` is ``"."``, so an empty string that has already been
+        # wrapped by a caller (``Path(config.get("catalog_root", ""))`` — the
+        # most plausible route here) arrives looking like a valid relative
+        # path and would walk the current working directory. Both spellings
+        # are rejected.
+        return _empty_catalog(
+            [{"source_path": "", "reason": "catalog repo root is unset or not a path"}]
+        )
 
     repo_root = Path(repo_root)
     warnings = []
@@ -291,21 +310,17 @@ def load_catalog(repo_root):
     # case SKILL.md promises is surfaced, and every other absence in this
     # module produces a Failure or a Warning. This one does too.
     if not repo_root.is_dir():
-        return {
-            "services": {},
-            "linkage": {},
-            "sources": {},
-            "warnings": [],
-            "failures": [
+        # This source_path is NOT repo-relative: there is no root to be
+        # relative to. Documented as the explicit exception in data-model.md's
+        # relativity rule and in annotations.md's failures row.
+        return _empty_catalog(
+            [
                 {
-                    # The one source_path that is NOT repo-relative: there is
-                    # no root to be relative to. Documented as the explicit
-                    # exception in data-model.md's relativity rule.
                     "source_path": repo_root.as_posix(),
                     "reason": "catalog repo root is not a readable directory",
                 }
-            ],
-        }
+            ]
+        )
     # name -> [(source_path, Service, linkage_dict), ...], collected across
     # every service-shaped entity before any duplicate is resolved, so
     # resolution never depends on which file the walk visited first.
@@ -567,7 +582,8 @@ def fixup_offer(alert, service_name, catalog):
     has named ``service_name`` in the ask-once exchange (that interaction
     itself, and the agent surfacing this offer, are another slice's
     concern — this function only computes the offer's content) ->
-    ``{"source_path", "annotation_key", "annotation_value", "snippet"}``.
+    ``{"source_path", "annotation_key", "annotation_value", "commit_ready",
+    "snippet"}``.
 
     **The responder commits this. No agent ever writes to the catalog** —
     it is human-curated, PR-reviewed data, and that boundary is the whole
