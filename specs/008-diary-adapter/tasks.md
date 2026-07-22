@@ -112,7 +112,7 @@ orphan a later task), the repo guard that firing is the point of, and the shared
       opening a timeline line). `field_order` draws from line-initial `Label:` inline fields,
       and a clock time is the one thing that looks like a label but varies per entry — it would
       make the *baseline* fixture classify as inconsistent. Write `At 14:12 the alert fired.`
-      instead. (data-model §3 pins the pattern letter-anchored as the other half of this.)
+      instead. (data-model §3 pins the label pattern as the other half of this: letter-anchored AND with a digit lookbehind — the letter anchor alone still admits `At 14:` from `At 14:12 the alert fired`.)
       **`entries-short.json`** — exactly 2 entries, otherwise shaped like `entries-consistent`.
       **`entries-empty.json`** — `"entries": []`.
       **`entries-labeled-causal.json`** — 1+ entries whose sections carry the close flow's

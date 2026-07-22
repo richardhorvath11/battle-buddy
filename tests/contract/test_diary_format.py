@@ -671,6 +671,28 @@ def test_resolve_date_ambiguity_never_raises_on_a_non_matching_ambiguous_pattern
 
 
 # ---------------------------------------------------------------------------
+# G7 (round 2) — F6's own guard, `pattern or ""`, only rescues FALSY inputs
+# (None, ""). A non-string, TRUTHY pattern (e.g. an int) is untouched by
+# `or ""` and reaches `.match(...)` anyway, raising TypeError — the exact
+# thing F6's docstring claims never happens ("returned UNCHANGED rather
+# than raising"). The fixed guard checks the type directly.
+# ---------------------------------------------------------------------------
+
+
+def test_flip_day_month_returns_a_non_string_pattern_unchanged_rather_than_raising():
+    from helpers.diary_reference import _flip_day_month
+
+    # Must not raise (TypeError pre-fix, since `42 or ""` is truthy `42`,
+    # and `_PATTERN_DAYMONTH_RE.match(42)` raises on a non-string subject).
+    assert _flip_day_month(42) == 42
+    # The two FALSY inputs F6 already covered must still behave the same
+    # way post-fix — this guards against the isinstance rewrite narrowing
+    # coverage rather than only widening it.
+    assert _flip_day_month(None) is None
+    assert _flip_day_month("") == ""
+
+
+# ---------------------------------------------------------------------------
 # F12 — a numeric run glued to more digits/dots on either side must not be
 # read as a date component; it is far more likely a fragment of something
 # else (a version string, a build number). Calendar validity is
@@ -688,6 +710,128 @@ def test_standalone_iso_shaped_digits_still_read_as_a_format_with_no_calendar_ch
     # Deliberately NOT a valid calendar date — extraction reads a format,
     # never validates a value (data-model.md §3).
     assert _date_format_for_line("1234-56-78") == {"pattern": "YYYY-MM-DD", "ambiguous": False}
+
+
+# ---------------------------------------------------------------------------
+# G1 (REGRESSION, round 2) — F12's trailing guard, `(?![\d.])`, blocked a
+# bare "." right after a date, not just a "." glued to more digits. A
+# sentence-final date ("See 07/21/2026.") — or an entry titled with one
+# ("# Outage on 07/21/2026.") — carried no date-bearing line at all,
+# which is a REGRESSION relative to pre-round-1 behavior: these parsed
+# before F12 landed. The fix narrows the guard to reject only what F12
+# actually needs rejected (a bare digit right after, or a "." immediately
+# followed by a digit), while a "." followed by nothing or a non-digit now
+# passes.
+# ---------------------------------------------------------------------------
+
+
+@pytest.mark.parametrize(
+    "line",
+    [
+        "See 07/21/2026.",
+        "July 4, 2026.",
+        "2026-07-21.",
+    ],
+)
+def test_sentence_final_dates_now_parse(line):
+    assert _date_format_for_line(line) is not None, (
+        "%r must carry a recognized date-bearing line — a trailing '.' "
+        "with nothing after it is not a version-string/build-number glue "
+        "character, and must not block recognition (G1 regression)" % line
+    )
+
+
+@pytest.mark.parametrize(
+    "line",
+    [
+        "Version 1.2.3-4/5/2026",
+        "07/21/2026.5",
+        "build 2026-07-21-3",
+    ],
+)
+def test_digit_glued_dates_still_rejected_after_the_g1_fix(line):
+    # The G1 fix must not reopen F12's own hole: a numeric run still glued
+    # to more digits/dots on either side (a version string, a trailing
+    # ".5", a trailing "-3") must still read as no date at all.
+    assert _date_format_for_line(line) is None, (
+        "%r must still carry no recognized date — the G1 fix narrows the "
+        "trailing guard, it must not remove F12's own protection" % line
+    )
+
+
+def test_entry_title_with_a_sentence_final_date_is_recognized_as_date_bearing():
+    # The downstream consequence G1 names: a title ending in a bare "."
+    # right after its date must still be treated as the entry's title (and
+    # excluded from the compared shape), not fall into `sections` the way
+    # an unrecognized-date title would (format.md "When the title line's
+    # date isn't recognized").
+    content = (
+        "# Outage on 07/21/2026.\n\n"
+        "## What happened\nBody text.\n\n"
+        "## Timeline\nBody text.\n"
+    )
+    structure = extract_structure(content)
+    assert structure["title"] is not None
+    assert structure["title"]["text"] == "Outage on 07/21/2026."
+    assert structure["date_format"] == {"pattern": "MM/DD/YYYY", "ambiguous": False}
+    # And the title heading itself must not leak into sections/field_order.
+    assert all(heading["text"] != structure["title"]["text"] for heading in structure["sections"])
+
+
+# ---------------------------------------------------------------------------
+# G2 (round 2) — F4 widened 2-digit-year support to the year-last numeric
+# shape only, so the named-month shapes still required 4 written digits: a
+# title like "# 21 Jul 26 — payments: outage" or "July 4, 26" carried no
+# date-bearing line at all — the exact F4 failure mode, reached through a
+# different shape. Fixture-free, same style as F4's own test.
+# ---------------------------------------------------------------------------
+
+
+def test_two_digit_year_is_recognized_in_the_day_monthname_year_shape():
+    assert _date_format_for_line("21 Jul 26") == {"pattern": "DD Mon YY", "ambiguous": False}
+
+
+def test_two_digit_year_is_recognized_in_the_monthname_day_year_shape():
+    assert _date_format_for_line("July 4, 26") == {"pattern": "Month D, YY", "ambiguous": False}
+
+
+def test_two_digit_year_named_month_titles_are_recognized_and_uniform_entries_are_not_inconsistent():
+    entries = [
+        {
+            "link": "diary-named-month-yy-newest",
+            "content": (
+                "# 22 Jul 26 — checkout: brief latency\n\n"
+                "## What happened\nBody text.\n\n"
+                "## Timeline\nBody text.\n\n"
+                "## Resolution\nBody text.\n"
+            ),
+            "at": "2026-07-22T00:00:00Z",
+        },
+        {
+            "link": "diary-named-month-yy-oldest",
+            "content": (
+                "# 21 Jul 26 — checkout: latency\n\n"
+                "## What happened\nBody text.\n\n"
+                "## Timeline\nBody text.\n\n"
+                "## Resolution\nBody text.\n"
+            ),
+            "at": "2026-07-21T00:00:00Z",
+        },
+    ]
+
+    for entry in entries:
+        structure = extract_structure(entry["content"])
+        assert structure["title"] is not None, (
+            "a 2-digit-year named-month title line must be recognized as "
+            "date-bearing, not fall through into `sections`"
+        )
+        assert structure["date_format"] == {"pattern": "DD Mon YY", "ambiguous": False}
+
+    resolution = resolve_format(None, entries)
+    assert resolution["source"] == "matched"
+    assert "entries_inconsistent" not in set(
+        notice["kind"] for notice in resolution["notices"]
+    ), "uniform entries sharing one section/date shape must never classify as inconsistent"
 
 
 # ---------------------------------------------------------------------------

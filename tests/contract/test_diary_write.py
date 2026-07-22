@@ -66,6 +66,22 @@ def test_write_entry_treats_an_explicit_null_error_as_success():
     assert out == {"url": "https://diary.example/entry/1", "error": None}
 
 
+def test_write_entry_does_not_raise_when_invoke_returns_an_empty_result():
+    # G6 (round 2): the failure check above was already hardened to
+    # `.get("error")`, but the SUCCESS path still read `result["link"]`
+    # directly. An `invoke` returning `{}` (no "error" key at all, so the
+    # failure check's `.get("error") is not None` is False) reached
+    # `result["link"]` and raised KeyError — the exact "an unswallowed
+    # exception where a graceful envelope was expected" class F7's own
+    # fix exists to rule out, just on the sibling lookup.
+    def fake_invoke(capability, op, payload):
+        assert (capability, op) == ("diary", "append_entry")
+        return {}
+
+    out = diary_reference.write_entry(fake_invoke, "began triage")
+    assert out == {"url": None, "error": None}
+
+
 def test_one_drafted_close_writes_the_diary_exactly_once(mock_mcp):
     # SC-004's count, asserted exactly — "at least one" would pass on a
     # duplicate append that silently doubled the write. The CLOSE-LEVEL

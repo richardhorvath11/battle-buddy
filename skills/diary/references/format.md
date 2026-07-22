@@ -96,6 +96,13 @@ keeping every other character literal:
 | `DD` / `D` | numeric day, padded / unpadded |
 | `Mon` / `Month` | abbreviated / full month name |
 
+**`YY`'s scope is not uniform across the four shapes.** A written 2-digit year is
+recognized in the year-last numeric shape (`07/21/26`) and in both named-month shapes
+(`21 Jul 26`, `July 4, 26`) — every shape whose year sits in the trailing position. In
+the **year-first** numeric shape, a leading 2-digit component is read as a **day**, not
+a year (`26-07-21` → `DD-MM-YY`), because a year-first shape has no positional way to
+tell a 2-digit year apart from a 2-digit day or month component.
+
 Worked examples:
 
 | Written as | `date_format.pattern` |

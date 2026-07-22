@@ -162,13 +162,12 @@ _INLINE_FIELD_RE = re.compile(r"^[A-Za-z][^:\n]{0,39}(?<!\d):")
 # "21 Jul 2026" -> "DD Mon YYYY"; "July 4, 2026" -> "Month D, YYYY";
 # "07/21/2026" -> "MM/DD/YYYY". Four shapes, tried in a fixed priority
 # order per line so a line only ever yields one reading. Concrete years in
-# shapes 1/3/4 are matched only as 4 written digits (never a bare 2-digit
-# number) — the worked cases never need a concrete 2-digit year there, and
-# requiring 4 digits keeps the year-first shape from ever mistaking a
-# numeric day/month component (e.g. the "09" in "09/08/2026") for a year.
-# The year-LAST shape (2 below) is the one exception: its year is
-# positionally unambiguous (always the third, trailing component), so a
-# written 2-digit year is accepted there too — see _YEAR_LAST_YEAR_ALT.
+# shape 1 (year-first / ISO) are matched only as 4 written digits (never a
+# bare 2-digit number) — requiring 4 digits keeps that shape from ever
+# mistaking a numeric day/month component (e.g. the "09" in "09/08/2026")
+# for a year. Shapes 2/3/4 — every shape whose year sits in the TRAILING
+# position — accept a written 2-digit year too; see _YEAR_TRAILING_ALT
+# below for why all three are safe.
 _MONTH_FULL = (
     "January", "February", "March", "April", "May", "June",
     "July", "August", "September", "October", "November", "December",
@@ -179,14 +178,26 @@ _YEAR_ALT = r"\d{4}|YYYY|YY"
 # F4 (review round) — the token table (format.md, data-model.md §3) declares
 # YY as a real 2-digit-year token, but only the year-last shape's regex
 # used to require 4 written digits, so a title like "07/21/26" carried no
-# date-bearing line at all. Scoped to this one shape deliberately: adding a
-# bare \d{2} to _YEAR_ALT above would make the YEAR-FIRST shape (1 below)
-# mistake a numeric day/month component for a year (e.g. reading "09" out
-# of "09/08/2026" as a 2-digit year) — the very failure mode _YEAR_ALT's
-# own 4-digit-only rule exists to prevent. The year-last shape has no such
-# risk: its year is always the trailing, third component, so accepting a
-# written 2-digit year there is unambiguous.
-_YEAR_LAST_YEAR_ALT = r"\d{4}|\d{2}|YYYY|YY"
+# date-bearing line at all.
+#
+# G2 (round 2) — F4 scoped the fix to the year-last shape alone, but the
+# NAMED-MONTH shapes below (day-monthname-year, monthname-day-year) still
+# required 4 written digits too, so "# 21 Jul 26 — payments: outage" and
+# "July 4, 26" carried no date-bearing title line either — the exact F4
+# failure mode, just reached through a different shape. Both named-month
+# shapes are just as safe to widen as the year-last shape: neither can
+# mistake a component for a year — the month is a name, never a digit
+# run, and the day is positionally fixed ahead of it — so the same
+# 2-digit tolerance below now covers all three trailing-year shapes. The
+# YEAR-FIRST (ISO) shape above is the one that must stay 4-digit-only:
+# adding a bare \d{2} to _YEAR_ALT would make it mistake a numeric
+# day/month component for a year (e.g. reading "09" out of "09/08/2026" as
+# a 2-digit year) — the very failure mode _YEAR_ALT's own 4-digit-only rule
+# exists to prevent. A leading 2-digit component in that shape is read as a
+# day instead (e.g. "26-07-21" falls through to the year-last regex below
+# and reads as "DD-MM-YY"), never as a year — a year-first shape has no
+# way to tell the two apart.
+_YEAR_TRAILING_ALT = r"\d{4}|\d{2}|YYYY|YY"
 _MONTHNUM_ALT = r"\d{1,2}|MM|M"
 _DAYNUM_ALT = r"\d{1,2}|DD|D"
 _DAYMONTHNUM_ALT = r"\d{1,2}|MM|M|DD|D"
@@ -204,8 +215,20 @@ _MONTHNAME_ALT = r"(?:" + "|".join(_MONTH_FULL + _MONTH_ABBR + ("Month", "Mon"))
 # digit/dot" — e.g. the "3-" in "1.2.3-4/5/2026" — are stated as two rather
 # than one variable-width assertion); the trailing guard has no such
 # restriction since lookahead may be any width.
+#
+# G1 (REGRESSION, round 2) — F12's original trailing guard, `(?![\d.])`,
+# blocked a bare "." right after the date, not just a "." that is itself
+# glued to more digits. A sentence-final date — "See 07/21/2026.",
+# "July 4, 2026.", "2026-07-21." — carried no date-bearing line at all,
+# because the guard could not tell a genuine trailing period from a
+# version-string dot. The fix narrows the guard to what F12 actually needs
+# to reject: a digit immediately after (still bare, e.g. the "5" in
+# "2026.5"), or a "." immediately followed by a digit (the ".5" in
+# "2026.5"); a "." followed by nothing or by a non-digit now passes. The
+# `(?![-/][\d.])` half is untouched — it is what still rejects
+# "2026-07-21-3" and the "3-" boundary in "1.2.3-4/5/2026".
 _NOT_PRECEDED_BY_DIGIT_RUN = r"(?<![\d.])(?<![\d.][-/])"
-_NOT_FOLLOWED_BY_DIGIT_RUN = r"(?![\d.])(?![-/][\d.])"
+_NOT_FOLLOWED_BY_DIGIT_RUN = r"(?!\d)(?!\.\d)(?![-/][\d.])"
 
 # Shape 1 — year-first numeric (ISO-shaped): "2026-07-21", or the
 # pattern-language line "YYYY-MM-DD" itself (MINIMAL_DEFAULT_TEXT's title).
@@ -223,22 +246,25 @@ _ISO_YEAR_FIRST_RE = re.compile(
 _YEAR_LAST_RE = re.compile(
     _NOT_PRECEDED_BY_DIGIT_RUN
     + r"(?P<c1>{dm})(?P<sep1>[-/])(?P<c2>{dm})(?P<sep2>[-/])(?P<year>{year})".format(
-        dm=_DAYMONTHNUM_ALT, year=_YEAR_LAST_YEAR_ALT
+        dm=_DAYMONTHNUM_ALT, year=_YEAR_TRAILING_ALT
     )
     + _NOT_FOLLOWED_BY_DIGIT_RUN
 )
-# Shape 3 — "21 Jul 2026" / "21 Month 2026": day, named month, year.
+# Shape 3 — "21 Jul 2026" / "21 Month 2026": day, named month, year. G2:
+# year=_YEAR_TRAILING_ALT (not _YEAR_ALT) — see that constant's comment for
+# why a 2-digit year is safe to accept here too.
 _DAY_MONTHNAME_YEAR_RE = re.compile(
     _NOT_PRECEDED_BY_DIGIT_RUN
     + r"(?P<day>{dnum})(?P<sep1>\s+)(?P<month>{mname})(?P<sep2>\s+)(?P<year>{year})".format(
-        dnum=_DAYNUM_ALT, mname=_MONTHNAME_ALT, year=_YEAR_ALT
+        dnum=_DAYNUM_ALT, mname=_MONTHNAME_ALT, year=_YEAR_TRAILING_ALT
     )
     + _NOT_FOLLOWED_BY_DIGIT_RUN
 )
-# Shape 4 — "July 4, 2026": named month, day, comma, year.
+# Shape 4 — "July 4, 2026": named month, day, comma, year. G2: same
+# _YEAR_TRAILING_ALT widening as shape 3.
 _MONTHNAME_DAY_YEAR_RE = re.compile(
     r"(?P<month>{mname})(?P<sep1>\s+)(?P<day>{dnum}),(?P<sep2>\s*)(?P<year>{year})".format(
-        mname=_MONTHNAME_ALT, dnum=_DAYNUM_ALT, year=_YEAR_ALT
+        mname=_MONTHNAME_ALT, dnum=_DAYNUM_ALT, year=_YEAR_TRAILING_ALT
     )
     + _NOT_FOLLOWED_BY_DIGIT_RUN
 )
@@ -270,8 +296,9 @@ def _pad_or_token(value, letter):
 def _year_token(value):
     """§3 padding rule applied to the year component: YYYY for four
     written digits (or the literal YYYY token), YY for two written digits
-    (or the literal YY token — F4: the year-last shape now accepts a
-    written 2-digit year; see _YEAR_LAST_YEAR_ALT above)."""
+    (or the literal YY token — G2/F4: the year-last shape and both
+    named-month shapes accept a written 2-digit year; see
+    _YEAR_TRAILING_ALT above)."""
     if value in ("YYYY", "YY"):
         return value
     return "YYYY" if len(value) == 4 else "YY"
@@ -481,8 +508,18 @@ def _flip_day_month(pattern):
     ``None.group(...)`` raised ``AttributeError``. data-model.md is
     explicit that extraction — and everything downstream of it — never
     raises.
+
+    G7 (round 2): F6's own guard, ``pattern or ""``, only rescues FALSY
+    values — ``None`` and ``""`` — leaving a non-string, truthy pattern
+    (e.g. ``_flip_day_month(42)``) to reach ``.match(42)`` and raise
+    ``TypeError`` anyway, contradicting this docstring's "returned
+    UNCHANGED rather than raising" claim. The guard now checks the type
+    directly, so anything that isn't a string — ``None``, ``42``, a list —
+    is returned unchanged before ``.match`` is ever called.
     """
-    match = _PATTERN_DAYMONTH_RE.match(pattern or "")
+    if not isinstance(pattern, str):
+        return pattern
+    match = _PATTERN_DAYMONTH_RE.match(pattern)
     if not match:
         return pattern
     return (
@@ -767,11 +804,19 @@ def write_entry(invoke, content):
     `"error" in result` and fall into the failure branch, returning
     `{"url": None, "error": None}` — failure-shaped, with no error to show
     for it.
+
+    G6 (round 2): the success path read `result["link"]` directly while the
+    failure path just above it already used `.get("error")` — an `invoke`
+    returning `{}` (no error key, no link key) passed the failure check
+    (`{}.get("error") is not None` is `False`) and then raised `KeyError` on
+    `result["link"]`, the exact "an unswallowed exception where a graceful
+    envelope was expected" class F7's own fix exists to rule out. Both
+    lookups now use `.get`.
     """
     result = invoke("diary", "append_entry", {"content": content})
     if result.get("error") is not None:
         return {"url": None, "error": result["error"]}
-    return {"url": result["link"], "error": None}
+    return {"url": result.get("link"), "error": None}
 
 
 def consume_recent(entries):

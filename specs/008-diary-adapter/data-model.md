@@ -104,6 +104,13 @@ tokens and keeping every other character literal:
 a property of *how the component is written*, not of its value — so `07` and `21` are both
 two-digit and both take the padded token, while `4` takes the unpadded one.
 
+**`YY`'s scope is not uniform across the four shapes.** A written 2-digit year is
+recognized in the year-last numeric shape (`07/21/26`) and in both named-month shapes
+(`21 Jul 26`, `July 4, 26`) — every shape whose year sits in the trailing position. In
+the **year-first** numeric shape, a leading 2-digit component is read as a **day**, not
+a year (`26-07-21` → `DD-MM-YY`), because a year-first shape has no positional way to
+tell a 2-digit year apart from a 2-digit day or month component.
+
 Worked cases: `2026-07-21` → `YYYY-MM-DD`; `21 Jul 2026` → `DD Mon YYYY`;
 `July 4, 2026` → `Month D, YYYY`; `07/21/2026` → `MM/DD/YYYY`.
 
@@ -259,9 +266,17 @@ available before any write**:
 |---|---|
 | in-session evidence links | dashboards, searches, PRs — the links gathered during the session |
 | services, severity | factual |
-| resolution | factual |
+| resolution | factual — **not yet named** among the fields `commands/close.md`'s current "Draft the diary entry" section fills (see below) |
 | labeled causal proposals | root cause, contributing factors, action items — carrying the close flow's proposal labels |
-| locally staged artifact content (pre-upload) | including the **tool trace** and **checkpoint history** |
+| locally staged artifact content (pre-upload) | including the **tool trace** and **checkpoint history** — **not yet named** among those fields either |
+
+**Where this table and `commands/close.md` currently disagree.** That section's own
+draft anatomy fills services, severity, responder, `started_at`, `closed_at`, and links
+as its factual fields, plus the three labeled causal proposals — it does not yet
+enumerate resolution or the locally staged artifact content as fields it fills. FR-005
+requires this skill to receive both regardless, so both rows stay in this table as
+inputs the skill accepts; closing the gap in `commands/close.md`'s own draft anatomy is
+slice 5's to do, not this slice's.
 
 **Not an input:** the **close-time row update**. Drafting precedes the dual-write, so the row
 state the close writes does not exist when the draft is assembled; the diary skill reads no

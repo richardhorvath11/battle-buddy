@@ -132,6 +132,7 @@ import pytest
 
 from conftest import REPO_ROOT
 from helpers.diary_reference import (
+    DEFAULT_READ_DEPTH,
     MINIMAL_DEFAULT,
     MINIMAL_DEFAULT_TEXT,
     NOTICE_KINDS,
@@ -293,6 +294,18 @@ def test_deferred_adapters_sentence_is_present_and_masked_scan_passes():
         "expected the FR-004 deferred-adapters sentence verbatim in "
         "SKILL.md — DEFERRED_ADAPTERS_SENTENCE has nothing to exempt "
         "without it, which would make the mask vacuous"
+    )
+    # G8 (round 2): both masks are `text.replace(sentence, "")` with no
+    # count limit — `str.replace` with no count exempts EVERY occurrence,
+    # so a duplicated masked sentence would be silently exempted twice
+    # rather than caught. This asserts the source has exactly one
+    # occurrence to mask, so a future accidental duplicate (e.g. the
+    # sentence pasted twice) fails loudly here instead of sailing through
+    # the deny-list scan unnoticed.
+    assert text.count(DEFERRED_ADAPTERS_SENTENCE) == 1, (
+        "expected DEFERRED_ADAPTERS_SENTENCE exactly once in SKILL.md — "
+        "found %d; a duplicate would be silently exempted twice by the "
+        "unbounded replace() mask" % text.count(DEFERRED_ADAPTERS_SENTENCE)
     )
 
     masked = _mask_deferred_adapters_sentence(_strip_fenced_blocks(text))
@@ -618,6 +631,17 @@ def test_adapter_side_sentence_present_and_masking_removes_every_hit_it_causes()
         "whitespace normalization) in references/format.md — the mask has "
         "nothing to exempt without it, which would make it vacuous"
     )
+    # G8 (round 2) — this mask's own twin of the assertion added to
+    # test_deferred_adapters_sentence_is_present_and_masked_scan_passes:
+    # _mask_adapter_side_sentence is also an unbounded replace(), so a
+    # duplicated sentence would be silently exempted twice rather than
+    # caught by the reorder-directive scan.
+    assert ORDERING_CONSUMPTION_NORMALIZED.count(ADAPTER_SIDE_REVERSAL_SENTENCE) == 1, (
+        "expected ADAPTER_SIDE_REVERSAL_SENTENCE exactly once in the "
+        "'Ordering consumption' section — found %d; a duplicate would be "
+        "silently exempted twice by the unbounded replace() mask"
+        % ORDERING_CONSUMPTION_NORMALIZED.count(ADAPTER_SIDE_REVERSAL_SENTENCE)
+    )
     unmasked_hits = sorted(
         name
         for name, pattern in REORDER_DIRECTIVE_PATTERNS.items()
@@ -769,6 +793,43 @@ def test_extract_structure_of_minimal_default_text_matches_minimal_default_in_fu
 
 
 # ---------------------------------------------------------------------------
+# G5 (round 2) — DEFAULT_READ_DEPTH had no mechanical anchor: nothing
+# checked that references/format.md's stated read depth agreed with the
+# encoding's constant. Unlike DEFAULT_READ_DEPTH's own documented deferral
+# (no landed consumer reads the override key yet — that half genuinely IS
+# prose-only), a doc/encoding drift on the DEFAULT value itself is CI
+# observable right now, so it is gated here rather than left as prose-only
+# — the same both-ways agreement style T023's NOTICE_KINDS / STRUCTURE_PARTS
+# gates above use: the depth is PARSED out of format.md's own text, never
+# hardcoded in this test, so a doc edit that silently drifts from the
+# encoding's constant (or vice versa) fails here instead of surviving
+# unnoticed.
+# ---------------------------------------------------------------------------
+
+_READ_DEPTH_RE = re.compile(r"go \*\*(\d+) entries deep by default\*\*")
+
+
+def test_read_depth_sentence_parses_nonvacuously():
+    match = _READ_DEPTH_RE.search(FORMAT_MD_TEXT)
+    assert match is not None, (
+        "expected references/format.md's 'Read depth' section to state "
+        "'go **N entries deep by default**' — parsed zero matches, which "
+        "would make the agreement assertion below vacuously true"
+    )
+
+
+def test_format_md_read_depth_matches_the_encoding_constant():
+    match = _READ_DEPTH_RE.search(FORMAT_MD_TEXT)
+    assert match is not None
+    doc_depth = int(match.group(1))
+    assert doc_depth == DEFAULT_READ_DEPTH, (
+        "references/format.md states a default read depth of %d, but "
+        "diary_reference.DEFAULT_READ_DEPTH is %d — the two must agree"
+        % (doc_depth, DEFAULT_READ_DEPTH)
+    )
+
+
+# ---------------------------------------------------------------------------
 # T024 — packaging ratchet (FR-008) and boundary prose gates.
 # ---------------------------------------------------------------------------
 
@@ -812,9 +873,17 @@ def test_fr004_write_flow_states_append_only_no_creation_no_alternate_destinatio
 
 
 # FR-005 prose gate.
+#
+# G9 (round 2): "Resolution" was missing from this tuple — the fifth of
+# five documented drafting inputs (SKILL.md's Drafting handoff), and
+# precisely the input close.md's current draft anatomy does not
+# corroborate (see G4's fix to that same section). Its absence here meant
+# a regression that dropped the Resolution bullet from SKILL.md would have
+# gone undetected by this gate.
 FR005_INPUT_PHRASES = (
     "In-session evidence links",
     "Services and severity",
+    "Resolution",
     "Labeled causal proposals",
     "Locally staged artifact content",
 )

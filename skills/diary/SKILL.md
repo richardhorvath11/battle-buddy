@@ -84,18 +84,27 @@ Before any write happens, the close flow assembles a draft and hands its
 content to this skill for format matching. The close flow's own draft
 anatomy is normative for exactly which factual values it fills — this list
 names the categories this skill receives, and does not compete with that
-one:
+one. Two of the categories below are not yet enumerated by that anatomy:
+`commands/close.md`'s current "Draft the diary entry" section fills
+services, severity, responder, `started_at`, `closed_at`, and links as its
+factual fields, plus the three labeled causal proposals — it does not yet
+name Resolution or the locally staged artifact content as fields it fills.
+FR-005 requires this skill to receive both categories regardless, so they
+are named here as inputs this skill accepts; closing the gap in the close
+flow's own draft anatomy is the close flow's to do, not this skill's.
 
 - **In-session evidence links** — the dashboards, searches, and PRs
   gathered during the session.
 - **Services and severity**, and the other computed close-time factual
   values the close flow fills from the session it is closing — responder,
   the start and close timestamps.
-- **Resolution** — factual.
+- **Resolution** — factual. Not yet named among the fields
+  `commands/close.md`'s draft anatomy fills (see above).
 - **Labeled causal proposals** — root cause, contributing factors, action
   items, carrying the close flow's own proposal labels.
 - **Locally staged artifact content, pre-upload** — including the tool
-  trace and the checkpoint history.
+  trace and the checkpoint history. Not yet named among the fields
+  `commands/close.md`'s draft anatomy fills either (see above).
 
 **Not an input: the close-time row update.** Drafting precedes the
 dual-write, so the row state the close flow eventually writes does not yet
