@@ -24,8 +24,32 @@ Dev-only test helper — never shipped.
 
 import json
 import os
+import shutil
 import socket
+import tempfile
 import threading
+
+#: AF_UNIX paths are capped by ``sun_path`` — 104 bytes on macOS, 108 on Linux.
+#: pytest's ``tmp_path`` is far too long to hold a socket, so the fake owns a
+#: short directory of its own instead of accepting one. Getting this wrong
+#: fails as a bare "AF_UNIX path too long" OSError with no hint of the cause.
+SUN_PATH_LIMIT = 100
+
+
+def _short_tempdir():
+    """A temp dir short enough for a socket path. Prefers /tmp on macOS, whose
+    default TMPDIR (/var/folders/...) already eats most of the budget."""
+    for base in ("/tmp", None):
+        if base is not None and not os.path.isdir(base):
+            continue
+        try:
+            path = tempfile.mkdtemp(prefix="bbsh-", dir=base)
+        except OSError:
+            continue
+        if len(os.path.join(path, "s.sock")) <= SUN_PATH_LIMIT:
+            return path
+        shutil.rmtree(path, ignore_errors=True)
+    raise RuntimeError("no temp directory short enough for an AF_UNIX socket")
 
 # Every fake response is built from these keys in one of two orders, alternating
 # per response, because the real server was observed emitting both.
@@ -53,10 +77,11 @@ class FakeCmux(object):
     ``captured`` holds every decoded request frame in send order.
     """
 
-    def __init__(self, tmp_path, fault=None, workspaces=None, results=None):
+    def __init__(self, fault=None, workspaces=None, results=None):
         if fault is not None and fault not in ALL_FAULTS:
             raise ValueError("unknown fault mode: %r" % (fault,))
-        self.path = os.path.join(str(tmp_path), "cmux-fake.sock")
+        self._dir = _short_tempdir()
+        self.path = os.path.join(self._dir, "s.sock")
         self.fault = fault
         self.workspaces = list(workspaces or [])
         self.results = dict(results or {})
@@ -103,6 +128,7 @@ class FakeCmux(object):
             os.unlink(self.path)
         except OSError:
             pass
+        shutil.rmtree(self._dir, ignore_errors=True)
         return False
 
     # -- server loop -------------------------------------------------------
