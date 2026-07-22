@@ -835,15 +835,17 @@ def test_two_digit_year_named_month_titles_are_recognized_and_uniform_entries_ar
 
 
 # ---------------------------------------------------------------------------
-# H1 (round 3, REGRESSION fix) — G2's unconditional 2-digit-year widening
-# for the two named-month shapes made ordinary English prose read as a
-# date: "On Jul 4, 15 nodes went down." (Mon D, YY), "Rolled back 3 Jul 15
-# minutes later." (D Mon YY), and "Dec 25, 10 alerts fired." (Mon DD, YY)
-# all returned None before G2 landed, and a fabricated date_format from a
-# body line like this can trip a spurious entries_inconsistent end to end.
-# The fix gates the 2-digit alternative on trailing context (end-of-line or
-# one of "— – : , ) ]", surrounding whitespace allowed); the 4-digit
-# alternative, and the year-last numeric shape, are untouched.
+# H1 (round 3, REGRESSION fix, SUPERSEDED by J1/J2 round 4 below) — G2's
+# unconditional 2-digit-year widening for the two named-month shapes made
+# ordinary English prose read as a date: "On Jul 4, 15 nodes went down."
+# (Mon D, YY), "Rolled back 3 Jul 15 minutes later." (D Mon YY), and "Dec
+# 25, 10 alerts fired." (Mon DD, YY) all returned None before G2 landed, and
+# a fabricated date_format from a body line like this can trip a spurious
+# entries_inconsistent end to end. H1's own fix gated the 2-digit
+# alternative on trailing context (end-of-line or one of "— – : , ) ]").
+# That mechanism is gone (see the J1/J2 block below, which replaces it with
+# a start-of-line rule) — these three lines are kept here because the
+# OUTCOME (still None) is unchanged, not because the mechanism is.
 # ---------------------------------------------------------------------------
 
 
@@ -857,9 +859,9 @@ def test_two_digit_year_named_month_titles_are_recognized_and_uniform_entries_ar
 )
 def test_named_month_two_digit_year_prose_is_not_read_as_a_date(line):
     assert _date_format_for_line(line) is None, (
-        "%r is ordinary prose, not a date — a 2-digit year with no "
-        "title-ish trailing context must not fabricate a date_format "
-        "(H1 regression)" % line
+        "%r is ordinary prose, not a date — a 2-digit year not at the "
+        "start of the line's text must not fabricate a date_format "
+        "(H1 regression; mechanism now J1/J2's start-of-line rule)" % line
     )
 
 
@@ -873,9 +875,10 @@ def test_named_month_two_digit_year_prose_is_not_read_as_a_date(line):
 def test_named_month_two_digit_year_still_parses_with_title_ish_trailing_context(
     line, expected_pattern
 ):
-    # The positive half of H1's fix: a title line and a line-final date both
-    # carry trailing context the gate accepts (an em dash for the title, end
-    # of line for the line-final case), so both must keep parsing.
+    # The positive half of H1's original fix, still true under J1/J2's
+    # replacement mechanism: a marked title (date leads the heading text)
+    # and a line-final bare date (date is the line's entire content) both
+    # satisfy the start-of-line rule, so both must keep parsing.
     assert _date_format_for_line(line) == {"pattern": expected_pattern, "ambiguous": False}
 
 
@@ -912,6 +915,88 @@ def test_lowercased_prose_false_positives_still_rejected_after_case_insensitive_
     assert _date_format_for_line(line) is None, (
         "%r must still be rejected — case-insensitive month matching (H6) "
         "must not widen H1's prose false-positive gate" % line
+    )
+
+
+# ---------------------------------------------------------------------------
+# J1/J2 (round 4) — H1's trailing-punctuation whitelist was wrong in BOTH
+# directions, proven by these exact lines:
+#
+# J1: the whitelist REJECTED real diary titles whose trailing punctuation
+# was not on its accept list — a plain ASCII hyphen (only the em dash was
+# whitelisted), a bold-wrapped title (tests/fixtures/diary/entries-bold.json
+# is a landed fixture in exactly this style), an opening "(" (only ")" was
+# whitelisted), and "[". End to end, two otherwise-uniform entries titled
+# with the plain-hyphen spelling lost their title (it fell into `sections`
+# and `field_order`) and a spurious entries_inconsistent fired — see
+# test_two_digit_year_named_month_titles_are_recognized_and_uniform_entries_are_not_inconsistent
+# above, which already pins the em-dash spelling; this block adds the
+# plain-hyphen, bold, "(", and "[" spellings the whitelist missed.
+#
+# J2: the SAME whitelist still ADMITTED the prose it was built to reject,
+# because "," and ":" were both on its accept list — punctuating H1's own
+# motivating sentence differently walked straight through unnoticed.
+#
+# The replacement (see _named_month_2digit_match in diary_reference.py) is
+# a start-of-line rule, not a trailing-context rule: the date must lead the
+# line's text (after stripping a leading heading marker/bold wrapper), with
+# no reliance on what follows at all. Every line below is asserted in
+# lower, upper AND mixed case, since a prose-vs-title gate re-keyed on
+# position could plausibly interact with case-insensitive month matching
+# (H6) in a way a single-case fixture would miss.
+# ---------------------------------------------------------------------------
+
+J1_ACCEPT_LINES = (
+    ("# 21 Jul 26 - checkout: latency", "DD Mon YY"),
+    ("# 21 Jul 26 — checkout", "DD Mon YY"),
+    ("**21 Jul 26**", "DD Mon YY"),
+    ("# 21 Jul 26 (checkout)", "DD Mon YY"),
+    ("# 21 Jul 26 [P1]", "DD Mon YY"),
+    ("# July 4, 26 - checkout", "Month D, YY"),
+    ("21 Jul 26", "DD Mon YY"),
+    ("July 4, 26", "Month D, YY"),
+)
+
+
+@pytest.mark.parametrize("line, expected_pattern", J1_ACCEPT_LINES, ids=[c[0] for c in J1_ACCEPT_LINES])
+def test_j1_named_month_two_digit_year_titles_parse_regardless_of_trailing_punctuation(
+    line, expected_pattern
+):
+    assert _date_format_for_line(line) == {"pattern": expected_pattern, "ambiguous": False}, (
+        "%r must parse as a title-shaped 2-digit-year date — H1's trailing-"
+        "punctuation whitelist wrongly rejected this shape; the start-of-"
+        "line rule must not" % line
+    )
+
+
+J2_REJECT_LINES = (
+    "On Jul 4, 15, nodes went down.",
+    "On Jul 4, 15: nodes went down.",
+    "took 12 Jul 26, still failing",
+    "Retry 5 Jun 30, 8 pods restarted.",
+    "ticket 9 Sep 24]",
+    # H1's own original three, re-asserted here under the new mechanism.
+    "On Jul 4, 15 nodes went down.",
+    "Rolled back 3 Jul 15 minutes later.",
+    "Dec 25, 10 alerts fired.",
+)
+
+
+@pytest.mark.parametrize(
+    "line",
+    [variant(line) for line in J2_REJECT_LINES for variant in (str, str.lower, str.upper)],
+    ids=[
+        "%s[%s]" % (line, variant.__name__)
+        for line in J2_REJECT_LINES
+        for variant in (str, str.lower, str.upper)
+    ],
+)
+def test_j2_named_month_two_digit_year_prose_never_parses_in_any_case(line):
+    assert _date_format_for_line(line) is None, (
+        "%r is ordinary prose with a 2-digit year mid-sentence, not a title "
+        "— H1's trailing-punctuation whitelist wrongly admitted some "
+        "spellings of this (','/':' were both whitelisted); the "
+        "start-of-line rule must reject all of them regardless of case" % line
     )
 
 

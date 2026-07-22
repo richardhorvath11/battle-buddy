@@ -137,7 +137,10 @@ from helpers.diary_reference import (
     MINIMAL_DEFAULT_TEXT,
     NOTICE_KINDS,
     STRUCTURE_PARTS,
+    _date_format_for_line,
     extract_structure,
+    resolve_date_ambiguity,
+    resolve_format,
 )
 from test_command_capability_naming import DENY_PATTERNS
 from test_skill_capability_naming import (
@@ -859,6 +862,174 @@ def test_skill_md_read_depth_matches_the_encoding_constant():
         "SKILL.md states a default read depth of %d, but "
         "diary_reference.DEFAULT_READ_DEPTH is %d — the two must agree"
         % (doc_depth, DEFAULT_READ_DEPTH)
+    )
+
+
+# ---------------------------------------------------------------------------
+# J4 (round 4) — doc<->encoding agreement gates for the tokenizer/ambiguity
+# rules references/format.md documents in prose, in the same both-ways style
+# as T023's NOTICE_KINDS/STRUCTURE_PARTS gates above: each gate below (a)
+# asserts the doc states the rule (a verbatim, paragraph-scoped substring —
+# so deleting the paragraph makes this half fail) and (b) executes a worked
+# example FROM that same substring through the encoding, asserting the
+# documented outcome. Mutation-tested (reported in the round-4 PR): deleting
+# either half's substring, or flipping the encoding's behavior, fails the
+# corresponding test — neither half is decorative.
+# ---------------------------------------------------------------------------
+
+# (i) Digit-glue boundaries — "Date-format tokens" section.
+DIGIT_GLUE_DOC_SENTENCE = (
+    "`1.2.3-4/5/2026` and `build 2026-07-21-3` therefore carry no recognized date at all."
+)
+
+
+def test_format_md_states_the_digit_glue_worked_examples():
+    assert DIGIT_GLUE_DOC_SENTENCE in FORMAT_MD_TEXT, (
+        "expected references/format.md's Digit-glue boundaries paragraph to name "
+        "its two worked examples verbatim — %r not found" % DIGIT_GLUE_DOC_SENTENCE
+    )
+
+
+def test_digit_glue_worked_examples_carry_no_recognized_date_in_the_encoding():
+    for example in ("1.2.3-4/5/2026", "build 2026-07-21-3"):
+        assert _date_format_for_line(example) is None, (
+            "%r is the doc's own digit-glue worked example — the encoding must "
+            "carry no recognized date for it, per references/format.md's "
+            "Digit-glue boundaries paragraph" % example
+        )
+
+
+# (ii) Both-components-over-12 ambiguity — "Numeric date ambiguity" section.
+BOTH_OVER_12_DOC_SENTENCE = (
+    "`99/99/9999` is provisionally labelled `MM/DD/YYYY` and flagged `ambiguous`, "
+    "the same as the ≤ 12 case."
+)
+
+
+def test_format_md_states_the_both_over_12_worked_example():
+    assert BOTH_OVER_12_DOC_SENTENCE in FORMAT_MD_NORMALIZED, (
+        "expected references/format.md's Numeric date ambiguity section to state "
+        "the both-components-over-12 worked example verbatim — %r not found"
+        % BOTH_OVER_12_DOC_SENTENCE
+    )
+
+
+def test_both_over_12_worked_example_matches_the_encoding():
+    assert _date_format_for_line("99/99/9999") == {"pattern": "MM/DD/YYYY", "ambiguous": True}, (
+        "the doc's own '99/99/9999' worked example must provisionally label as "
+        "MM/DD/YYYY and flag ambiguous, per references/format.md's Numeric date "
+        "ambiguity section"
+    )
+
+
+# (iii) Start-of-line 2-digit-year rule (J1/J2) — "Date-format tokens"
+# section's bare-line and marked-line halves.
+START_OF_LINE_BARE_DOC_SENTENCE = (
+    "so the date must be the line's **entire content** (aside from trailing "
+    "whitespace): `21 Jul 26` and `July 4, 26` are recognized; "
+    "`Dec 25, 10 alerts fired.` is not"
+)
+START_OF_LINE_MARKED_DOC_SENTENCE = (
+    "anything may follow it: `# 21 Jul 26 - checkout: latency`, "
+    "`# 21 Jul 26 (checkout)`, `# 21 Jul 26 [P1]`, and `**21 Jul 26**` are all "
+    "recognized."
+)
+
+
+def test_format_md_states_the_start_of_line_rule_both_halves():
+    assert START_OF_LINE_BARE_DOC_SENTENCE in FORMAT_MD_NORMALIZED, (
+        "expected references/format.md to state the bare-line half of the "
+        "start-of-line rule verbatim — %r not found" % START_OF_LINE_BARE_DOC_SENTENCE
+    )
+    assert START_OF_LINE_MARKED_DOC_SENTENCE in FORMAT_MD_NORMALIZED, (
+        "expected references/format.md to state the marked-line half of the "
+        "start-of-line rule verbatim — %r not found" % START_OF_LINE_MARKED_DOC_SENTENCE
+    )
+
+
+def test_start_of_line_rule_worked_examples_match_the_encoding():
+    # Bare-line half: the date must be the line's entire content.
+    assert _date_format_for_line("21 Jul 26") == {"pattern": "DD Mon YY", "ambiguous": False}
+    assert _date_format_for_line("July 4, 26") == {"pattern": "Month D, YY", "ambiguous": False}
+    assert _date_format_for_line("Dec 25, 10 alerts fired.") is None, (
+        "the doc's own bare-line counter-example must still carry no recognized "
+        "date — its date leads the line but text follows it"
+    )
+    # Marked-line half: anything may follow the date once a heading marker leads.
+    for line in (
+        "# 21 Jul 26 - checkout: latency",
+        "# 21 Jul 26 (checkout)",
+        "# 21 Jul 26 [P1]",
+        "**21 Jul 26**",
+    ):
+        assert _date_format_for_line(line) == {"pattern": "DD Mon YY", "ambiguous": False}, (
+            "%r is one of the doc's own marked-line worked examples and must "
+            "parse regardless of what trails the date" % line
+        )
+
+
+# (iv) The conflict clause — "Numeric date ambiguity" section's pass-level
+# resolution: two-plus unambiguous entries voting different orders resolve
+# nothing, and date_ambiguous still surfaces.
+CONFLICT_CLAUSE_DOC_SENTENCE = (
+    "the conflict resolves nothing: the flags stand exactly as if no entry had "
+    "resolved it, and `date_ambiguous` still surfaces."
+)
+
+
+def test_format_md_states_the_conflict_clause():
+    assert CONFLICT_CLAUSE_DOC_SENTENCE in FORMAT_MD_NORMALIZED, (
+        "expected references/format.md's Numeric date ambiguity section to "
+        "state the conflicting-votes clause verbatim — %r not found"
+        % CONFLICT_CLAUSE_DOC_SENTENCE
+    )
+
+
+def test_conflict_clause_worked_example_matches_the_encoding():
+    # "one clearly day-first, another clearly month-first" (the doc's own
+    # framing) — resolve_date_ambiguity must leave every structure UNCHANGED
+    # rather than adopt either voted order.
+    day_first = {
+        "title": None, "sections": [], "field_order": [],
+        "date_format": {"pattern": "DD/MM/YYYY", "ambiguous": False},
+    }
+    month_first = {
+        "title": None, "sections": [], "field_order": [],
+        "date_format": {"pattern": "MM/DD/YYYY", "ambiguous": False},
+    }
+    genuinely_ambiguous = {
+        "title": None, "sections": [], "field_order": [],
+        "date_format": {"pattern": "MM/DD/YYYY", "ambiguous": True},
+    }
+    structures = [day_first, month_first, genuinely_ambiguous]
+    assert resolve_date_ambiguity(structures) == structures, (
+        "conflicting unambiguous votes must leave every structure's flags "
+        "exactly as if no entry had resolved the ambiguity, per the doc's "
+        "conflict clause"
+    )
+
+    # And the notice half: date_ambiguous still surfaces end to end.
+    entries = [
+        {
+            "link": "diary-j4-conflict-newest",
+            "content": "# 17/06/2026 — checkout: incident\n\n## What happened\nBody.\n",
+            "at": "2026-06-17T00:00:00Z",
+        },
+        {
+            "link": "diary-j4-conflict-middle",
+            "content": "# 06/17/2026 — checkout: incident\n\n## What happened\nBody.\n",
+            "at": "2026-06-16T00:00:00Z",
+        },
+        {
+            "link": "diary-j4-conflict-oldest",
+            "content": "# 03/04/2026 — checkout: incident\n\n## What happened\nBody.\n",
+            "at": "2026-06-15T00:00:00Z",
+        },
+    ]
+    resolution = resolve_format(None, entries)
+    assert "date_ambiguous" in set(notice["kind"] for notice in resolution["notices"]), (
+        "date_ambiguous must still surface when the pass's unambiguous entries "
+        "disagree on order, per the doc's conflict clause"
     )
 
 

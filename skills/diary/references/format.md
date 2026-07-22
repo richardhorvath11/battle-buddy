@@ -97,11 +97,34 @@ keeping every other character literal:
 | `Mon` / `Month` | abbreviated / full month name |
 
 **`YY`'s scope is not uniform across the four shapes.** A written 2-digit year is
-recognized in the year-last numeric shape (`07/21/26`) and in both named-month shapes
-(`21 Jul 26`, `July 4, 26`) — every shape whose year sits in the trailing position. In
-the **year-first** numeric shape, a leading 2-digit component is read as a **day**, not
-a year (`26-07-21` → `DD-MM-YY`), because a year-first shape has no positional way to
-tell a 2-digit year apart from a 2-digit day or month component.
+recognized in the year-last numeric shape (`07/21/26`) unconditionally, and in both
+named-month shapes (`21 Jul 26`, `July 4, 26`) **subject to the start-of-line rule
+below** — every shape whose year sits in the trailing position. In the **year-first**
+numeric shape, a leading 2-digit component is read as a **day**, not a year
+(`26-07-21` → `DD-MM-YY`), because a year-first shape has no positional way to tell a
+2-digit year apart from a 2-digit day or month component.
+
+**The named-month shapes' 2-digit year is recognized only at the start of the line.** A
+2-digit year is genuinely ambiguous with an ordinary count in prose — "On Jul 4, 15
+nodes went down" reads exactly like a date once a 2-digit year is accepted
+unconditionally — and no rule about what *follows* the year can separate the two,
+because prose can be punctuated however the writer likes. What actually differs is
+*position*: a diary entry's title leads with its date, and prose does not. So the
+2-digit-year alternative of `21 Jul 26` and `July 4, 26` is recognized only when the
+date sits at the **start of the line's text**, after stripping any leading heading
+marker and bold wrapper (`#{1,6}`, `**`, and surrounding whitespace):
+
+- On a **heading-marked line** (`atx` or `bold`), the date only has to *lead* the
+  heading's own text — anything may follow it: `# 21 Jul 26 - checkout: latency`,
+  `# 21 Jul 26 (checkout)`, `# 21 Jul 26 [P1]`, and `**21 Jul 26**` are all recognized.
+- On a **bare line** (no heading marker), there is no marker to signal "this is a
+  title", so the date must be the line's **entire content** (aside from trailing
+  whitespace): `21 Jul 26` and `July 4, 26` are recognized; `Dec 25, 10 alerts fired.`
+  is not — its date leads the line, but text follows it, which is exactly the "ordinary
+  count in prose" shape this rule exists to exclude.
+
+A 4-digit year needs none of this: it stays recognized anywhere in the line, the same
+as the year-last numeric shape's own 2-digit year.
 
 Worked examples:
 
@@ -134,7 +157,12 @@ it is far more likely a fragment of something else entirely (a version string, a
 match-**boundary** rule only, never a calendar-validity check: a genuinely standalone
 `1234-56-78` still reads as `YYYY-MM-DD` — extraction reads a format, it never validates a
 value. A trailing period with nothing after it (a sentence-final date, e.g. `See 07/21/2026.`)
-is not glue and does not block recognition.
+is not glue and does not block recognition — for every shape and year width **except** the
+2-digit-year alternative of the two named-month shapes on a bare, unmarked line. There, the
+start-of-line rule above already requires the date to be the line's entire content, so
+`21 Jul 26.` (bare, trailing period) is not recognized regardless of the period; the same date
+on a marked heading line (`# 21 Jul 26.`) is unaffected, since a marked line's trailing content
+is unrestricted.
 
 **When the title line's date isn't recognized.** Title recognition (above, "Heading
 recognition") depends on the first heading sitting on the date-bearing line — and a line only
@@ -156,6 +184,10 @@ recognized the same as `3 Jul 2026` and `July 4, 2026` — rendering stays canon
 - The year-last numeric shape tolerates mismatched separators (`07/21-2026` parses); the
   year-first (ISO) shape does not — its two separators must match.
 - Spaced-out numeric forms (`2026 - 07 - 21`) are not recognized at all.
+- The 2-digit year alternative of the two named-month shapes only parses when the date leads
+  the line's text (above, "The named-month shapes' 2-digit year is recognized only at the
+  start of the line") — on a bare line with no heading marker, the date must be the line's
+  entire content. A 4-digit year has no such restriction.
 
 ### Field-order normalization
 

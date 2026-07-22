@@ -197,17 +197,32 @@ _YEAR_ALT = r"\d{4}|YYYY|YY"
 # (_YEAR_LAST_RE) keeps G2's unconditional widening: three bare numeric
 # components joined by "-"/"/" is not a shape ordinary English prose
 # produces, so _YEAR_TRAILING_ALT is untouched and still serves that shape
-# alone. The two NAMED-MONTH shapes are exactly the ones ordinary prose
-# does produce once their year may be 2 digits, so their 2-digit
-# alternative is gated on trailing context instead
-# (_YEAR_TRAILING_ALT_NAMED_MONTH, below): the year must be followed by
-# end-of-line or one of "— – : , ) ]" (surrounding whitespace allowed) —
-# the shape a title or a parenthetical date actually has, and prose like
-# "...15 nodes went down." never does. Only the 2-digit alternative is
-# gated; a 4-digit year is already distinctive enough not to need it.
+# alone.
 _YEAR_TRAILING_ALT = r"\d{4}|\d{2}|YYYY|YY"
-_YEAR_TRAILING_CONTEXT = r"(?=\s*(?:$|[—–:,)\]]))"
-_YEAR_TRAILING_ALT_NAMED_MONTH = r"\d{4}|YYYY|(?:\d{2}|YY)" + _YEAR_TRAILING_CONTEXT
+#
+# J1/J2 (round 4, REPLACES H1's named-month gate) — H1 gated the two
+# NAMED-MONTH shapes' 2-digit-year alternative on what followed the year (a
+# trailing-punctuation whitelist: end-of-line or one of "— – : , ) ]").
+# Round 4 proved that gate wrong in BOTH directions: it REJECTED real diary
+# titles whose trailing punctuation was not on the list (a plain ASCII
+# hyphen, an opening "(" or "[", a bold closer "**"), and it still ADMITTED
+# prose that happened to punctuate its trailing digits with something on
+# the list — "On Jul 4, 15: nodes went down." reads as "Mon D, YY" once ","
+# and ":" are both whitelisted, exactly the prose H1 itself set out to
+# reject.
+#
+# The reason no trailing-punctuation rule can ever separate the two: a
+# 2-digit year is genuinely ambiguous with an ordinary count in prose ("Jul
+# 4, 15 nodes"), and prose can be punctuated however the writer likes, so
+# there is no fixed set of "safe" trailing characters. What actually
+# differs is POSITION, not punctuation: a diary entry's title *leads* with
+# its date, and prose does not. `_named_month_2digit_match` below encodes
+# that directly — see its docstring — rather than trying yet another
+# trailing-context whitelist. A 4-digit year needs none of this: it is
+# distinctive enough on its own to stay positionally free, exactly as
+# before.
+_YEAR_4DIGIT_ALT = r"\d{4}|YYYY"
+_YEAR_2DIGIT_ALT = r"\d{2}|YY"
 _MONTHNUM_ALT = r"\d{1,2}|MM|M"
 _DAYNUM_ALT = r"\d{1,2}|DD|D"
 _DAYMONTHNUM_ALT = r"\d{1,2}|MM|M|DD|D"
@@ -270,25 +285,103 @@ _YEAR_LAST_RE = re.compile(
     )
     + _NOT_FOLLOWED_BY_DIGIT_RUN
 )
-# Shape 3 — "21 Jul 2026" / "21 Month 2026": day, named month, year. H1
-# (round 3): year=_YEAR_TRAILING_ALT_NAMED_MONTH — the 2-digit alternative
-# is gated on trailing context so ordinary prose does not fabricate a date
-# (see that constant's comment).
-_DAY_MONTHNAME_YEAR_RE = re.compile(
+# Shape 3 — "21 Jul 2026" / "21 Month 2026": day, named month, year. Split
+# into a 4-digit variant (positionally free, matched with .search() like
+# every other shape) and a 2-digit variant (position-gated — see
+# _named_month_2digit_match, J1/J2 round 4).
+_DAY_MONTHNAME_YEAR_4DIGIT_RE = re.compile(
     _NOT_PRECEDED_BY_DIGIT_RUN
     + r"(?P<day>{dnum})(?P<sep1>\s+)(?P<month>{mname})(?P<sep2>\s+)(?P<year>{year})".format(
-        dnum=_DAYNUM_ALT, mname=_MONTHNAME_ALT, year=_YEAR_TRAILING_ALT_NAMED_MONTH
+        dnum=_DAYNUM_ALT, mname=_MONTHNAME_ALT, year=_YEAR_4DIGIT_ALT
     )
     + _NOT_FOLLOWED_BY_DIGIT_RUN
 )
-# Shape 4 — "July 4, 2026": named month, day, comma, year. Same H1 gating
-# on the 2-digit year alternative as shape 3.
-_MONTHNAME_DAY_YEAR_RE = re.compile(
+_DAY_MONTHNAME_YEAR_2DIGIT_RE = re.compile(
+    _NOT_PRECEDED_BY_DIGIT_RUN
+    + r"(?P<day>{dnum})(?P<sep1>\s+)(?P<month>{mname})(?P<sep2>\s+)(?P<year>{year})".format(
+        dnum=_DAYNUM_ALT, mname=_MONTHNAME_ALT, year=_YEAR_2DIGIT_ALT
+    )
+    + _NOT_FOLLOWED_BY_DIGIT_RUN
+)
+# Shape 4 — "July 4, 2026": named month, day, comma, year. Same 4-digit /
+# 2-digit split as shape 3.
+_MONTHNAME_DAY_YEAR_4DIGIT_RE = re.compile(
     r"(?P<month>{mname})(?P<sep1>\s+)(?P<day>{dnum}),(?P<sep2>\s*)(?P<year>{year})".format(
-        mname=_MONTHNAME_ALT, dnum=_DAYNUM_ALT, year=_YEAR_TRAILING_ALT_NAMED_MONTH
+        mname=_MONTHNAME_ALT, dnum=_DAYNUM_ALT, year=_YEAR_4DIGIT_ALT
     )
     + _NOT_FOLLOWED_BY_DIGIT_RUN
 )
+_MONTHNAME_DAY_YEAR_2DIGIT_RE = re.compile(
+    r"(?P<month>{mname})(?P<sep1>\s+)(?P<day>{dnum}),(?P<sep2>\s*)(?P<year>{year})".format(
+        mname=_MONTHNAME_ALT, dnum=_DAYNUM_ALT, year=_YEAR_2DIGIT_ALT
+    )
+    + _NOT_FOLLOWED_BY_DIGIT_RUN
+)
+
+# J1/J2 (round 4) — the leading marker a 2-digit-year named-month date must
+# sit right after, once stripped: an ATX heading marker ("#" x1-6 plus
+# required space, data-model.md §3 "Heading recognition") or a bold
+# wrapper's opening "**". Only the LEADING marker matters here — the
+# function below never requires a matching bold closer — this is a
+# position rule, not a re-implementation of heading recognition.
+_LEADING_ATX_MARKER_RE = re.compile(r"^#{1,6} +")
+
+
+def _strip_leading_marker(line):
+    """Strips one leading ATX marker or bold-wrapper opener, plus
+    surrounding whitespace, per the decision's own wording ("after
+    stripping any leading heading marker and bold wrapper (#{1,6}, **, and
+    surrounding whitespace)"). Returns (remainder, had_marker).
+
+    A line with neither marker passes through with only its own leading
+    whitespace trimmed, and had_marker=False — a bare line can still carry
+    a title-shaped date (see _named_month_2digit_match), it just gets the
+    stricter, whole-line half of that rule rather than the free-trailing
+    half a marked line gets.
+    """
+    text = line.lstrip()
+    atx_match = _LEADING_ATX_MARKER_RE.match(text)
+    if atx_match:
+        return text[atx_match.end():].lstrip(), True
+    if text.startswith("**"):
+        return text[2:].lstrip(), True
+    return text, False
+
+
+def _named_month_2digit_match(regex, line):
+    """The J1/J2 (round 4) start-of-line rule for a named-month shape's
+    2-digit-year alternative: recognized only when the date sits at the
+    START of the line's text, after stripping any leading heading marker or
+    bold wrapper and surrounding whitespace (_strip_leading_marker) — never
+    by what follows it.
+
+    That "start of line's text" requirement has two different shapes
+    depending on what, if anything, was stripped:
+
+    - **A marker was present** (this line is heading-shaped): the date only
+      has to LEAD the heading's own text; anything may follow it, since
+      that is what a real diary title looks like — "21 Jul 26 - checkout:
+      latency", "21 Jul 26 (checkout)", "21 Jul 26 [P1]" are all one
+      heading's worth of text with the date first.
+    - **No marker was present** (a bare line): there is no heading marker
+      to signal "this line is a title", so the date must be the line's
+      ENTIRE content (aside from trailing whitespace) for position alone to
+      carry that signal. Without this half, "Dec 25, 10 alerts fired."
+      would satisfy a naive "starts at position 0" check — the date really
+      is the first thing on the line — and still fabricate a date out of
+      ordinary prose, the exact failure mode this whole rule exists to
+      close. "21 Jul 26" and "July 4, 26" (nothing else on the line) pass;
+      "Dec 25, 10 alerts fired." (trailing prose after the date) does not.
+
+    Returns the match object or None.
+    """
+    remainder, had_marker = _strip_leading_marker(line)
+    match = regex.match(remainder)
+    if match is None:
+        return None
+    if not had_marker and remainder[match.end():].strip() != "":
+        return None
+    return match
 
 
 def _normalize_label(text):
@@ -319,7 +412,7 @@ def _year_token(value):
     written digits (or the literal YYYY token), YY for two written digits
     (or the literal YY token — G2/F4: the year-last shape and both
     named-month shapes accept a written 2-digit year; see
-    _YEAR_TRAILING_ALT above)."""
+    _YEAR_TRAILING_ALT / _YEAR_2DIGIT_ALT above)."""
     if value in ("YYYY", "YY"):
         return value
     return "YYYY" if len(value) == 4 else "YY"
@@ -381,7 +474,8 @@ def _date_format_for_line(line):
         pattern = c1_tok + match.group("sep1") + c2_tok + match.group("sep2") + year_tok
         return {"pattern": pattern, "ambiguous": ambiguous}
 
-    match = _DAY_MONTHNAME_YEAR_RE.search(line)
+    # Shape 3, 4-digit year — positionally free, same as every other shape.
+    match = _DAY_MONTHNAME_YEAR_4DIGIT_RE.search(line)
     if match:
         pattern = (
             _pad_or_token(match.group("day"), "D") + match.group("sep1")
@@ -390,7 +484,29 @@ def _date_format_for_line(line):
         )
         return {"pattern": pattern, "ambiguous": False}
 
-    match = _MONTHNAME_DAY_YEAR_RE.search(line)
+    # Shape 3, 2-digit year — J1/J2 (round 4): position-gated, not
+    # trailing-context-gated. See _named_month_2digit_match.
+    match = _named_month_2digit_match(_DAY_MONTHNAME_YEAR_2DIGIT_RE, line)
+    if match:
+        pattern = (
+            _pad_or_token(match.group("day"), "D") + match.group("sep1")
+            + _month_name_token(match.group("month")) + match.group("sep2")
+            + _year_token(match.group("year"))
+        )
+        return {"pattern": pattern, "ambiguous": False}
+
+    # Shape 4, 4-digit year — positionally free.
+    match = _MONTHNAME_DAY_YEAR_4DIGIT_RE.search(line)
+    if match:
+        pattern = (
+            _month_name_token(match.group("month")) + match.group("sep1")
+            + _pad_or_token(match.group("day"), "D") + ","
+            + match.group("sep2") + _year_token(match.group("year"))
+        )
+        return {"pattern": pattern, "ambiguous": False}
+
+    # Shape 4, 2-digit year — same position gate as shape 3 above.
+    match = _named_month_2digit_match(_MONTHNAME_DAY_YEAR_2DIGIT_RE, line)
     if match:
         pattern = (
             _month_name_token(match.group("month")) + match.group("sep1")

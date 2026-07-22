@@ -105,11 +105,25 @@ a property of *how the component is written*, not of its value — so `07` and `
 two-digit and both take the padded token, while `4` takes the unpadded one.
 
 **`YY`'s scope is not uniform across the four shapes.** A written 2-digit year is
-recognized in the year-last numeric shape (`07/21/26`) and in both named-month shapes
-(`21 Jul 26`, `July 4, 26`) — every shape whose year sits in the trailing position. In
+recognized in the year-last numeric shape (`07/21/26`) unconditionally, and in both
+named-month shapes (`21 Jul 26`, `July 4, 26`) **only when the date sits at the start
+of the line's text** (below) — every shape whose year sits in the trailing position. In
 the **year-first** numeric shape, a leading 2-digit component is read as a **day**, not
 a year (`26-07-21` → `DD-MM-YY`), because a year-first shape has no positional way to
 tell a 2-digit year apart from a 2-digit day or month component.
+
+**Known limit: the named-month shapes' 2-digit year is start-of-line-gated.** A 2-digit
+year is genuinely ambiguous with an ordinary count in prose ("On Jul 4, 15 nodes went
+down"), and no rule about trailing punctuation can separate the two, since prose can be
+punctuated however the writer likes — position is what actually differs: a diary title
+*leads* with its date, prose does not. So the 2-digit-year alternative of the two
+named-month shapes is recognized only after stripping a leading heading marker or bold
+wrapper (`#{1,6}`, `**`, and surrounding whitespace): on a marked line the date need
+only lead the heading text (anything may follow, e.g. `# 21 Jul 26 - checkout:
+latency`); on a bare line with no marker, the date must be the line's entire content
+(`21 Jul 26` parses; `Dec 25, 10 alerts fired.` does not, even though its date leads the
+line, because text follows it). A 4-digit year is exempt from this and stays
+positionally free, same as the year-last numeric shape's own 2-digit year.
 
 Worked cases: `2026-07-21` → `YYYY-MM-DD`; `21 Jul 2026` → `DD Mon YYYY`;
 `July 4, 2026` → `Month D, YYYY`; `07/21/2026` → `MM/DD/YYYY`.
@@ -129,7 +143,11 @@ is far more likely a fragment of something else entirely (a version string, a bu
 match-**boundary** rule only, never a calendar-validity check: a genuinely standalone
 `1234-56-78` still reads as `YYYY-MM-DD` — this section's own "we extract a format, not a valid
 date" posture is untouched by it. A trailing period with nothing after it (a sentence-final
-date, e.g. `See 07/21/2026.`) is not glue and does not block recognition.
+date, e.g. `See 07/21/2026.`) is not glue and does not block recognition — for every shape and
+year width **except** the 2-digit-year alternative of the two named-month shapes on a bare,
+unmarked line, where the start-of-line rule above already requires the date to be the line's
+entire content: `21 Jul 26.` (bare, trailing period) is not recognized regardless, while
+`# 21 Jul 26.` (marked) is unaffected.
 
 **`field_order`** normalization: lowercase, trailing `:` stripped, internal whitespace
 collapsed. Sources, in document order: every `sections` heading's `text`, plus every
