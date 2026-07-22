@@ -63,12 +63,21 @@ degraded mode if neither connects. Teams whose socket is tagged set
 Reimplementing discovery would couple us to an unpublished detail that can change
 under us; failing soft to degraded is exactly the posture FR-005 mandates.
 
-**Auth.** cmux resolves `--password`, then `$CMUX_SOCKET_PASSWORD`, then a
-password stored in Settings. The probes here required none (`capabilities`
-reported `access_mode: cmuxOnly`). The shim passes `$CMUX_SOCKET_PASSWORD`
-through when set and otherwise sends nothing; an auth rejection is a socket
-failure like any other → degraded + notice. **The shim never reads, stores, or
-logs the password value** (FR-006).
+**Auth — not supported in v1, deliberately.** cmux resolves `--password`, then
+`$CMUX_SOCKET_PASSWORD`, then a password stored in Settings. The probes here
+required none (`capabilities` reported `access_mode: cmuxOnly`), so the
+*handshake* was never observed and is not publicly documented.
+
+Implementing it blind would mean guessing a security-relevant protocol. The shim
+therefore connects without authentication and never reads the password variable
+at all; on a socket that demands it, the connection is rejected and the verb
+degrades like any other backend failure. **No credential can reach a request
+frame, a log line, or a diagnostic** (FR-006) — trivially, since none is read.
+
+*(Corrected in review round 2: an earlier draft of this section and of
+`bin/bb-shell.cmux.md` claimed the shim passed the password through. It never
+did. A shipped document asserting a security behavior the code does not
+implement is worse than the missing feature.)*
 
 ## R3 — Verb → method + param mapping
 

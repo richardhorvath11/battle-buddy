@@ -325,7 +325,11 @@ def test_the_scan_can_actually_fail(tmp_path):
 
 
 def test_password_env_var_never_reaches_the_wire(tmp_path):
-    """The shim passes auth to the socket layer, never into a request frame."""
+    """v1 does not support password-protected sockets at all (research R2): the
+    handshake is undocumented and guessing at a security protocol is worse than
+    degrading. The shim never reads the variable, so no credential can reach a
+    frame or a diagnostic — this test pins that as behavior rather than leaving
+    it as an accident of the current implementation."""
     write_cmux_settings(tmp_path)
     with FakeCmux() as fake:
         out, err = io.StringIO(), io.StringIO()

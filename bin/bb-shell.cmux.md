@@ -22,9 +22,17 @@ disagree; `bb-shell` instead degrades with a diagnostic notice, because a mistyp
 environment variable is not a caller bug in the usage-error sense and bricking a session
 over one would invert the fail-soft rule.
 
-Authentication, when the socket requires it, comes from `$CMUX_SOCKET_PASSWORD`. The shim
-passes it to the connection and **never places it in a request frame, a log line, or a
-diagnostic**.
+**Password-protected sockets are not supported in v1.** cmux can require a socket password
+(`--password`, `$CMUX_SOCKET_PASSWORD`, or one saved in its settings), but its
+authentication handshake is undocumented and was not exercised here — the development
+socket reported `access_mode: cmuxOnly` and accepted unauthenticated connections. Rather
+than guess at a handshake, `bb-shell` connects without one: on a socket that demands
+authentication the connection is rejected, and that is simply another backend failure, so
+the verb degrades to printed output and exits successfully.
+
+The shim therefore never reads `$CMUX_SOCKET_PASSWORD` at all, and no credential can reach
+a request frame, a log line, or a diagnostic. Adding authentication later is a change to
+this backend only; the interface contract is unaffected.
 
 **Known gap, stated rather than papered over**: cmux also auto-discovers tagged and debug
 sockets (observed in the wild as `cmux-<uid>.sock`), by an algorithm its docs do not
