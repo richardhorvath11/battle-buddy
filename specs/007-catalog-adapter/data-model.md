@@ -69,14 +69,26 @@ Catalog {
   linkage:   {name -> {paging_id?, repo_slug?}}
   sources:   {name -> source_path}    # the winning entity's path (see relativity rule below)
   warnings:  [Warning]                # catalog-quality, non-fatal
-  failures:  [Failure]                # per-file, non-fatal
+  failures:  [Failure]                # per-file, plus one for an unreadable root
 }
 ```
 
 `Warning {kind, service, detail, sources[]}` — `kind` ∈ `duplicate_name` | `ignored_entity` |
 `missing_owner` | `dangling_dependency`.
 
-`Failure {source_path, reason}` — one entry per file that could not be parsed.
+`Failure {source_path, reason}` — one entry per file that could not be parsed, **plus a
+single entry when the root itself is the problem**, in two flavors:
+
+| Root condition | `source_path` | `reason` |
+|---|---|---|
+| exists but is not a readable directory (or does not exist) | the root as given | not a readable directory |
+| unset, empty, `.`, or not a path at all | `""` | unset or not a path |
+
+Without these, a caller could not tell "the team's catalog repo is unreachable" (spec's
+Edge Cases) from "the repo contains no `catalog-info.yaml`": a directory walk over a
+missing path yields nothing and raises nothing, and an empty-string root wrapped by a
+caller (`Path(config.get("catalog_root", ""))` → `Path(".")`) would walk the working
+directory and answer with whatever it found there.
 
 **Nothing here is an error path.** A `Catalog` is always returned; FR-004's "no partial
 annotation ever errors a session" and the malformed-file isolation rule are the same
@@ -87,7 +99,9 @@ property expressed at field and file scope.
 `load_catalog(repo_root)` is called with the **repo root itself** — in tests,
 `fixture_path("catalog", "repo")`. Every `source_path` is relative to that root, so the
 canonical `orders` entity's path is `services/orders-eu/catalog-info.yaml`, never
-`repo/services/…` and never absolute. Lexicographic ordering (below) is applied to exactly
+`repo/services/…` and never absolute — **with one documented exception**: the
+two root-condition `Failure`s above, which name the root as the caller gave it or carry
+an empty path — when the root itself is the problem there is nothing to be relative to. Lexicographic ordering (below) is applied to exactly
 this string.
 
 ### Entity classification (edge case: non-service entities)
@@ -103,6 +117,16 @@ than one member, the entity whose **repo-relative source path sorts first lexico
 becomes canonical; every other member is dropped and one `duplicate_name` warning is emitted
 naming all source paths. Deterministic by construction — no dependence on directory-walk
 order.
+
+### Warning provenance across duplicate resolution (pinned)
+
+Warnings are collected per *file*, before duplicate resolution runs, so a
+`duplicate_name` loser's own warnings (e.g. a `missing_owner` on `orders-us`) stay in the
+catalog's `warnings` list even though its entity was dropped. That is deliberate: the
+warning stream is a record of catalog *quality*, and a quality problem in a file that lost a
+tie-break is still a problem in the team's repo — the fix-up path is the correction vehicle
+for both. Consumers reading the stream must therefore treat `warning["service"]` as "the
+name the offending entity declared", not "a key into `catalog["services"]`".
 
 ### Dangling `dependsOn` (surfaced, never dropped)
 
@@ -205,7 +229,7 @@ an action. Signature is pinned so the test can assert literals:
 
 ```
 fixup_offer(alert, service_name, catalog)
-  -> Fixup { source_path, annotation_key, annotation_value, snippet }
+  -> Fixup { source_path, annotation_key, annotation_value, commit_ready, snippet }
 ```
 
 - `annotation_key` is always `oncall-harness/alert-match`.
@@ -216,7 +240,14 @@ fixup_offer(alert, service_name, catalog)
   already in the catalog; when it is absent entirely, the **conventional path for a new
   entity**, pinned as `services/<service_name>/catalog-info.yaml` (relative to the repo root,
   §3's relativity rule).
-- `snippet` is the paste-ready annotation block containing the key and value.
+- `commit_ready` is `False` exactly when `annotation_value` is `""` — the alert offered
+  nothing discriminating. `snippet` is then `""`: the harness must never hand over a
+  paste-ready block it would refuse to honor on the read side. Committing
+  `alert_matchers: [""]` gives a service a matcher that matches every sparse alert, and
+  the exact stage's own emptiness guard exists to defend against exactly that. Producing
+  it and then defending against it would be the harness arguing with itself.
+- `snippet` is the paste-ready annotation block containing the key and value, rendered in
+  the fixtures' strict-JSON style.
 
 The responder commits it. **No agent writes to the catalog** — it is human-curated,
 PR-reviewed data (design §2 division of knowledge, Constitution I).
@@ -295,7 +326,8 @@ implementation would pass every case and §5's ordering pin would be untested.
 
 ### Resolution matrix cases
 
-Nine cases minimum; each `{id, alert, expected}`.
+Ten cases minimum; each `{id, alert, expected}`. `stage` is mandatory on every
+non-`miss` case.
 
 | Case | Alert (abbrev.) | Expectation |
 |---|---|---|
@@ -308,6 +340,7 @@ Nine cases minimum; each `{id, alert, expected}`.
 | miss | tags `["disk-pressure"]`, fields `{name: "node-9 disk pressure"}` | `miss` |
 | sparse alert | tags `[]`, fields `{name: ""}` | `miss`, no exception |
 | reverse-direction probe | fields `{name: "ledger"}` | `miss` — `ledger` is a strict substring of `ledger-svc`, so a reversed implementation resolves it and fails here |
+| name is a substring-stage input only | fields `{name: "notifier"}` | `substring` / `notifier` — the value EQUALS a service name, so an implementation that adds the service's own name as an exact-stage input returns `exact` and fails. Subject is matcher-less on purpose: the case also proves the substring stage still reaches a service the exact stage cannot |
 
 ### `golden-models.json` structure (pinned — T006 and T007 are parallel)
 

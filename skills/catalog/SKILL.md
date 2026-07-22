@@ -1,0 +1,143 @@
+---
+name: catalog
+description: Use when reading or resolving the team's service catalog — alert→service resolution, the internal service model, the annotation mapping that populates it, per-field degradation, or catalog freshness. Documents the catalog conventions (annotation mapping, service model, resolution match order, degradation, freshness) that stand in for shipped catalog-adapter code.
+---
+
+# Catalog
+
+The team's service catalog is the source of truth for what services exist, how
+they're owned, and how a firing alert maps onto one of them. This skill
+documents the conventions an on-call agent follows when consulting the catalog
+— never a parsing library or catalog-adapter code, which this slice
+deliberately does not ship (Constitution I; FR-009). The catalog itself lives
+in a file-based repository external to this harness; nothing here stores or
+duplicates its content.
+
+## Overview
+
+Every value that reaches a consumer arrives shaped as one `Service`:
+
+```
+Service {name, owner, runbooks[], dashboards[], alert_matchers[], depends_on[]}
+```
+
+Six fields, no more. This is the **only** shape any consumer sees — raw catalog file
+structure (entity `kind`, `metadata`, `spec`, annotation blocks) never crosses this
+boundary, and a consumer holding a `Service` never inspects where a field came from.
+`references/annotations.md` owns the full mapping from raw catalog structure onto these
+six fields.
+
+This slice ships prose and tests only — no parsing library, no catalog-adapter code, and
+no shipped integration code (Constitution I; FR-009). At runtime the "parser" is an agent
+reading the team's `catalog-info.yaml` files through **your code tool's file reads**,
+guided by this document and its references, rather than any bespoke parser this
+repository ships alongside them.
+
+The catalog is the team's own human-curated data. The harness reads it and never writes
+to it: the fix-up offer described in `references/resolution.md` is content a responder
+commits, never something an agent commits on the catalog's behalf.
+
+## References
+
+| Reference | Covers |
+|---|---|
+| `references/annotations.md` | the annotation mapping, the internal model's fields, empty-list defaults and multi-valued parsing, entity classification, duplicate names, catalog-quality warnings and their identifiers, what a parse yields, the linkage annotations (paging, repo), the runbook-reference format |
+| `references/resolution.md` | alert→service match order, ambiguity and the miss/ask-once path, the fix-up offer, one-hop blast radius |
+
+## Degradation
+
+Each absent input degrades exactly its own feature, and nothing else. There are no
+cross-effects — a service missing dashboards still briefs normally. Three of the four rows
+below are annotations; `dependsOn` is a spec field (see `references/annotations.md` for
+the full mapping), and the column names the model-facing input rather than the literal
+key.
+
+| Absent input | What stops working | What keeps working |
+|---|---|---|
+| dashboards | pane driving for that service | everything else — the briefing is unaffected |
+| alert-match | matcher-based resolution for that service | the ask-once + fix-up path carries it, exactly as a resolution miss does |
+| runbooks | runbook fetch | the absence is noted in the briefing rather than passed over silently |
+| dependsOn | blast-radius widening | assessment proceeds unwidened |
+
+For the alert-match row, the consequence worth stating plainly (also carried in
+`references/resolution.md`): a matcher-less service cannot match at the exact stage at
+all, but the substring stage may still resolve it when the alert happens to spell its
+name in one of its fields. The rule above is about the matcher path specifically — it is
+not a claim that every matcher-less service always misses.
+
+### Malformed files
+
+A file that cannot be parsed degrades to "this service is unavailable from the catalog"
+**for that file only**: the failure is surfaced, never fatal, and every other file still
+parses. Nothing about one broken file stops a session from opening.
+
+### Catalog-quality warnings are not feature degradations
+
+Distinguish these explicitly from the table above, because conflating them is the easy
+mistake. The catalog surfaces exactly these four (`references/annotations.md`
+names their identifiers):
+
+- **Missing owner** — a service with no owner parses fine and is surfaced. Ownership
+  disables no feature; it is a quality signal, not a degradation.
+- **Ignored entity** — an entry whose kind is not service-shaped is skipped with a note
+  rather than parsed or errored (see `references/annotations.md`).
+- **Dangling dependency** — a dependency naming a service the catalog does not contain is
+  **kept** in the blast radius and surfaced. Silently shrinking a blast radius is worse
+  than a wide one with a note.
+- **Duplicate service name** — resolved deterministically (see
+  `references/annotations.md`) and surfaced.
+
+### No partial annotation ever errors a session
+
+Every one of these paths degrades a feature and continues; none of them is an error
+path.
+
+## Freshness and runbook references
+
+Catalog data is human-curated in the team's own repository — it is not harness-owned
+data, and this skill treats it that way. It is read **fresh at session start** through
+**your code tool's file reads**, and it is **never cached across sessions and never
+copied into any store.** The reason is not just the rule: a stale copy of human-curated
+data is worse than a read that fails visibly, because a stale copy looks trustworthy while
+being wrong. The team's repository is the system of record; the harness reads it fresh
+each session rather than owning a copy of it, the same boundary the fix-up path enforces
+in the other direction when it insists the responder commits, never the agent.
+
+### Runbook references are pointers, never content
+
+What reaches the session record for a runbook is a reference, not the runbook itself: a
+URL plus the commit SHA it was read at, present where the runbook is git-hosted and
+absent for one that isn't. Runbook **content** — what the runbook actually says — is
+never persisted anywhere; only the pointer is. The session record's `runbook_refs` field
+is the destination for that pointer, and `skills/session-store/` is the normative home of
+that field's schema — this document consumes the shape and does not restate it.
+`references/annotations.md` carries the fuller statement of this same runbook-reference
+rule.
+
+### When the catalog repo is unreachable
+
+A **catalog repo unreachable** at session start — a network partition, a permissions
+problem, or the repository being temporarily gone — never blocks the session opening. All
+three cases land in the same place, and the session proceeds.
+
+The fingerprint resolution ladder's lower rungs carry the session when the catalog cannot
+be read; `skills/session-store/` is the normative home of that ladder, and this document
+does not restate its rungs or their order. Whatever the catalog would otherwise have
+supplied for the session — resolved service, owner, runbooks, dashboards, blast radius —
+is simply absent.
+
+The gap is surfaced in the briefing, so the responder can see that catalog context is
+missing rather than reading a briefing that looks complete while quietly omitting it.
+
+## Non-goals
+
+- **File-mode Backstage is v1's only catalog source.** API-mode Backstage is deferred —
+  see `references/annotations.md`'s Sourcing section.
+- **The harness never writes to the catalog.** The fix-up offer (`references/resolution.md`)
+  is content a responder commits; no agent commits it on the catalog's behalf.
+- **Consuming flows belong to other slices, not this one.** The ask-once interaction is
+  slice 5's lifecycle command; triage's use of catalog context is slice 6's; the
+  catalog-parseable health check is slice 4's `/doctor`. This surface defines the rules and
+  the shapes those slices consume — it does not execute them.
+- **Blast-radius traversal is one hop in v1.** Deeper, multi-hop traversal is a recorded
+  future option, not a promise this surface makes today — see `references/resolution.md`.

@@ -34,18 +34,22 @@ fixtures.
 orphan a later task), the fixture catalog repo, and confirmation that the shipped-bundle
 boundary needs no change.
 
-- [ ] T001 Create the two surface skeletons that setup owns:
+- [x] T001 Create the two surface skeletons that setup owns:
       (a) `skills/catalog/SKILL.md` — frontmatter with `name: catalog` and a when-to-use
       description, a one-paragraph overview, and empty section stubs for *overview /
-      degradation / freshness & runbook references / non-goals*; plus the
-      `skills/catalog/references/` directory. US3 (T013) and US4 (T015) each fill their own
-      section and T017 completes it.
+      degradation / freshness & runbook references / non-goals*. US3 (T013) and US4 (T015)
+      each fill their own section and T017 completes it. The `skills/catalog/references/`
+      directory is **not** created here and needs no `.gitkeep` — git carries no empty
+      directory, so it materializes when T005 writes the first reference doc into it.
       (b) `tests/contract/test_catalog_prose.py` — module skeleton with the doc-set
-      discovery (`rglob("*.md")` over `skills/catalog/`) and its non-vanishing guard
-      (`SKILL.md`, `references/annotations.md`, `references/resolution.md` are all found).
-      T016/T018/T019/T020 each extend it. **Neither file is created inside a story**, so
-      dropping US3 or US4 per the scope-cut rule cannot orphan a Phase-6 task
-- [ ] T002 Create the fixture catalog repo under `tests/fixtures/catalog/`, exactly per
+      discovery (`rglob("*.md")` over `skills/catalog/`) and its non-vanishing guard.
+      The guard's **target** set is `{SKILL.md, references/annotations.md,
+      references/resolution.md}`, but it ships from T001 asserting only `SKILL.md`, since
+      the two reference docs do not exist yet — marked inline with the task that widens it.
+      T005 and T009 each widen it by their own doc (see those tasks); T016/T018/T019/T020
+      extend the module with gates. **Neither file is created inside a story**, so dropping
+      US3 or US4 per the scope-cut rule cannot orphan a Phase-6 task
+- [x] T002 Create the fixture catalog repo under `tests/fixtures/catalog/`, exactly per
       data-model.md §10's roster table — **11 entities yielding 8 parsed services**.
       `README.md` records research R2's format decision, stated as an *instruction* rather
       than a category: files are named `catalog-info.yaml` and written in **strict JSON
@@ -66,7 +70,7 @@ boundary needs no change.
       opposite order by path vs name; `zz-billing` depends on `nonexistent-svc`; `broken` is a
       truncated flow mapping, invalid as both YAML and JSON. Use only the canonical annotation
       keys from research R4
-- [ ] T003 [P] Verify — no edit expected (research R10) — that
+- [x] T003 [P] Verify — no edit expected (research R10) — that
       `tests/fixtures/packaging/intended-bundle.json`'s existing `skills/**` glob already
       names `skills/catalog/`, that `tests/**` stays outside the declared bundle so the
       fixtures and the reference encoding are never named for shipping, and that
@@ -93,7 +97,7 @@ its golden model field-for-field, empty-list defaults included.
 **⚠️ Blocking**: US1 and US3 both consume `load_catalog`; no story work past this phase until
 its checkpoint is green.
 
-- [ ] T004 Create `tests/helpers/catalog_reference.py` — the dev-only reference encoding
+- [x] T004 Create `tests/helpers/catalog_reference.py` — the dev-only reference encoding
       (research R3), stdlib only (`json`, `pathlib`, `re`), plain functions over plain dicts,
       module docstring stating what it is (the CI instrument for the documented rules; never
       shipped; at runtime the "parser" is an agent reading files through the code capability)
@@ -111,7 +115,7 @@ its checkpoint is green.
       naming all paths; `depends_on` entries naming absent services are **kept** and surfaced
       as `dangling_dependency` warnings, never filtered out; a file that fails to parse yields
       one `Failure` and never raises
-- [ ] T005 [P] [US2] Write `skills/catalog/references/annotations.md` — the normative
+- [x] T005 [P] [US2] Write `skills/catalog/references/annotations.md` — the normative
       annotation mapping (FR-002): the literal-key table from data-model.md §1, the
       multi-valued parsing rule, entity classification, the duplicate-name tie-break, the
       `RunbookRef {url, commit?}` pointer format (research R11), the catalog-quality warnings
@@ -122,14 +126,17 @@ its checkpoint is green.
       they read them off the catalog; the claim is about the model's field set only (converge
       finding). Reference the code capability with the literal phrase **"your code tool's
       file reads"** (FR-007's own wording — T018 asserts this exact string) and cite no code
-      operation name
-- [ ] T006 [P] [US2] Write `tests/fixtures/catalog/golden-models.json` in **exactly**
+      operation name. **Also widen T001's non-vanishing guard** in
+      `tests/contract/test_catalog_prose.py` to include `references/annotations.md` — the
+      weakened guard is owned by the tasks that create the missing docs, not by a later gate
+      task, so it cannot survive to merge in its shipped-from-T001 form
+- [x] T006 [P] [US2] Write `tests/fixtures/catalog/golden-models.json` in **exactly**
       data-model.md §10's pinned skeleton — top-level keyed by canonical service name, each
       value an object with sibling keys `model` (the six fields and nothing else), `linkage`,
       `disabled_features` (a JSON **list**), and `source_path` — for each of the **eight**
       services the fixture repo yields (11 entities minus `docs-site`, ignored; `broken`,
       failed; and `orders-us`, the duplicate loser)
-- [ ] T007 [US2] Write `tests/contract/test_catalog_model.py`: every golden's `model`
+- [x] T007 [US2] Write `tests/contract/test_catalog_model.py`: every golden's `model`
       sub-object matches `load_catalog`'s parsed `Service` field-for-field including
       empty-list defaults (SC-002); the minimal service parses to a valid model with four
       empty lists (AS-2); a parsed `Service`'s keys are **exactly** the six model fields,
@@ -158,7 +165,7 @@ choice on ambiguity at either stage, and the miss path's ask-once handoff plus f
 **Independent Test**: run the documented resolution rules over the fixture catalog with
 fixture alerts and assert the resolved service, or the miss classification, for every case.
 
-- [ ] T008 [US1] Extend `tests/helpers/catalog_reference.py` with `resolve(alert, catalog)`
+- [x] T008 [US1] Extend `tests/helpers/catalog_reference.py` with `resolve(alert, catalog)`
       and `fixup_offer(alert, service_name, catalog)` per data-model.md §5 and §7. `resolve`:
       stage 1 exact over **`alert_matchers` only** (matcher equals — case-insensitively,
       whitespace-trimmed — any alert tag or field **value**; the service's own `name` is
@@ -169,12 +176,12 @@ fixture alerts and assert the resolved service, or the miss classification, for 
       **source path** and **no** `service`; nothing at either stage → `miss`; missing/empty
       alert fields are non-matching, never an exception. `service` and every `candidates`
       element is a **service-name string**, never a nested object. `fixup_offer` returns
-      `{source_path, annotation_key, annotation_value, snippet}` with `annotation_key` always
+      `{source_path, annotation_key, annotation_value, commit_ready, snippet}` with `annotation_key` always
       `oncall-harness/alert-match`, `annotation_value` resolved by §7's pinned order
       (`fields["name"]` → `fields["service_hint"]` → first tag → `""`), and `source_path`
       either `catalog["sources"][service_name]` or, for a service absent from the catalog, the
       pinned convention `services/<service_name>/catalog-info.yaml`
-- [ ] T009 [P] [US1] Write `skills/catalog/references/resolution.md` — the normative match
+- [x] T009 [P] [US1] Write `skills/catalog/references/resolution.md` — the normative match
       order (FR-003): exact-then-substring with exactness beating substring **globally**, the
       exact stage reading `alert_matchers` only (and the service name being a substring-stage
       input exclusively), the pinned substring direction, ambiguity at either stage surfacing
@@ -185,10 +192,15 @@ fixture alerts and assert the resolved service, or the miss classification, for 
       one-hop blast-radius rule with its depth bound stated outright plus the dangling-entry
       rule (kept and surfaced, never filtered) (FR-006). Cite the ask-once *interaction* as
       slice 5's execution; use the literal phrase **"your code tool's file reads"** and cite
-      no code operation name
-- [ ] T010 [P] [US1] Write `tests/fixtures/catalog/resolution-matrix.json` — the **nine**
+      no code operation name. **Also widen T001's non-vanishing guard** to include
+      `references/resolution.md`, completing the target set T001 recorded
+- [x] T010 [P] [US1] Write `tests/fixtures/catalog/resolution-matrix.json` — the **ten**
       cases of data-model.md §10's matrix table, each `{id, alert, expected: {outcome,
-      service?, candidates?, stage?}}`, using the alert payloads pinned there. The four cases
+      service?, candidates?, stage}}`, using the alert payloads pinned there. **`stage` is
+      mandatory on every non-`miss` case**, not optional: the `exact-name hit` payload
+      (`{name: "inventory-lag"}`) also contains `inventory` as a substring, so without an
+      asserted `stage == "exact"` a stage-1-broken implementation still returns the right
+      service by the wrong route and the case passes (converge/review finding). The four cases
       that only discriminate with the right payload, and must be written exactly as pinned:
       **exact-beats-substring** (tag matching `checkout`'s matcher **plus** a field containing
       `search-api` — two *different* services, so a stage-merging implementation returns
@@ -197,8 +209,8 @@ fixture alerts and assert the resolved service, or the miss classification, for 
       name-sorting implementation); **reverse-direction probe** (field value `ledger`, a
       strict substring of `ledger-svc`, so a reversed implementation resolves it instead of
       missing); **sparse alert** (empty tags and an empty field value)
-- [ ] T011 [US1] Write `tests/contract/test_catalog_resolution.py`: every matrix case
-      classifies exactly as expected (SC-003) via parametrize, with `assert len(CASES) >= 9`
+- [x] T011 [US1] Write `tests/contract/test_catalog_resolution.py`: every matrix case
+      classifies exactly as expected (SC-003) via parametrize, with `assert len(CASES) >= 10`
       as the non-vanishing guard; a cross-cutting assertion that **no** `ambiguous` outcome
       anywhere in the matrix carries a `service` (zero silent picks, counted); the multi-exact
       case's `candidates` list is asserted in **order**, not as a set (that is what makes the
@@ -221,21 +233,21 @@ isolation, and one-hop `dependsOn` widening (FR-004, FR-006).
 **Independent Test**: parse fixture services each missing one annotation class, plus the
 broken file, and assert the documented per-field behavior and the failure isolation.
 
-- [ ] T012 [US3] Extend `tests/helpers/catalog_reference.py` with `disabled_features(service)`
+- [x] T012 [US3] Extend `tests/helpers/catalog_reference.py` with `disabled_features(service)`
       (data-model.md §6: empty `dashboards` → `pane_driving`, empty `alert_matchers` →
       `alert_resolution`, empty `runbooks` → `runbook_fetch`, empty `depends_on` →
       `blast_radius_widening` — derived purely from emptiness, nothing else; `missing_owner`
       is a warning, not a disabled feature) and `blast_radius(name, catalog)` (data-model.md
       §9: the service's own `depends_on` entries, **one hop, no recursion**, sorted, and
       **unfiltered** — dangling entries are returned, having been surfaced at load time)
-- [ ] T013 [US3] Fill the degradation section of `skills/catalog/SKILL.md` (FR-004): the
+- [x] T013 [US3] Fill the degradation section of `skills/catalog/SKILL.md` (FR-004): the
       per-field table naming exactly which feature each absent annotation disables and
       confirming everything else keeps working (including missing `runbooks` → the absence is
       noted in the briefing), the malformed-file rule (surfaced, scoped to that file, never
       fatal, other services parse normally), the catalog-quality warnings that are *not*
       feature degradations (`missing_owner`, `dangling_dependency`), and the explicit
       statement that no partial annotation ever errors a session
-- [ ] T014 [US3] Write `tests/contract/test_catalog_degradation.py`: the four per-field
+- [x] T014 [US3] Write `tests/contract/test_catalog_degradation.py`: the four per-field
       fixtures each yield **exactly** their documented feature, asserted against **literal
       hardcoded sets** — `inventory` → `{"pane_driving"}`, `notifier` →
       `{"alert_resolution"}`, `ledger-svc` → `{"runbook_fetch"}`, `search-api` →
@@ -267,7 +279,7 @@ broken file, and assert the documented per-field behavior and the failure isolat
 start from the capability surface, no instruction stores catalog content anywhere, and the
 runbook-reference format carries URL + commit SHA.
 
-- [ ] T015 [US4] Fill the freshness section of `skills/catalog/SKILL.md` (FR-005): catalog
+- [x] T015 [US4] Fill the freshness section of `skills/catalog/SKILL.md` (FR-005): catalog
       data is read fresh at session start through the code capability (the literal phrase
       "your code tool's file reads"), never cached across sessions and never copied into any
       store; only pointer-shaped runbook references (`{url, commit?}` — SHA present where
@@ -277,7 +289,7 @@ runbook-reference format carries URL + commit SHA.
       blocks the open). **Phrase the never-copied rule without naming any storage operation**
       — e.g. "catalog content is never written to any store" rather than naming the write op
       — because T016's SC-006 scan is unconditional (see its docstring note)
-- [ ] T016 [US4] Extend `tests/contract/test_catalog_prose.py` (created in T001) with the US4
+- [x] T016 [US4] Extend `tests/contract/test_catalog_prose.py` (created in T001) with the US4
       gates: the **SC-006** scan — zero occurrences of `append_record`, `update_record`,
       `put_file`, `append_entry` anywhere under `skills/catalog/**/*.md` — plus prose gates
       for the freshness statement, the runbook-pointer format, and the catalog-unreachable
@@ -297,7 +309,7 @@ runbook-reference format carries URL + commit SHA.
 **Purpose**: the naming/discipline gates that span the whole prose surface, the two cross-slice
 reconciliations, and the final traceability pass.
 
-- [ ] T017 Complete `skills/catalog/SKILL.md`: finalize the frontmatter description, write the
+- [x] T017 Complete `skills/catalog/SKILL.md`: finalize the frontmatter description, write the
       overview stating the six-field model is the only shape consumers see and that this slice
       ships prose and tests only — no parsing library, no shipped integration code (FR-001,
       FR-009) — add a routing table to `references/annotations.md` / `references/resolution.md`,
@@ -305,7 +317,7 @@ reconciliations, and the final traceability pass.
       deferred; the harness never writes to the catalog; consuming flows belong to slices
       4/5/6). Use the literal phrase "your code tool's file reads" where the read path is
       described
-- [ ] T018 Extend `tests/contract/test_catalog_prose.py` with the **SC-005** naming scan and
+- [x] T018 Extend `tests/contract/test_catalog_prose.py` with the **SC-005** naming scan and
       the **FR-007** gates.
       SC-005: the `mcp__` hard fail on raw text; the deny-list scan importing `DENY_PATTERNS`
       from `tests/contract/test_skill_capability_naming.py`, **extended locally with a
@@ -326,12 +338,12 @@ reconciliations, and the final traceability pass.
       `manifest/capabilities.json`'s `optional.code.ops`. Record in the docstring that slice 4
       *did* pin those shapes in the manifest while contract v1 still has no `code` half
       (research R6)
-- [ ] T019 Extend `tests/contract/test_catalog_prose.py` with the prose↔encoding agreement
+- [x] T019 Extend `tests/contract/test_catalog_prose.py` with the prose↔encoding agreement
       test: parse the annotation mapping table out of `skills/catalog/references/annotations.md`
       and assert set-equality both ways against `catalog_reference.CANONICAL_ANNOTATIONS` and
       `LINKAGE_ANNOTATIONS` — the slice-3 `fingerprint.md`↔`bb-fingerprint` relationship
       applied here, so a doc whose table silently diverges from the encoding fails
-- [ ] T020 Reconcile slice 4's fixture (research R4): retag
+- [x] T020 Reconcile slice 4's fixture (research R4): retag
       `tests/fixtures/doctor/catalog-valid.json`'s `battle-buddy/alert-match` →
       `oncall-harness/alert-match` and `battle-buddy/dashboard` →
       `grafana/dashboard-selector`, confirm `tests/contract/test_doctor_checks.py` and
@@ -342,7 +354,7 @@ reconciliations, and the final traceability pass.
       `oncall-harness/alert-match` and `grafana/dashboard-selector` (a bare subset assertion
       passes on the empty set, which is exactly how a wrong key-path extractor would silently
       neuter the ratchet — converge finding)
-- [ ] T021 [P] Amend `bb-technical-design.md` (research R9): a §6.1 clarification noting the
+- [x] T021 [P] Amend `bb-technical-design.md` (research R9): a §6.1 clarification noting the
       `paging linkage` / `repo` mapping-table rows are metadata exposed beside the six-field
       model rather than fields of it, and a new decision-log row **D-22** recording this
       slice's **six** pins — (1) linkage metadata is not a consumer-model field, (2) explicit
@@ -355,7 +367,7 @@ reconciliations, and the final traceability pass.
       dropped claim that consumers never receive linkage values, nor its §4 citation — the
       design's §4 arrow targets the code capability's MCP participant, not the catalog adapter
       surface (converge finding)
-- [ ] T022 Final pass: run `make verify`; confirm every FR maps to ≥1 passing test against
+- [x] T022 Final pass: run `make verify`; confirm every FR maps to ≥1 passing test against
       `quickstart.md`'s scenario table (SC-001) — **including FR-009**, whose gate is an
       assertion in `test_catalog_prose.py` that `skills/catalog/` contains no `*.py` file and
       that `tests/helpers/catalog_reference.py` is named by no glob in

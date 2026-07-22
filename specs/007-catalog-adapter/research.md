@@ -344,6 +344,21 @@ reviewed artifact. The correction lives in R6 and is called out in the PR body i
 later slice that promotes the `code` ops into contract v1 is the natural place to amend the
 sentence.
 
+**A finding raised during US4 review and then RETRACTED — recorded because the retraction
+matters more than the finding did**: a review round flagged the ladder rung name
+"rule-based" (carried in this spec's catalog-unreachable edge case, from
+`bb-technical-design.md` §9/D-19) as stale, on the grounds that slice 3's shipped
+`fingerprint.md` names no such rung. A later whole-diff review checked the primary sources
+and showed that claim was **wrong**: design §5.2 rung 4 and `fingerprint.md`'s Rung 4 both
+define the service side as `normalize(alert_source + rule_name)` — *per-alert-rule*
+granularity. "Rule-based" is an accurate shorthand for that rung, the design and slice 3
+agree, and there is nothing stale to fix. No §9 edit is warranted; the earlier note would
+have sent a future editor to make a spurious one.
+
+The routing decision that note happened to justify — `skills/catalog/SKILL.md` citing
+`skills/session-store/` for the ladder without enumerating its rungs — stands on its own
+merits (one normative home per rule) and is unaffected.
+
 **Two rules the round changed outright**, both of which had narrowed the spec without saying
 so:
 
