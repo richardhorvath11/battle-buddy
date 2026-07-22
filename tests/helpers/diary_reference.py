@@ -184,24 +184,44 @@ _YEAR_ALT = r"\d{4}|YYYY|YY"
 # NAMED-MONTH shapes below (day-monthname-year, monthname-day-year) still
 # required 4 written digits too, so "# 21 Jul 26 — payments: outage" and
 # "July 4, 26" carried no date-bearing title line either — the exact F4
-# failure mode, just reached through a different shape. Both named-month
-# shapes are just as safe to widen as the year-last shape: neither can
-# mistake a component for a year — the month is a name, never a digit
-# run, and the day is positionally fixed ahead of it — so the same
-# 2-digit tolerance below now covers all three trailing-year shapes. The
-# YEAR-FIRST (ISO) shape above is the one that must stay 4-digit-only:
-# adding a bare \d{2} to _YEAR_ALT would make it mistake a numeric
-# day/month component for a year (e.g. reading "09" out of "09/08/2026" as
-# a 2-digit year) — the very failure mode _YEAR_ALT's own 4-digit-only rule
-# exists to prevent. A leading 2-digit component in that shape is read as a
-# day instead (e.g. "26-07-21" falls through to the year-last regex below
-# and reads as "DD-MM-YY"), never as a year — a year-first shape has no
-# way to tell the two apart.
+# failure mode, just reached through a different shape. G2's fix widened
+# both named-month shapes unconditionally, and its comment justified that
+# by arguing neither shape can "mistake a component for a year" — true,
+# but beside the point: that argument is about confusion INSIDE a date
+# (which component is the year), and says nothing about ordinary prose
+# that merely happens to contain the same token shapes with no date
+# intended at all ("On Jul 4, 15 nodes went down." reads as Mon D, YY once
+# a 2-digit year is accepted unconditionally).
+#
+# H1 (round 3, REGRESSION fix) — the year-last numeric shape below
+# (_YEAR_LAST_RE) keeps G2's unconditional widening: three bare numeric
+# components joined by "-"/"/" is not a shape ordinary English prose
+# produces, so _YEAR_TRAILING_ALT is untouched and still serves that shape
+# alone. The two NAMED-MONTH shapes are exactly the ones ordinary prose
+# does produce once their year may be 2 digits, so their 2-digit
+# alternative is gated on trailing context instead
+# (_YEAR_TRAILING_ALT_NAMED_MONTH, below): the year must be followed by
+# end-of-line or one of "— – : , ) ]" (surrounding whitespace allowed) —
+# the shape a title or a parenthetical date actually has, and prose like
+# "...15 nodes went down." never does. Only the 2-digit alternative is
+# gated; a 4-digit year is already distinctive enough not to need it.
 _YEAR_TRAILING_ALT = r"\d{4}|\d{2}|YYYY|YY"
+_YEAR_TRAILING_CONTEXT = r"(?=\s*(?:$|[—–:,)\]]))"
+_YEAR_TRAILING_ALT_NAMED_MONTH = r"\d{4}|YYYY|(?:\d{2}|YY)" + _YEAR_TRAILING_CONTEXT
 _MONTHNUM_ALT = r"\d{1,2}|MM|M"
 _DAYNUM_ALT = r"\d{1,2}|DD|D"
 _DAYMONTHNUM_ALT = r"\d{1,2}|MM|M|DD|D"
-_MONTHNAME_ALT = r"(?:" + "|".join(_MONTH_FULL + _MONTH_ABBR + ("Month", "Mon")) + r")\b"
+# H6 (round 3) — month-name matching is case-insensitive ("3 jul 2026",
+# "JULY 4, 2026" now recognized), scoped to this one alternation via the
+# inline `(?i:...)` group rather than a whole-pattern re.IGNORECASE, so the
+# surrounding day/year alternatives (MM/DD/etc. pattern-language tokens,
+# case-sensitive by design) are untouched. Rendering stays canonical
+# regardless of how the month was written: _month_name_token below keys
+# off the matched text's LENGTH, not its case, so "jul" and "JUL" both
+# still render "Mon".
+_MONTHNAME_ALT = (
+    r"(?i:" + "|".join(_MONTH_FULL + _MONTH_ABBR + ("Month", "Mon")) + r")\b"
+)
 
 # F12 (review round) — a numeric run glued to more digits/dots on either
 # side is not a date component; it is far more likely a fragment of
@@ -250,21 +270,22 @@ _YEAR_LAST_RE = re.compile(
     )
     + _NOT_FOLLOWED_BY_DIGIT_RUN
 )
-# Shape 3 — "21 Jul 2026" / "21 Month 2026": day, named month, year. G2:
-# year=_YEAR_TRAILING_ALT (not _YEAR_ALT) — see that constant's comment for
-# why a 2-digit year is safe to accept here too.
+# Shape 3 — "21 Jul 2026" / "21 Month 2026": day, named month, year. H1
+# (round 3): year=_YEAR_TRAILING_ALT_NAMED_MONTH — the 2-digit alternative
+# is gated on trailing context so ordinary prose does not fabricate a date
+# (see that constant's comment).
 _DAY_MONTHNAME_YEAR_RE = re.compile(
     _NOT_PRECEDED_BY_DIGIT_RUN
     + r"(?P<day>{dnum})(?P<sep1>\s+)(?P<month>{mname})(?P<sep2>\s+)(?P<year>{year})".format(
-        dnum=_DAYNUM_ALT, mname=_MONTHNAME_ALT, year=_YEAR_TRAILING_ALT
+        dnum=_DAYNUM_ALT, mname=_MONTHNAME_ALT, year=_YEAR_TRAILING_ALT_NAMED_MONTH
     )
     + _NOT_FOLLOWED_BY_DIGIT_RUN
 )
-# Shape 4 — "July 4, 2026": named month, day, comma, year. G2: same
-# _YEAR_TRAILING_ALT widening as shape 3.
+# Shape 4 — "July 4, 2026": named month, day, comma, year. Same H1 gating
+# on the 2-digit year alternative as shape 3.
 _MONTHNAME_DAY_YEAR_RE = re.compile(
     r"(?P<month>{mname})(?P<sep1>\s+)(?P<day>{dnum}),(?P<sep2>\s*)(?P<year>{year})".format(
-        mname=_MONTHNAME_ALT, dnum=_DAYNUM_ALT, year=_YEAR_TRAILING_ALT
+        mname=_MONTHNAME_ALT, dnum=_DAYNUM_ALT, year=_YEAR_TRAILING_ALT_NAMED_MONTH
     )
     + _NOT_FOLLOWED_BY_DIGIT_RUN
 )

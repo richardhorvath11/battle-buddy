@@ -835,6 +835,87 @@ def test_two_digit_year_named_month_titles_are_recognized_and_uniform_entries_ar
 
 
 # ---------------------------------------------------------------------------
+# H1 (round 3, REGRESSION fix) — G2's unconditional 2-digit-year widening
+# for the two named-month shapes made ordinary English prose read as a
+# date: "On Jul 4, 15 nodes went down." (Mon D, YY), "Rolled back 3 Jul 15
+# minutes later." (D Mon YY), and "Dec 25, 10 alerts fired." (Mon DD, YY)
+# all returned None before G2 landed, and a fabricated date_format from a
+# body line like this can trip a spurious entries_inconsistent end to end.
+# The fix gates the 2-digit alternative on trailing context (end-of-line or
+# one of "— – : , ) ]", surrounding whitespace allowed); the 4-digit
+# alternative, and the year-last numeric shape, are untouched.
+# ---------------------------------------------------------------------------
+
+
+@pytest.mark.parametrize(
+    "line",
+    [
+        "On Jul 4, 15 nodes went down.",
+        "Rolled back 3 Jul 15 minutes later.",
+        "Dec 25, 10 alerts fired.",
+    ],
+)
+def test_named_month_two_digit_year_prose_is_not_read_as_a_date(line):
+    assert _date_format_for_line(line) is None, (
+        "%r is ordinary prose, not a date — a 2-digit year with no "
+        "title-ish trailing context must not fabricate a date_format "
+        "(H1 regression)" % line
+    )
+
+
+@pytest.mark.parametrize(
+    "line, expected_pattern",
+    [
+        ("# 21 Jul 26 — payments: outage", "DD Mon YY"),
+        ("July 4, 26", "Month D, YY"),
+    ],
+)
+def test_named_month_two_digit_year_still_parses_with_title_ish_trailing_context(
+    line, expected_pattern
+):
+    # The positive half of H1's fix: a title line and a line-final date both
+    # carry trailing context the gate accepts (an em dash for the title, end
+    # of line for the line-final case), so both must keep parsing.
+    assert _date_format_for_line(line) == {"pattern": expected_pattern, "ambiguous": False}
+
+
+# ---------------------------------------------------------------------------
+# H6 (round 3) — month-name matching is case-insensitive: "3 jul 2026" and
+# "JULY 4, 2026" both returned None before this fix. Canonical rendering
+# ("Mon" / "July") is untouched — only recognition is case-insensitive.
+# ---------------------------------------------------------------------------
+
+
+def test_lowercase_month_name_is_recognized():
+    assert _date_format_for_line("3 jul 2026") == {"pattern": "D Mon YYYY", "ambiguous": False}
+
+
+def test_uppercase_month_name_is_recognized():
+    assert _date_format_for_line("JULY 4, 2026") == {
+        "pattern": "Month D, YYYY",
+        "ambiguous": False,
+    }
+
+
+@pytest.mark.parametrize(
+    "line",
+    [
+        "on jul 4, 15 nodes went down.",
+        "rolled back 3 jul 15 minutes later.",
+        "dec 25, 10 alerts fired.",
+    ],
+)
+def test_lowercased_prose_false_positives_still_rejected_after_case_insensitive_months(line):
+    # H6 must not reopen H1: lowercasing the same three prose lines that H1
+    # pins as rejections must still return None once month names match
+    # case-insensitively.
+    assert _date_format_for_line(line) is None, (
+        "%r must still be rejected — case-insensitive month matching (H6) "
+        "must not widen H1's prose false-positive gate" % line
+    )
+
+
+# ---------------------------------------------------------------------------
 # FR-003 input-signature property — format resolution's declared input
 # vocabulary is disjoint from the session row's field names. Parsed
 # DYNAMICALLY out of skills/session-store/references/schema.md's column

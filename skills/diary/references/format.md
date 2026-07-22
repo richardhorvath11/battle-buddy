@@ -119,6 +119,23 @@ two-digit and both take the padded token, while `4` takes the unpadded one even 
 perfectly ordinary day-of-month value. Without this rule, padding would be unobservable for any
 component ten or above, and two readers of the same entry could disagree on its pattern.
 
+**A line already written in the pattern language is date-bearing, and its pattern is itself.**
+A run of these same tokens with literal separators — `YYYY-MM-DD` — is recognized as carrying a
+date, and its `date_format.pattern` is that exact token string, unambiguous. This is what lets a
+*template* declare its date slot in the pattern language rather than as a concrete date, and it
+is why the minimal default's own title line (`# YYYY-MM-DD — <services>: <short title>`, below)
+is recognized as carrying a date at all — without this rule its title line would not be
+date-bearing, `title` would be `null`, and every one of its headings would fall into `sections`.
+
+**Digit-glue boundaries.** A numeric run immediately glued to more digits, a `.`, or a `-`/`/`
+that is itself followed by more digits — on either side — is **not** read as a date component;
+it is far more likely a fragment of something else entirely (a version string, a build number).
+`1.2.3-4/5/2026` and `build 2026-07-21-3` therefore carry no recognized date at all. This is a
+match-**boundary** rule only, never a calendar-validity check: a genuinely standalone
+`1234-56-78` still reads as `YYYY-MM-DD` — extraction reads a format, it never validates a
+value. A trailing period with nothing after it (a sentence-final date, e.g. `See 07/21/2026.`)
+is not glue and does not block recognition.
+
 **When the title line's date isn't recognized.** Title recognition (above, "Heading
 recognition") depends on the first heading sitting on the date-bearing line — and a line only
 counts as date-bearing when one of these token shapes actually matches it. A title whose date the
@@ -127,6 +144,18 @@ is treated as an ordinary section heading rather than a title. The consequence i
 cosmetic: that heading's text enters the compared shape (`sections` and `field_order`) instead of
 being excluded from it the way a recognized title is, and because a real title's text differs
 across every entry by construction, this can make an otherwise uniform diary read as drifting.
+
+**Month names are matched case-insensitively.** `3 jul 2026` and `JULY 4, 2026` are both
+recognized the same as `3 Jul 2026` and `July 4, 2026` — rendering stays canonical (`Jul` /
+`July`) regardless of how the month was written.
+
+**Known limits**, stated plainly because they are limits by design, not bugs to report:
+
+- Only the three-letter abbreviation and the full name are recognized — `Sept` is not a
+  recognized abbreviation.
+- The year-last numeric shape tolerates mismatched separators (`07/21-2026` parses); the
+  year-first (ISO) shape does not — its two separators must match.
+- Spaced-out numeric forms (`2026 - 07 - 21`) are not recognized at all.
 
 ### Field-order normalization
 
@@ -180,15 +209,31 @@ exist specifically to detect and report drift, not to average across styles.
 
 ## Numeric date ambiguity
 
-A date written as two numeric components where both are ≤ 12 cannot have its day/month order
-read from that single entry — `03/04` could be either. Resolving this is a **pass-level**
-question, scanned across every entry read in that pass, not a per-entry guess:
+A date written as two numeric components has its day/month order fixed only when **exactly
+one** of the two components is greater than 12 — a component that large can only be a day,
+since months run 1–12. Two other cases cannot have their order read from that single entry
+alone, and both are flagged `ambiguous` with the same provisional labelling (first component →
+`MM`, second → `DD`):
 
-- If **any** entry in the pass carries an unambiguous numeric date (a component greater than
-  12, which fixes the order), that order is adopted for every entry in the pass.
-- If **no** entry in the pass resolves it, the ambiguity is **surfaced for the responder to
-  confirm** — it is never picked silently. A silent pick on an ambiguous date is exactly the
-  failure mode a responder has no way to catch after the fact, so the flow declines to guess.
+- **Both components ≤ 12** — `03/04` could be either day-first or month-first.
+- **Both components > 12** — `99/99` is not a real calendar date either way, so neither
+  position can be trusted as the day; `99/99/9999` is provisionally labelled `MM/DD/YYYY` and
+  flagged `ambiguous`, the same as the ≤ 12 case.
+
+Resolving this is a **pass-level** question, scanned across every entry read in that pass, not
+a per-entry guess:
+
+- If **any** entry in the pass carries an unambiguous numeric date (exactly one component
+  greater than 12, which fixes the order), that order is adopted for every entry in the pass.
+- If **two or more** entries in the pass each carry an unambiguous date and they **disagree**
+  on the order — one clearly day-first, another clearly month-first — the conflict resolves
+  nothing: the flags stand exactly as if no entry had resolved it, and `date_ambiguous` still
+  surfaces. Silently picking a winner from read order would be exactly the failure mode this
+  section exists to prevent.
+- If **no** entry in the pass resolves it (including the conflicting-votes case above), the
+  ambiguity is **surfaced for the responder to confirm** — it is never picked silently. A
+  silent pick on an ambiguous date is exactly the failure mode a responder has no way to catch
+  after the fact, so the flow declines to guess.
 
 This pass-level resolution runs before the consistency comparison above, so a date that gets
 resolved and one that does not are never compared against each other as if they disagreed.

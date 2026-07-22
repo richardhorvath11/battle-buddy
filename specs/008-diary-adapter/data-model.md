@@ -122,6 +122,15 @@ this rule its title line is not date-bearing, `title` is `null`, all eight headi
 `sections`, and §6's declared structure is unreachable. A real entry containing the literal
 string `YYYY-MM-DD` is a template line by any reading, so the rule costs nothing.
 
+**Digit-glue boundaries.** A numeric run immediately glued to more digits, a `.`, or a `-`/`/`
+that is itself followed by more digits — on either side — is not read as a date component; it
+is far more likely a fragment of something else entirely (a version string, a build number).
+`1.2.3-4/5/2026` and `build 2026-07-21-3` therefore carry no recognized date at all. This is a
+match-**boundary** rule only, never a calendar-validity check: a genuinely standalone
+`1234-56-78` still reads as `YYYY-MM-DD` — this section's own "we extract a format, not a valid
+date" posture is untouched by it. A trailing period with nothing after it (a sentence-final
+date, e.g. `See 07/21/2026.`) is not glue and does not block recognition.
+
 **`field_order`** normalization: lowercase, trailing `:` stripped, internal whitespace
 collapsed. Sources, in document order: every `sections` heading's `text`, plus every
 line-initial `Label:` inline field, where a label must start with an ASCII letter **and its
@@ -139,24 +148,33 @@ was found — a legal empty-shaped structure, never an exception.
 
 ### 3.1 Date ambiguity is a *pass*-level property
 
-A two-numeric-component date whose components are both ≤ 12 cannot have its day/month order
-read from that entry alone. So ambiguity resolves in two steps, and the split is explicit
-because a single-entry function cannot answer a cross-entry question:
+A two-numeric-component date has its day/month order fixed only when **exactly one** component
+is greater than 12 (a component that large can only be a day, since months run 1–12). Two other
+cases cannot have their order read from that entry alone, and both are provisionally labelled
+the same way: components both ≤ 12 (`03/04` could be either), and components both > 12 (`99/99`
+is not a real calendar date either way — `99/99/9999` is provisionally labelled `MM/DD/YYYY` and
+flagged `ambiguous`, the same as the ≤ 12 case). So ambiguity resolves in two steps, and the
+split is explicit because a single-entry function cannot answer a cross-entry question:
 
-1. **Per entry** — `extract_structure` sets `date_format.ambiguous = true` provisionally, and
-   records the pattern with the components labelled **in the order they appear**
-   (first → `MM`, second → `DD`). The labelling is provisional; the flag says so.
+1. **Per entry** — `extract_structure` sets `date_format.ambiguous = true` provisionally for
+   either case above, and records the pattern with the components labelled **in the order they
+   appear** (first → `MM`, second → `DD`). The labelling is provisional; the flag says so.
 2. **Per pass** — `resolve_date_ambiguity(structures)` scans every structure from this read.
-   If **any** carries an unambiguous numeric date (a component > 12 fixes the order), that
-   order is adopted for all of them and every `ambiguous` flag is cleared. If none does, the
-   flags stand and `date_ambiguous` is emitted so the responder confirms it.
+   If **exactly one order** is voted for by the pass's unambiguous entries (a component > 12
+   fixes the order for that entry), that order is adopted for all of them and every `ambiguous`
+   flag is cleared. If **two or more entries vote conflicting orders** — one day-first, another
+   month-first — the conflict resolves nothing: the flags stand exactly as if no entry had
+   resolved it. If **no** entry resolves it (including the conflicting-votes case), the flags
+   stand and `date_ambiguous` is emitted so the responder confirms it.
 
 The pass-level resolution runs **before** §5's comparison, so a resolved and an unresolved
 entry never disagree on `pattern` and trip a spurious `entries_inconsistent`.
 
 No silent pick: the provisional labelling is recorded so goldens are writable, and the flag
 plus the notice are what stop it from being trusted (the D-22 posture applied to a second
-surface).
+surface) — including when the pass's own unambiguous entries disagree with each other
+(`test_resolve_date_ambiguity_declines_to_pick_when_the_pass_conflicts`), not only when none
+resolves it at all.
 
 ---
 

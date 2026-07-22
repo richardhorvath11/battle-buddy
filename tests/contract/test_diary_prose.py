@@ -829,6 +829,39 @@ def test_format_md_read_depth_matches_the_encoding_constant():
     )
 
 
+# H4 (round 3) — the gate above only ever parsed references/format.md;
+# SKILL.md's own Interface section states the same default independently
+# ("n defaults to 5" in its `read_recent(n)` signature comment), and
+# nothing checked that one at all — a doc edit that drifted SKILL.md's
+# stated default from the encoding's constant (or from format.md's own
+# statement) would have sailed through silently. Same both-ways,
+# parsed-not-hardcoded style as the format.md gate above, with its own
+# non-vacuity guard so a broken regex can't make the agreement assertion
+# vacuously true either.
+
+_SKILL_MD_READ_DEPTH_RE = re.compile(r"n defaults to (\d+)")
+
+
+def test_skill_md_read_depth_sentence_parses_nonvacuously():
+    match = _SKILL_MD_READ_DEPTH_RE.search(SKILL_MD_TEXT)
+    assert match is not None, (
+        "expected SKILL.md's Interface section to state 'n defaults to N' "
+        "— parsed zero matches, which would make the agreement assertion "
+        "below vacuously true"
+    )
+
+
+def test_skill_md_read_depth_matches_the_encoding_constant():
+    match = _SKILL_MD_READ_DEPTH_RE.search(SKILL_MD_TEXT)
+    assert match is not None
+    doc_depth = int(match.group(1))
+    assert doc_depth == DEFAULT_READ_DEPTH, (
+        "SKILL.md states a default read depth of %d, but "
+        "diary_reference.DEFAULT_READ_DEPTH is %d — the two must agree"
+        % (doc_depth, DEFAULT_READ_DEPTH)
+    )
+
+
 # ---------------------------------------------------------------------------
 # T024 — packaging ratchet (FR-008) and boundary prose gates.
 # ---------------------------------------------------------------------------
@@ -880,10 +913,19 @@ def test_fr004_write_flow_states_append_only_no_creation_no_alternate_destinatio
 # corroborate (see G4's fix to that same section). Its absence here meant
 # a regression that dropped the Resolution bullet from SKILL.md would have
 # gone undetected by this gate.
+#
+# H2 (round 3): G9's own fix was vacuous. The bare word "Resolution" also
+# occurs in this same section's intro paragraph — "it does not yet name
+# Resolution or the locally staged artifact content as fields it fills" —
+# so deleting the "**Resolution** — factual" bullet entirely still left a
+# "Resolution" substring in SKILL_MD_NORMALIZED and the gate kept passing.
+# The phrase below is anchored to the bullet's own bold-lead-in text
+# ("**Resolution** — factual"), which appears nowhere else in the
+# document, so it goes missing if and only if the bullet itself does.
 FR005_INPUT_PHRASES = (
     "In-session evidence links",
     "Services and severity",
-    "Resolution",
+    "**Resolution** — factual",
     "Labeled causal proposals",
     "Locally staged artifact content",
 )
