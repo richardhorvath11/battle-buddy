@@ -39,28 +39,38 @@ that is true under either ordering rather than amending a landed sibling.
 **Purpose**: the two files whose *existence* no story may own (so a scope cut can never
 orphan a later task), the repo guard that firing is the point of, and the shared fixtures.
 
-- [ ] T001 Create the diary skill's surface **and its naming scan together** — they cannot be
+- [x] T001 Create the diary skill's surface **and its naming scan together** — they cannot be
       separated, because slice 7's `test_every_skill_directory_is_covered_by_a_naming_scan`
       (`tests/contract/test_catalog_prose.py`) asserts every directory under `skills/` appears
       in `SCANNED_SKILL_DIRS`, and creating `skills/diary/` without a scan turns `make verify`
       red by design ("a skill added without one is silently exempt"):
       (a) `skills/diary/SKILL.md` — frontmatter with `name: diary` and a when-to-use
       `description`, a one-paragraph overview, and empty section stubs for *interface /
-      write flow / drafting handoff / non-goals*. US2 (T011–T013) fills the first three; T017
+      write flow / drafting handoff / non-goals*. US2 (T012–T014) fills the first three; T019
       completes the non-goals. `skills/diary/references/` is **not** created here and needs no
-      `.gitkeep` — git carries no empty directory, so it materializes when T007 writes
+      `.gitkeep` — git carries no empty directory, so it materializes when T008 writes
       `references/format.md`.
       (b) `tests/contract/test_diary_prose.py` — the module, carrying doc-set discovery
       (`rglob("*.md")` over `skills/diary/`), a non-vanishing guard whose **target** set is
-      `{SKILL.md, references/format.md}` but which ships asserting only `SKILL.md` until T007
+      `{SKILL.md, references/format.md}` but which ships asserting only `SKILL.md` until T008
       widens it (mark that inline with the task that does), **and the SC-006 naming scan
-      itself**: import `DENY_PATTERNS` from `tests/contract/test_skill_capability_naming.py`
-      — the shared mechanism, never a slice-local copy — run it over every discovered doc, and
-      add the `mcp__` literal hard fail on raw text, fenced or not.
+      itself**: import the **merged** `DENY_PATTERNS` from
+      `tests/contract/test_command_capability_naming.py` and `FENCE_RE` from
+      `tests/contract/test_skill_capability_naming.py` — both shared mechanisms, never
+      slice-local copies, following `tests/contract/test_investigation_prose.py`'s precedent of
+      importing exactly those two. The merged set is the right one **specifically for this
+      skill**: it is the one that carries the document-store vendors (`confluence`, `notion`,
+      `sharepoint`, `dropbox`), and a doc whose subject *is* a document is the doc most likely
+      to name one. Run it over every discovered doc, and add the `mcp__` literal hard fail on
+      **raw** text, fenced or not.
+      Record inline, as a note to T013: the merged set bans `confluence` and `notion`, which
+      FR-004 *requires* the skill to name as deferred adapters — so **T013 lands that sentence
+      and its mask together**. Do not build the mask here; a mask with nothing to mask is the
+      vacuous gate this repo's own precedent warns about.
       (c) Add `"diary"` to `SCANNED_SKILL_DIRS` in `tests/contract/test_catalog_prose.py`.
       Because (b) lands in the same task, that listing is **truthful, not a rubber stamp** —
       the same standard the existing comment there sets for `investigation`.
-- [ ] T002 Create the shared fixture entry sets under `tests/fixtures/diary/`, exactly per
+- [x] T002 Create the shared fixture entry sets under `tests/fixtures/diary/`, exactly per
       data-model.md §10's roster. Each file is a JSON object
       `{"description": str, "entries": [Entry]}` where every `Entry` is
       `{"link", "content", "at"}` and the list is **newest-first** — the shape
@@ -83,10 +93,26 @@ orphan a later task), the repo guard that firing is the point of, and the shared
       **`entries-ambiguous-date.json`** — 5 entries, every date `03/04/2026`-shaped with
       **both** components ≤ 12 in **every** entry, so the pass cannot resolve the order.
       **`entries-disambiguating.json`** — same style, except the **third-newest** entry is
-      dated with a component > 12 (e.g. `03/17/2026`). Pin the position: it decides both the
-      freshest-wins result and the expected notice set, which T009 compares exactly. Its
-      section headings match the rest of the set, so the only cross-entry difference is the
-      one the ambiguity pass resolves.
+      dated with a component > 12. Pin the position: it decides both the freshest-wins result
+      and the expected notice set, which T010 compares exactly. Its section headings match the
+      rest of the set, so the only cross-entry difference is the one the ambiguity pass
+      resolves. **Put the > 12 component FIRST** (e.g. `17/06/2026`, not `03/17/2026`): the
+      provisional labelling of data-model §3.1 step 1 is already first→`MM`, second→`DD`, so a
+      disambiguator in the *second* slot adopts an order byte-identical to the provisional one
+      — and then an implementation that never inspects the unambiguous entry at all, and merely
+      clears every flag, produces the same result as a correct one. The whole fixture exists to
+      make order **adoption** observable, so the adopted order must differ from the provisional
+      one.
+      **Both date fixtures**: choose a sequence that is strictly decreasing under *both*
+      readings while keeping every component ≤ 12 in the ambiguous set — e.g. `09/08`, `08/07`,
+      `07/06`, `06/05`, `05/04` — so the narrative dates agree with `at` under either
+      interpretation. A set whose titles contradict `at` in every reading is not diary data any
+      reviewer can cross-check.
+      **No fixture's body text may begin a line with a `digit:` token** (e.g. a bare `14:12`
+      opening a timeline line). `field_order` draws from line-initial `Label:` inline fields,
+      and a clock time is the one thing that looks like a label but varies per entry — it would
+      make the *baseline* fixture classify as inconsistent. Write `At 14:12 the alert fired.`
+      instead. (data-model §3 pins the pattern letter-anchored as the other half of this.)
       **`entries-short.json`** — exactly 2 entries, otherwise shaped like `entries-consistent`.
       **`entries-empty.json`** — `"entries": []`.
       **`entries-labeled-causal.json`** — 1+ entries whose sections carry the close flow's
@@ -96,7 +122,7 @@ orphan a later task), the repo guard that firing is the point of, and the shared
       punctuation and one whose text ends in a trailing space, so byte-preservation is a real
       assertion rather than a trivially-satisfied one, plus one block whose label appears in
       **no** heading, to exercise the no-content-dropped rule.
-- [ ] T003 [P] Write `tests/fixtures/diary/README.md`: the fixture format decision (plain
+- [x] T003 [P] Write `tests/fixtures/diary/README.md`: the fixture format decision (plain
       JSON, stdlib `json`, newest-first, `at` strictly decreasing and never read by
       extraction), one line per fixture naming **what it discriminates** (i.e. which assertion
       would still pass if that fixture were replaced by `entries-consistent.json` — if the
@@ -315,6 +341,15 @@ exactly one diary append per drafted close.
       `skills/session-store/`'s and the close flow's, cited not restated. Name the deferred
       adapters (Confluence, Notion, git-markdown) as explicitly deferred, and state the FR-4a
       adapter property: swapping diary stores changes bindings, never this skill.
+      **This sentence trips the naming scan, so land its mask in the same task.** The merged
+      `DENY_PATTERNS` T001 imports bans `confluence` and `notion`, and FR-004 requires naming
+      them. Add a deferral-list mask to `tests/contract/test_diary_prose.py` — mask the single
+      sentence naming the deferred adapters before the deny scan, the same move
+      `test_catalog_prose.py` makes for canonical annotation keys — and pin **both halves**:
+      the masked sentence is present and passes, and the same vendor word written anywhere
+      *outside* that sentence still fails. Record the reasoning in the module docstring: a
+      deferral list states what this adapter does **not** integrate with, which is the opposite
+      of the integration-by-name Constitution VII forbids.
 - [ ] T014 [US2] Fill `skills/diary/SKILL.md`'s **drafting handoff** section per
       data-model.md §7: the inputs the close flow supplies (in-session evidence links; services
       and severity; resolution; the labeled causal proposals; the locally staged pre-upload
@@ -464,7 +499,10 @@ T020–T023 all append to `tests/contract/test_diary_prose.py`, so they are **no
       input contract and that the close-time row update is not among its inputs. Plus the
       non-goals gate: the skill names close-flow ownership of retry and approval, and
       `skills/session-store/`'s ownership of `diary_url` / `diary_pending`, rather than
-      restating either.
+      restating either. Finally, assert **no `<!-- T0` task marker survives** anywhere under
+      `skills/diary/` — the Phase-1 skeleton ships placeholder comments naming the tasks that
+      fill each section, and a shipped plugin surface must not carry them once those tasks are
+      done.
 - [ ] T025 Amend `bb-technical-design.md` (research R11): a §6.2 clarification recording that
       the shipped skill abstracts the concrete MVP binding to "the team's configured diary via
       the diary capability" (Constitution VII supersedes the section's concrete framing; the

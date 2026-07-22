@@ -1,0 +1,37 @@
+{
+  "description": "Two entries whose sections carry the close flow's causal proposal labels verbatim (Root cause (proposal), Contributing factors (proposals), Action items (proposals)), plus a top-level 'sections' key: the ordered [label, block] pairs apply_format consumes for a new (unrelated) search-api incident. 'Contributing factors (proposals)' carries punctuation in its label and its block ends in trailing spaces; 'Timeline' is a block whose label matches no heading in either entry, exercising the no-content-dropped append rule.",
+  "entries": [
+    {
+      "link": "diary-00-payments-api",
+      "content": "# 2026-07-21 — payments-api: partial outage\n\n## What happened\nCheckout returned 502s for roughly six minutes while the payments-api dependency was redeployed.\n\n## Root cause (proposal)\nThe payments-api rollout skipped its health-check gate, so traffic shifted to instances that were still starting up.\n\n## Contributing factors (proposals)\nNo canary stage existed for payments-api, and the on-call rotation had just handed off minutes before the alert fired.\n\n## Action items (proposals)\nAdd a canary health-check gate before promoting payments-api releases.\n",
+      "at": "2026-07-21T14:40:00Z"
+    },
+    {
+      "link": "diary-01-checkout",
+      "content": "# 2026-07-09 — checkout: brief overload\n\n## What happened\nCheckout queued requests for about four minutes during an unexpected traffic spike.\n\n## Root cause (proposal)\nAn upstream marketing campaign drove a traffic spike the autoscaler had not seen modeled before.\n\n## Contributing factors (proposals)\nThe autoscaler's warm-up window was tuned for gradual growth, not a step change.\n\n## Action items (proposals)\nPre-warm checkout capacity ahead of known marketing campaigns.\n",
+      "at": "2026-07-09T10:15:00Z"
+    }
+  ],
+  "sections": [
+    [
+      "What happened",
+      "search-api exhausted its database connection pool for about seven minutes during a deploy."
+    ],
+    [
+      "Root cause (proposal)",
+      "The new search-api revision opened a fresh connection pool per worker instead of reusing the shared pool."
+    ],
+    [
+      "Contributing factors (proposals)",
+      "The connection pool size was never tuned down after search-api's worker count was doubled last quarter.   "
+    ],
+    [
+      "Action items (proposals)",
+      "Cap the per-worker connection pool size and add an alert on pool exhaustion."
+    ],
+    [
+      "Timeline",
+      "12:40 pool exhaustion began. 12:44 triage began. 12:47 the deploy was rolled back. 12:51 connections recovered."
+    ]
+  ]
+}

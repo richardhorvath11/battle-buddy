@@ -109,7 +109,11 @@ Worked cases: `2026-07-21` → `YYYY-MM-DD`; `21 Jul 2026` → `DD Mon YYYY`;
 
 **`field_order`** normalization: lowercase, trailing `:` stripped, internal whitespace
 collapsed. Sources, in document order: every `sections` heading's `text`, plus every
-line-initial `Label:` inline field. Duplicates keep their first occurrence. The `title` is
+line-initial `Label:` inline field, where a label is **letter-anchored** — it must start with
+an ASCII letter (`^[A-Za-z][^:\n]{0,39}:`). The anchor is load-bearing, not tidiness: a
+timeline line opening with a clock time (`14:12 alert fired`) is the one thing that looks like
+a label while varying per entry, and admitting it would make an otherwise-uniform diary
+classify as inconsistent. Duplicates keep their first occurrence. The `title` is
 excluded.
 
 An entry with no headings and no inline fields yields empty lists and whatever `date_format`
