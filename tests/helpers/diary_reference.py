@@ -88,24 +88,20 @@ MINIMAL_DEFAULT_TEXT = """# YYYY-MM-DD — <services>: <short title>
 # data-model.md §6 — MINIMAL_DEFAULT_TEXT's Structure. HAND-WRITTEN, and
 # deliberately NOT derived from MINIMAL_DEFAULT_TEXT by running
 # extract_structure over it (that function does not even exist yet in this
-# Phase-2 module — see T006). Two reasons, both recorded here because a
-# later author will be tempted to "fix" this into a derivation:
-#
-# 1. The skeleton's title line contains the LITERAL TOKENS "YYYY-MM-DD"
-#    rather than an actual date. extract_structure looks for a date-bearing
-#    line to build date_format from; the token string is not one, so
-#    extraction would find none and yield date_format: None — contradicting
-#    the value declared below. The text is a template FOR humans to fill in
-#    a date; it is not itself a dated line.
-# 2. Deriving this constant at import time would make this Phase-2 module
-#    (T004/T005 — module + constants only) depend on extract_structure, a
-#    Phase-3 function (T006) — a circular dependency the phase split forbids.
+# Phase-2 module — see T006), even though extract_structure(MINIMAL_DEFAULT_TEXT)
+# does reproduce this constant exactly (data-model.md §6's pattern-language
+# rule makes the skeleton's "YYYY-MM-DD" title line date-bearing, so nothing
+# below is undiscoverable by extraction — an earlier draft of this comment
+# claimed otherwise; that claim was wrong and has been removed). The
+# remaining reason is phase ordering, not a gap in what extraction can find:
+# deriving this constant at import time would make this Phase-2 module
+# (T004/T005 — module + constants only) depend on extract_structure, a
+# Phase-3 function (T006) — a circular dependency the phase split forbids.
 #
 # T023 gates the two constants' agreement instead, at test time rather than
-# import time: it asserts extract_structure(MINIMAL_DEFAULT_TEXT)'s
-# `sections` and `field_order` equal MINIMAL_DEFAULT's, with `date_format`
-# compared separately for the reason above (data-model.md §6 "Two names,
-# deliberately").
+# import time: it asserts extract_structure(MINIMAL_DEFAULT_TEXT) equals
+# MINIMAL_DEFAULT IN FULL — every part, including `title` and `date_format`
+# (data-model.md §6 "Two names, deliberately").
 MINIMAL_DEFAULT = {
     "title": {"marker": "atx", "level": 1, "text": "YYYY-MM-DD — <services>: <short title>"},
     "sections": [
@@ -165,11 +161,14 @@ _INLINE_FIELD_RE = re.compile(r"^[A-Za-z][^:\n]{0,39}(?<!\d):")
 # §3 date_format tokens — worked cases: "2026-07-21" -> "YYYY-MM-DD";
 # "21 Jul 2026" -> "DD Mon YYYY"; "July 4, 2026" -> "Month D, YYYY";
 # "07/21/2026" -> "MM/DD/YYYY". Four shapes, tried in a fixed priority
-# order per line so a line only ever yields one reading. Concrete years are
-# matched only as 4 written digits (never a bare 2-digit number) — the
-# worked cases never need a concrete 2-digit year, and requiring 4 digits
-# keeps the year-first shape from ever mistaking a numeric day/month
-# component (e.g. the "09" in "09/08/2026") for a year.
+# order per line so a line only ever yields one reading. Concrete years in
+# shapes 1/3/4 are matched only as 4 written digits (never a bare 2-digit
+# number) — the worked cases never need a concrete 2-digit year there, and
+# requiring 4 digits keeps the year-first shape from ever mistaking a
+# numeric day/month component (e.g. the "09" in "09/08/2026") for a year.
+# The year-LAST shape (2 below) is the one exception: its year is
+# positionally unambiguous (always the third, trailing component), so a
+# written 2-digit year is accepted there too — see _YEAR_LAST_YEAR_ALT.
 _MONTH_FULL = (
     "January", "February", "March", "April", "May", "June",
     "July", "August", "September", "October", "November", "December",
@@ -177,38 +176,71 @@ _MONTH_FULL = (
 _MONTH_ABBR = ("Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec")
 
 _YEAR_ALT = r"\d{4}|YYYY|YY"
+# F4 (review round) — the token table (format.md, data-model.md §3) declares
+# YY as a real 2-digit-year token, but only the year-last shape's regex
+# used to require 4 written digits, so a title like "07/21/26" carried no
+# date-bearing line at all. Scoped to this one shape deliberately: adding a
+# bare \d{2} to _YEAR_ALT above would make the YEAR-FIRST shape (1 below)
+# mistake a numeric day/month component for a year (e.g. reading "09" out
+# of "09/08/2026" as a 2-digit year) — the very failure mode _YEAR_ALT's
+# own 4-digit-only rule exists to prevent. The year-last shape has no such
+# risk: its year is always the trailing, third component, so accepting a
+# written 2-digit year there is unambiguous.
+_YEAR_LAST_YEAR_ALT = r"\d{4}|\d{2}|YYYY|YY"
 _MONTHNUM_ALT = r"\d{1,2}|MM|M"
 _DAYNUM_ALT = r"\d{1,2}|DD|D"
 _DAYMONTHNUM_ALT = r"\d{1,2}|MM|M|DD|D"
 _MONTHNAME_ALT = r"(?:" + "|".join(_MONTH_FULL + _MONTH_ABBR + ("Month", "Mon")) + r")\b"
+
+# F12 (review round) — a numeric run glued to more digits/dots on either
+# side is not a date component; it is far more likely a fragment of
+# something else entirely (a version string, a build number). These are
+# match BOUNDARIES only, never a calendar-validity check: a genuinely
+# standalone "1234-56-78" still reads as YYYY-MM-DD (data-model.md §3's own
+# "we extract a format, not a valid date" posture is untouched by this).
+# The leading guard is two separate fixed-width negative lookbehinds
+# (Python's `re` only allows fixed-width lookbehind, so "adjacent to a
+# digit/dot" and "adjacent to a separator that is itself glued to a
+# digit/dot" — e.g. the "3-" in "1.2.3-4/5/2026" — are stated as two rather
+# than one variable-width assertion); the trailing guard has no such
+# restriction since lookahead may be any width.
+_NOT_PRECEDED_BY_DIGIT_RUN = r"(?<![\d.])(?<![\d.][-/])"
+_NOT_FOLLOWED_BY_DIGIT_RUN = r"(?![\d.])(?![-/][\d.])"
 
 # Shape 1 — year-first numeric (ISO-shaped): "2026-07-21", or the
 # pattern-language line "YYYY-MM-DD" itself (MINIMAL_DEFAULT_TEXT's title).
 # The leading year anchors month-then-day order by convention, so this
 # shape is never ambiguous — §3.1 only concerns the year-LAST shape below.
 _ISO_YEAR_FIRST_RE = re.compile(
-    r"(?P<year>{year})(?P<sep>[-/])(?P<c1>{mnum})(?P=sep)(?P<c2>{dnum})".format(
+    _NOT_PRECEDED_BY_DIGIT_RUN
+    + r"(?P<year>{year})(?P<sep>[-/])(?P<c1>{mnum})(?P=sep)(?P<c2>{dnum})".format(
         year=_YEAR_ALT, mnum=_MONTHNUM_ALT, dnum=_DAYNUM_ALT
     )
+    + _NOT_FOLLOWED_BY_DIGIT_RUN
 )
 # Shape 2 — year-last, two bare numeric components: "07/21/2026". This is
 # the shape §3.1's ambiguity pass concerns — see _date_format_for_line.
 _YEAR_LAST_RE = re.compile(
-    r"(?P<c1>{dm})(?P<sep1>[-/])(?P<c2>{dm})(?P<sep2>[-/])(?P<year>{year})".format(
-        dm=_DAYMONTHNUM_ALT, year=_YEAR_ALT
+    _NOT_PRECEDED_BY_DIGIT_RUN
+    + r"(?P<c1>{dm})(?P<sep1>[-/])(?P<c2>{dm})(?P<sep2>[-/])(?P<year>{year})".format(
+        dm=_DAYMONTHNUM_ALT, year=_YEAR_LAST_YEAR_ALT
     )
+    + _NOT_FOLLOWED_BY_DIGIT_RUN
 )
 # Shape 3 — "21 Jul 2026" / "21 Month 2026": day, named month, year.
 _DAY_MONTHNAME_YEAR_RE = re.compile(
-    r"(?P<day>{dnum})(?P<sep1>\s+)(?P<month>{mname})(?P<sep2>\s+)(?P<year>{year})".format(
+    _NOT_PRECEDED_BY_DIGIT_RUN
+    + r"(?P<day>{dnum})(?P<sep1>\s+)(?P<month>{mname})(?P<sep2>\s+)(?P<year>{year})".format(
         dnum=_DAYNUM_ALT, mname=_MONTHNAME_ALT, year=_YEAR_ALT
     )
+    + _NOT_FOLLOWED_BY_DIGIT_RUN
 )
 # Shape 4 — "July 4, 2026": named month, day, comma, year.
 _MONTHNAME_DAY_YEAR_RE = re.compile(
     r"(?P<month>{mname})(?P<sep1>\s+)(?P<day>{dnum}),(?P<sep2>\s*)(?P<year>{year})".format(
         mname=_MONTHNAME_ALT, dnum=_DAYNUM_ALT, year=_YEAR_ALT
     )
+    + _NOT_FOLLOWED_BY_DIGIT_RUN
 )
 
 
@@ -237,11 +269,12 @@ def _pad_or_token(value, letter):
 
 def _year_token(value):
     """§3 padding rule applied to the year component: YYYY for four
-    written digits, YY for a literal YY token (never a bare 2-digit
-    number — see the shape-regex comment above)."""
+    written digits (or the literal YYYY token), YY for two written digits
+    (or the literal YY token — F4: the year-last shape now accepts a
+    written 2-digit year; see _YEAR_LAST_YEAR_ALT above)."""
     if value in ("YYYY", "YY"):
         return value
-    return "YYYY"
+    return "YYYY" if len(value) == 4 else "YY"
 
 
 def _month_name_token(value):
@@ -437,8 +470,21 @@ def _day_month_first_type(pattern):
 def _flip_day_month(pattern):
     """Swap the two components' TYPE labels in place, keeping each
     position's own written width (padded/unpadded) and every separator
-    untouched — "DD/MM/YYYY" <-> "MM/DD/YYYY", "D-M-YYYY" <-> "M-D-YYYY"."""
-    match = _PATTERN_DAYMONTH_RE.match(pattern)
+    untouched — "DD/MM/YYYY" <-> "MM/DD/YYYY", "D-M-YYYY" <-> "M-D-YYYY".
+
+    F6 (review round): guarded against a pattern that isn't this shape at
+    all (or is ``None``) — the pattern is returned UNCHANGED rather than
+    raising. ``.match(pattern)`` used to be indexed with no None check:
+    ``pattern=None`` raised ``TypeError`` before ``.match`` even ran, and a
+    non-matching pattern (e.g. an ISO ``"YYYY-MM-DD"`` marked ambiguous by
+    a malformed caller) made ``.match(...)`` return ``None``, and
+    ``None.group(...)`` raised ``AttributeError``. data-model.md is
+    explicit that extraction — and everything downstream of it — never
+    raises.
+    """
+    match = _PATTERN_DAYMONTH_RE.match(pattern or "")
+    if not match:
+        return pattern
     return (
         _FLIP_DAY_MONTH_TOKEN[match.group("c1")] + match.group("sep1")
         + _FLIP_DAY_MONTH_TOKEN[match.group("c2")] + match.group("sep2")
@@ -461,21 +507,38 @@ def resolve_date_ambiguity(structures):
     (first -> DD, not first -> MM) — merely clearing the flag while leaving
     a "MM/DD/YYYY" pattern standing when the adopted order is day-first is
     the exact defect entries-disambiguating.json exists to catch.
+
+    F5 (review round): a pass can also carry two-plus UNAMBIGUOUS entries
+    that disagree with each other (one clearly day-first, another clearly
+    month-first) — a genuine formatting conflict, not a missing signal.
+    The previous version scanned structures in order and adopted the FIRST
+    unambiguous entry's order (via an early ``break``), so read order
+    silently picked a winner and no notice fired — exactly the silent pick
+    the slice's own posture forbids (data-model.md §3.1's "no silent
+    pick"). Every unambiguous entry's vote is collected below instead of
+    stopping at the first one; a conflict (more than one distinct order
+    voted for) is treated the SAME as "no entry resolves it" — the flags
+    stand, and resolve_format's own downstream scan for a surviving
+    ``ambiguous: true`` is what surfaces ``date_ambiguous`` either way (no
+    new notice kind is introduced; ``NOTICE_KINDS`` stays closed).
     """
-    adopt_day_first = None
+    day_first_votes = set()
     for structure in structures:
         date_format = structure.get("date_format") if isinstance(structure, dict) else None
         if not date_format or date_format.get("ambiguous"):
             continue
         first_type = _day_month_first_type(date_format.get("pattern"))
         if first_type is not None:
-            adopt_day_first = first_type == "day"
-            break
+            day_first_votes.add(first_type == "day")
 
-    if adopt_day_first is None:
-        # No unambiguous numeric date anywhere in the pass — §3.1 step 2's
-        # "if none does": the flags stand, untouched.
+    if len(day_first_votes) != 1:
+        # Either nothing in the pass resolves the order (§3.1 step 2's "if
+        # none does" — zero votes) or two-plus entries resolve it to
+        # CONFLICTING orders (both True and False present) — both cases
+        # decline to guess. The flags stand, untouched.
         return structures
+
+    adopt_day_first = next(iter(day_first_votes))
 
     resolved = []
     for structure in structures:
@@ -646,7 +709,12 @@ def apply_format(structure, sections):
         _, block = section_by_label[label]
         heading = heading_by_label.get(label)
         if heading is not None:
-            marker, level, text = heading["marker"], heading["level"], heading["text"]
+            # F8 (review round): `.get(...)`, not `[...]` — a heading dict
+            # omitting "level" (e.g. a hand-built Structure a caller passes
+            # in) raised KeyError here while every sibling read in this
+            # module (_modal_marker_level, extract_structure) already
+            # tolerates a missing key via `.get`.
+            marker, level, text = heading.get("marker"), heading.get("level"), heading.get("text")
         else:
             # A field_order label with no matching heading (an inline-field
             # -only label): render it at the modal level using the
@@ -690,9 +758,18 @@ def write_entry(invoke, content):
     uniform error envelope (`{"op", "code", "message"}`) passes through
     UNCHANGED under `"error"` — never swallowed, never reshaped, never
     retried (retry policy belongs to the close flow, not here).
+
+    F7 (review round): the failure check is `result.get("error") is not
+    None`, not `"error" in result` — key PRESENCE is not the same question
+    as whether an error actually happened. A result shaped
+    `{"link": ..., "error": None}` (error explicitly nulled to signal
+    success, rather than the key being omitted) used to satisfy
+    `"error" in result` and fall into the failure branch, returning
+    `{"url": None, "error": None}` — failure-shaped, with no error to show
+    for it.
     """
     result = invoke("diary", "append_entry", {"content": content})
-    if "error" in result:
+    if result.get("error") is not None:
         return {"url": None, "error": result["error"]}
     return {"url": result["link"], "error": None}
 
@@ -718,7 +795,18 @@ def consume_recent(entries):
     return {"freshest": entries[0] if entries else None, "considered": entries}
 
 
-_DATE_TOKEN_RE = re.compile(r"YYYY|YY|MM|M|DD|D|Month|Mon")
+# F1 (BLOCKING, review round) — alternation in `re` is first-match-wins, not
+# longest-match-wins, so the token order is load-bearing: every token that
+# is a PREFIX of another must be listed after it, or the longer token can
+# never win. "YY" is a prefix of "YYYY"; "M" is a prefix of "MM", "Month"
+# and "Mon"; "D" is a prefix of "DD"; "Mon" is a prefix of "Month". The
+# previous order (YYYY|YY|MM|M|DD|D|Month|Mon) put "M" and "D" ahead of
+# "Month"/"Mon"/"DD", so `render_date` corrupted every named-month pattern
+# — "DD Mon YYYY" rendered as "21 7on 2026" ("M" ate the first letter of
+# "Mon" before "Mon" ever got a chance to match). Longest-first order below
+# fixes every token unconditionally, not just the ones a fixture happened
+# to exercise.
+_DATE_TOKEN_RE = re.compile(r"YYYY|Month|Mon|YY|MM|DD|M|D")
 
 
 def _coerce_date(date):

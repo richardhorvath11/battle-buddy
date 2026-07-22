@@ -49,6 +49,23 @@ def test_write_entry_url_matches_what_the_mock_actually_stored(mock_mcp):
     assert out["url"] is not None
 
 
+def test_write_entry_treats_an_explicit_null_error_as_success():
+    # F7 (review round): "error" in result is a key-PRESENCE check, so a
+    # result shaped {"link": ..., "error": None} — error explicitly nulled
+    # to signal success, rather than the key being omitted entirely — used
+    # to satisfy the old check and fall into the failure branch, producing
+    # a both-null {"url": None, "error": None}: failure-shaped, with no
+    # error to show for it. A hand-built invoke (not the mock) is enough
+    # here since the defect is in write_entry's own branching, not in
+    # anything the mock does.
+    def fake_invoke(capability, op, payload):
+        assert (capability, op) == ("diary", "append_entry")
+        return {"link": "https://diary.example/entry/1", "error": None}
+
+    out = diary_reference.write_entry(fake_invoke, "began triage")
+    assert out == {"url": "https://diary.example/entry/1", "error": None}
+
+
 def test_one_drafted_close_writes_the_diary_exactly_once(mock_mcp):
     # SC-004's count, asserted exactly — "at least one" would pass on a
     # duplicate append that silently doubled the write. The CLOSE-LEVEL

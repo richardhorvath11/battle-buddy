@@ -1,6 +1,6 @@
 # AGENTS.md
 
-_Last Verified: 2026-07-21_
+_Last Verified: 2026-07-22_
 
 Single source of truth for any coding agent in this repo. Read this end-to-end before
 touching anything; it routes — it does not restate. Tool-specific overlays (`CLAUDE.md`)

@@ -81,11 +81,16 @@ the same two operations above regardless of which store answers them
 ## Drafting handoff
 
 Before any write happens, the close flow assembles a draft and hands its
-content to this skill for format matching. What it supplies:
+content to this skill for format matching. The close flow's own draft
+anatomy is normative for exactly which factual values it fills — this list
+names the categories this skill receives, and does not compete with that
+one:
 
 - **In-session evidence links** — the dashboards, searches, and PRs
   gathered during the session.
-- **Services and severity** — factual.
+- **Services and severity**, and the other computed close-time factual
+  values the close flow fills from the session it is closing — responder,
+  the start and close timestamps.
 - **Resolution** — factual.
 - **Labeled causal proposals** — root cause, contributing factors, action
   items, carrying the close flow's own proposal labels.
@@ -94,8 +99,9 @@ content to this skill for format matching. What it supplies:
 
 **Not an input: the close-time row update.** Drafting precedes the
 dual-write, so the row state the close flow eventually writes does not yet
-exist when the draft is assembled. This skill reads no session-row field
-and writes none.
+exist when the draft is assembled. This skill performs no store I/O of its
+own: every value above arrives already computed from the close flow, and
+this skill never reads or writes a session row itself.
 
 **On the timeline.** This skill never derives the structured timeline.
 Where an entry carries a timeline section, it is rendered from the same

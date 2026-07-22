@@ -584,6 +584,76 @@
           ]
         }
       }
+    },
+    {
+      "id": "template-malformed-empty",
+      "why": "F10 (review round) matrix gap: a configured template that is malformed AND no entries exist at all. Rule 2 (format.md) says a malformed template 'proceeds exactly as if no template were configured' -- with an EMPTY diary, that is rule 4's minimal default, not the matched path every other malformed-* row exercises. template_malformed is still surfaced (the template really was malformed) alongside template_candidate (rule 4's own notice for the empty-diary default).",
+      "template": 42,
+      "entries_fixture": "entries-empty",
+      "expected": {
+        "source": "default",
+        "notices": [
+          "template_malformed",
+          "template_candidate"
+        ],
+        "resolved": {
+          "title": {
+            "marker": "atx",
+            "level": 1,
+            "text": "YYYY-MM-DD — <services>: <short title>"
+          },
+          "sections": [
+            {
+              "marker": "atx",
+              "level": 2,
+              "text": "What happened"
+            },
+            {
+              "marker": "atx",
+              "level": 2,
+              "text": "Timeline"
+            },
+            {
+              "marker": "atx",
+              "level": 2,
+              "text": "Resolution"
+            },
+            {
+              "marker": "atx",
+              "level": 2,
+              "text": "Root cause (proposal)"
+            },
+            {
+              "marker": "atx",
+              "level": 2,
+              "text": "Contributing factors (proposals)"
+            },
+            {
+              "marker": "atx",
+              "level": 2,
+              "text": "Action items (proposals)"
+            },
+            {
+              "marker": "atx",
+              "level": 2,
+              "text": "Evidence"
+            }
+          ],
+          "date_format": {
+            "pattern": "YYYY-MM-DD",
+            "ambiguous": false
+          },
+          "field_order": [
+            "what happened",
+            "timeline",
+            "resolution",
+            "root cause (proposal)",
+            "contributing factors (proposals)",
+            "action items (proposals)",
+            "evidence"
+          ]
+        }
+      }
     }
   ]
 }

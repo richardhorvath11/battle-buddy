@@ -112,6 +112,15 @@ two-digit and both take the padded token, while `4` takes the unpadded one even 
 perfectly ordinary day-of-month value. Without this rule, padding would be unobservable for any
 component ten or above, and two readers of the same entry could disagree on its pattern.
 
+**When the title line's date isn't recognized.** Title recognition (above, "Heading
+recognition") depends on the first heading sitting on the date-bearing line — and a line only
+counts as date-bearing when one of these token shapes actually matches it. A title whose date the
+tokenizer does not recognize therefore carries no date-bearing line at all, so the heading on it
+is treated as an ordinary section heading rather than a title. The consequence is real, not
+cosmetic: that heading's text enters the compared shape (`sections` and `field_order`) instead of
+being excluded from it the way a recognized title is, and because a real title's text differs
+across every entry by construction, this can make an otherwise uniform diary read as drifting.
+
 ### Field-order normalization
 
 `field_order` is the ordered, first-occurrence-wins list of normalized labels drawn from two

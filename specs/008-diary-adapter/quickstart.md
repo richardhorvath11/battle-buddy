@@ -30,7 +30,7 @@ Each maps to a spec acceptance scenario and the module that gates it.
 
 | Scenario | Gate |
 |---|---|
-| Configured template wins; **no recent-entry read is needed for formatting** (AS-1) | `test_diary_format.py` — resolution matrix row `template/*` asserts `source == "template"` and that no read is consumed |
+| Configured template wins; **no recent-entry read is needed for formatting** (AS-1) | `test_diary_format.py` — the `template-well-formed` matrix row asserts `source == "template"`; `test_template_branch_never_reads_entries` asserts no read is consumed, by passing entries whose consumption raises |
 | No template + consistent entries → structure mirrors observed headings, date format, field order (AS-2) | `test_diary_format.py` — `golden-structures.json`, field-for-field |
 | Bold-only section labels are recognized as headings | `test_diary_format.py` — `entries-bold.json` golden |
 | Inconsistent entries → freshest wins, drift surfaced | `test_diary_format.py` — `entries-inconsistent.json` + `entries_inconsistent` notice |
@@ -47,7 +47,7 @@ Each maps to a spec acceptance scenario and the module that gates it.
 | Scenario | Gate |
 |---|---|
 | The append returns a stable link, and that link is what the flow hands onward for the row (AS-1) | `test_diary_write.py` — against `bb-mock-mcp`, across the encoding's `write_entry`, so the assertion has a subject rather than comparing a value to itself |
-| Exactly one diary append per drafted close (SC-004) | `test_diary_write.py` — the mock's write log, filtered to `diary`, has length exactly 1. The close-*level* ordering claim is slice 5's (`test_close_flow.py`, `test_lifecycle_full_sim.py`), cited not re-asserted |
+| Exactly one diary append per drafted close (SC-004) | `test_diary_write.py` — the mock's write log, filtered to `diary`, has length exactly 1 **for this adapter's own write**. Stated precisely because the distinction matters: this module drives `write_entry` directly, not a whole close, so it gates the adapter's write-once property. The close-level claim is slice 5's, and what `test_close_flow.py` actually pins there is the diary-first *ordering* — no landed test counts diary appends across a full close |
 | Appends to the configured diary through the diary capability only — no creation, no alternate destinations (AS-2) | `test_diary_write.py` — the contract's diary op-set asserted **equal** to `{append_entry, read_recent}` (a subset assertion would go quiet on a future `create_diary`); `test_diary_prose.py` gates the prose half |
 | A failed write surfaces the contract's uniform error envelope, unchanged | `test_diary_write.py` — the envelope passes through the encoding's `write_entry` untouched. The raw contract behavior is already gated by slice 1's `tests/contract/test_diary.py` |
 

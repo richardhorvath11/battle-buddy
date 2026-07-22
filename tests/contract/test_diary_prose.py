@@ -569,7 +569,8 @@ def test_reorder_directive_patterns_have_teeth_on_each_enumerated_form():
         )
 
 
-def test_no_consumer_side_resort_directive_outside_the_adapter_sentence():
+@pytest.mark.parametrize("doc_path", MD_FILES, ids=MD_IDS)
+def test_no_consumer_side_resort_directive_outside_the_adapter_sentence(doc_path):
     # WHOLE-DOCUMENT scan, deliberately, not the "Ordering consumption"
     # section alone. Slice 7 recorded the reasoning this follows
     # (test_catalog_prose.py's SC-006 scope note): a gate bounded by a
@@ -580,15 +581,29 @@ def test_no_consumer_side_resort_directive_outside_the_adapter_sentence():
     # section-scoped negative scan would wave it through. The positive
     # gates above stay section-scoped — those assert the commitment is in
     # its documented home, which is a different question.
-    masked = _mask_adapter_side_sentence(_normalize_whitespace(FORMAT_MD_TEXT))
+    #
+    # F9 (review round): PARAMETRIZED over every doc under skills/diary/,
+    # not references/format.md alone. SKILL.md carries the same
+    # interface-level ordering commitment ("consumers use that order as-is
+    # — they never re-sort it"), and SC-005 covers the documented flow
+    # ACROSS both docs — a file-scoped negative scan has exactly the same
+    # "gameable by moving a sentence past it" hole a section-scoped one
+    # does, just at a coarser grain. The adapter-side reversal sentence is
+    # masked only for references/format.md — it is the only doc that
+    # legitimately states it (SKILL.md never mentions the adapter-side
+    # reversal at all), so every other doc gets the scan with no mask.
+    text = doc_path.read_text(encoding="utf-8")
+    normalized = _normalize_whitespace(text)
+    if doc_path == FORMAT_MD_PATH:
+        normalized = _mask_adapter_side_sentence(normalized)
     hits = sorted(
-        name for name, pattern in REORDER_DIRECTIVE_PATTERNS.items() if pattern.search(masked)
+        name for name, pattern in REORDER_DIRECTIVE_PATTERNS.items() if pattern.search(normalized)
     )
     assert not hits, (
-        "references/format.md's 'Ordering consumption' section names "
-        "consumer-side re-sort directive(s) %r — SC-005 requires "
-        "read_recent's order consumed as-is, with the single adapter-side "
-        "reversal sentence masked out first" % hits
+        "%s names consumer-side re-sort directive(s) %r — SC-005 requires "
+        "read_recent's order consumed as-is across every doc under "
+        "skills/diary/, with the single adapter-side reversal sentence "
+        "(references/format.md only) masked out first" % (doc_path, hits)
     )
 
 

@@ -16,6 +16,7 @@ House style follows ``tests/contract/test_catalog_resolution.py``: a non-vanishi
 on each fixture's case-id/key set first, then full parametrization over every case.
 """
 
+import datetime
 import inspect
 import re
 
@@ -25,8 +26,10 @@ from conftest import REPO_ROOT, fixture_path, load_fixture
 from helpers.diary_reference import (
     FORMAT_INPUT_KEYS,
     MINIMAL_DEFAULT,
+    _date_format_for_line,
     apply_format,
     extract_structure,
+    render_date,
     resolve_date_ambiguity,
     resolve_format,
 )
@@ -62,6 +65,7 @@ EXPECTED_CASE_IDS = frozenset(
         "template-malformed-object",
         "template-malformed-empty-string",
         "template-malformed-whitespace-only",
+        "template-malformed-empty",
     }
 )
 
@@ -286,13 +290,27 @@ def test_malformed_template_falls_back_to_match_recent_not_default(case_id):
     entries = _entries(case["entries_fixture"])
     resolution = resolve_format(case["template"], entries)
 
-    assert resolution["source"] == "matched"
     assert "template_malformed" in set(notice["kind"] for notice in resolution["notices"])
-    assert resolution["structure"] != MINIMAL_DEFAULT, (
-        "%s: a malformed template must fall through to match-recent, never silently "
-        "resolve to the empty-diary default" % case_id
-    )
     assert resolution["structure"] == case["expected"]["resolved"]
+
+    # F10 (review round): "never silently resolve to the empty-diary
+    # default" is rule 2's promise only when there is something to MATCH
+    # against. format.md rule 2 says a malformed template "proceeds
+    # exactly as if no template were configured" — with an EMPTY diary,
+    # that is rule 4's minimal default by design, not a violation of rule
+    # 2. Every malformed-* row but "template-malformed-empty" pairs with
+    # entries-consistent (non-empty), so this scoping only ever bites on
+    # that one row.
+    if entries:
+        assert resolution["source"] == "matched"
+        assert resolution["structure"] != MINIMAL_DEFAULT, (
+            "%s: a malformed template must fall through to match-recent, "
+            "never silently resolve to the empty-diary default" % case_id
+        )
+    else:
+        assert resolution["source"] == "default"
+        assert resolution["structure"] == MINIMAL_DEFAULT
+        assert "template_candidate" in set(notice["kind"] for notice in resolution["notices"])
 
 
 # ---------------------------------------------------------------------------
@@ -345,6 +363,52 @@ def test_label_pass_through_is_byte_identical_for_every_block():
             % (label, recovered)
         )
 
+    # F3 (review round): the two checks above recover (heading, block) pairs
+    # and then DISCARD the headings, asserting only "this block is present
+    # somewhere" — a regression that emitted, say, the action-items block
+    # under the "Root cause (proposal)" heading would still pass both of
+    # them (same set of blocks, same count), which is exactly Constitution
+    # V's failure mode: a causal proposal silently relabeled. Assert the
+    # full recovered (heading_text, block) SEQUENCE against the expected
+    # pairing instead — every one of this fixture's labels has a matching
+    # heading with the SAME text (data-model.md §8's field_order-matched
+    # emission), so the expected heading for each block is "## " + its own
+    # input label, in the fixture's own field_order-then-append order.
+    # Normalization mirrors data-model.md §3/§8's documented rule (lowercase,
+    # trailing ':' stripped, whitespace collapsed) — none of this fixture's
+    # labels need more than lowercasing, but the rule is restated here in
+    # full rather than relied on by coincidence.
+    def _normalize(text):
+        text = text.strip()
+        if text.endswith(":"):
+            text = text[:-1].strip()
+        return re.sub(r"\s+", " ", text).lower()
+
+    blocks_by_original_label = dict(fixture["sections"])
+    normalized_to_original = {
+        _normalize(label): label for label, _block in fixture["sections"]
+    }
+    resolved_field_order = structure["field_order"]
+    ordered_normalized_labels = [
+        normalized for normalized in resolved_field_order if normalized in normalized_to_original
+    ] + [
+        _normalize(label)
+        for label, _block in fixture["sections"]
+        if _normalize(label) not in resolved_field_order
+    ]
+    expected_pairs = [
+        [
+            "## " + normalized_to_original[normalized],
+            blocks_by_original_label[normalized_to_original[normalized]],
+        ]
+        for normalized in ordered_normalized_labels
+    ]
+    assert recovered == expected_pairs, (
+        "apply_format must place each block under ITS OWN label's heading, "
+        "in field_order-then-append order — got %r, expected %r"
+        % (recovered, expected_pairs)
+    )
+
 
 def test_field_order_label_with_no_matching_section_is_omitted():
     # The OMIT half of data-model.md §8: pair entries-labeled-causal.json's `sections`
@@ -367,6 +431,24 @@ def test_field_order_label_with_no_matching_section_is_omitted():
     assert "## Root cause (proposal)" in output
     assert "## Contributing factors (proposals)" in output
     assert "## Action items (proposals)" in output
+
+
+def test_apply_format_does_not_raise_when_a_matched_heading_omits_level():
+    # F8 (review round): apply_format used to index heading["marker"] /
+    # heading["level"] directly, while every sibling read in this module
+    # (_modal_marker_level, extract_structure) already tolerates a missing
+    # key via `.get`. A structure whose heading dict omits "level" (a
+    # hand-built Structure, e.g. one a caller assembles rather than one
+    # extract_structure produced) raised KeyError here.
+    structure = {
+        "title": None,
+        "sections": [{"marker": "atx", "text": "What happened"}],  # no "level"
+        "date_format": None,
+        "field_order": ["what happened"],
+    }
+    output = apply_format(structure, [["What happened", "Body text."]])
+    assert "What happened" in output
+    assert "Body text." in output
 
 
 # ---------------------------------------------------------------------------
@@ -393,6 +475,219 @@ def test_extraction_is_bounded_by_a_large_content_free_filler_block():
         "Structure — extraction reads only for title/headings/date/field_order "
         "(data-model.md 'Extraction is bounded')"
     )
+
+
+# ---------------------------------------------------------------------------
+# render_date (data-model.md §8) — F1 (BLOCKING): every documented worked
+# pattern must round-trip byte-for-byte. Before the fix, `_DATE_TOKEN_RE`'s
+# alternation was first-match-wins (not longest-match-wins), so "M" matched
+# before "Month"/"Mon" ever got a chance — every named-month pattern came
+# back corrupted (e.g. "DD Mon YYYY" rendered "21 7on 2026").
+# ---------------------------------------------------------------------------
+
+_RENDER_DATE_WORKED_CASES = (
+    ("YYYY-MM-DD", datetime.date(2026, 7, 21), "2026-07-21"),
+    ("DD Mon YYYY", datetime.date(2026, 7, 21), "21 Jul 2026"),
+    ("Month D, YYYY", datetime.date(2026, 7, 4), "July 4, 2026"),
+    ("MM/DD/YYYY", datetime.date(2026, 7, 21), "07/21/2026"),
+)
+
+
+@pytest.mark.parametrize(
+    "pattern, when, expected",
+    _RENDER_DATE_WORKED_CASES,
+    ids=[case[0] for case in _RENDER_DATE_WORKED_CASES],
+)
+def test_render_date_round_trips_every_documented_worked_pattern(pattern, when, expected):
+    # These are the exact four worked cases data-model.md §3 and
+    # references/format.md's "Date-format tokens" table both cite.
+    assert render_date({"pattern": pattern, "ambiguous": False}, when) == expected
+
+
+# F2 — render_date / _coerce_date had zero test coverage before F1's fix
+# landed (which is why F1 shipped unnoticed). Covers _coerce_date's three
+# documented accepted input shapes — an object exposing .year/.month/.day,
+# a (year, month, day) sequence, and an ISO "YYYY-MM-DD" string — through
+# render_date, its only caller.
+_COERCE_DATE_INPUT_SHAPES = (
+    ("datetime.date", datetime.date(2026, 7, 21)),
+    ("3-tuple", (2026, 7, 21)),
+    ("3-element list", [2026, 7, 21]),
+    ("iso string", "2026-07-21"),
+)
+
+
+@pytest.mark.parametrize(
+    "shape_name, value",
+    _COERCE_DATE_INPUT_SHAPES,
+    ids=[case[0] for case in _COERCE_DATE_INPUT_SHAPES],
+)
+def test_render_date_accepts_every_documented_coerce_date_input_shape(shape_name, value):
+    assert render_date({"pattern": "YYYY-MM-DD", "ambiguous": False}, value) == "2026-07-21"
+
+
+# ---------------------------------------------------------------------------
+# F4 — the documented YY (2-digit year) token, fixture-free. Before this
+# fix, a title like "# 07/21/26 — checkout: latency" carried no
+# date-bearing line at all (the year-last numeric regex required 4 written
+# digits), so the title fell into `sections`/`field_order` instead of
+# `title` — and because a real title varies per entry, an otherwise
+# perfectly uniform diary would classify as entries_inconsistent forever.
+# ---------------------------------------------------------------------------
+
+
+def test_two_digit_year_title_is_recognized_and_uniform_entries_are_not_inconsistent():
+    entries = [
+        {
+            "link": "diary-yy-newest",
+            "content": (
+                "# 07/22/26 — checkout: brief latency\n\n"
+                "## What happened\nBody text.\n\n"
+                "## Timeline\nBody text.\n\n"
+                "## Resolution\nBody text.\n"
+            ),
+            "at": "2026-07-22T00:00:00Z",
+        },
+        {
+            "link": "diary-yy-oldest",
+            "content": (
+                "# 07/21/26 — checkout: latency\n\n"
+                "## What happened\nBody text.\n\n"
+                "## Timeline\nBody text.\n\n"
+                "## Resolution\nBody text.\n"
+            ),
+            "at": "2026-07-21T00:00:00Z",
+        },
+    ]
+
+    for entry in entries:
+        structure = extract_structure(entry["content"])
+        assert structure["title"] is not None, (
+            "a 2-digit-year title line must be recognized as date-bearing, not fall "
+            "through into `sections`"
+        )
+        assert structure["date_format"] == {"pattern": "MM/DD/YY", "ambiguous": False}
+
+    resolution = resolve_format(None, entries)
+    assert resolution["source"] == "matched"
+    assert "entries_inconsistent" not in set(
+        notice["kind"] for notice in resolution["notices"]
+    ), "uniform entries sharing one section/date shape must never classify as inconsistent"
+
+
+# ---------------------------------------------------------------------------
+# F5 — resolve_date_ambiguity must not let read order silently pick a
+# winner when the pass carries CONFLICTING unambiguous entries (one
+# clearly day-first, another clearly month-first). Before this fix, a
+# `break` on the first unambiguous entry encountered adopted its order for
+# every ambiguous entry in the pass, clearing every `ambiguous` flag with
+# no notice — exactly the silent pick data-model.md §3.1 forbids.
+# ---------------------------------------------------------------------------
+
+
+def test_resolve_date_ambiguity_declines_to_pick_when_the_pass_conflicts():
+    day_first = {
+        "title": None, "sections": [], "field_order": [],
+        "date_format": {"pattern": "DD/MM/YYYY", "ambiguous": False},
+    }
+    month_first = {
+        "title": None, "sections": [], "field_order": [],
+        "date_format": {"pattern": "MM/DD/YYYY", "ambiguous": False},
+    }
+    genuinely_ambiguous = {
+        "title": None, "sections": [], "field_order": [],
+        "date_format": {"pattern": "MM/DD/YYYY", "ambiguous": True},
+    }
+
+    structures = [day_first, month_first, genuinely_ambiguous]
+    resolved = resolve_date_ambiguity(structures)
+
+    assert resolved == structures, (
+        "conflicting unambiguous entries must not let the pass adopt either order — "
+        "every structure must pass through unchanged rather than have read order "
+        "silently break the tie"
+    )
+
+
+def test_resolve_format_surfaces_date_ambiguous_when_the_pass_conflicts():
+    entries = [
+        {
+            "link": "diary-conflict-newest",
+            "content": "# 17/06/2026 — checkout: incident\n\n## What happened\nBody.\n",
+            "at": "2026-06-17T00:00:00Z",
+        },
+        {
+            "link": "diary-conflict-middle",
+            "content": "# 06/17/2026 — checkout: incident\n\n## What happened\nBody.\n",
+            "at": "2026-06-16T00:00:00Z",
+        },
+        {
+            "link": "diary-conflict-oldest",
+            "content": "# 03/04/2026 — checkout: incident\n\n## What happened\nBody.\n",
+            "at": "2026-06-15T00:00:00Z",
+        },
+    ]
+
+    resolution = resolve_format(None, entries)
+    notice_kinds = set(notice["kind"] for notice in resolution["notices"])
+    assert "date_ambiguous" in notice_kinds, (
+        "two individually-unambiguous entries that disagree on day/month order must "
+        "surface date_ambiguous rather than let read order silently pick a winner"
+    )
+
+
+# ---------------------------------------------------------------------------
+# F6 — _flip_day_month must never raise on a pattern that isn't a
+# day/month numeric shape (or is None). Before this fix, an ambiguous
+# structure carrying e.g. an ISO pattern raised AttributeError
+# (`.match(...)` returned None, then `.group(...)` was called on it), and a
+# None pattern raised TypeError before `.match` even ran.
+# ---------------------------------------------------------------------------
+
+
+def test_resolve_date_ambiguity_never_raises_on_a_non_matching_ambiguous_pattern():
+    day_first = {
+        "title": None, "sections": [], "field_order": [],
+        "date_format": {"pattern": "DD/MM/YYYY", "ambiguous": False},
+    }
+    iso_shaped_but_flagged_ambiguous = {
+        "title": None, "sections": [], "field_order": [],
+        "date_format": {"pattern": "YYYY-MM-DD", "ambiguous": True},
+    }
+    none_pattern_but_flagged_ambiguous = {
+        "title": None, "sections": [], "field_order": [],
+        "date_format": {"pattern": None, "ambiguous": True},
+    }
+
+    # Must not raise (AttributeError / TypeError pre-fix).
+    resolved = resolve_date_ambiguity(
+        [day_first, iso_shaped_but_flagged_ambiguous, none_pattern_but_flagged_ambiguous]
+    )
+
+    # The guard's own contract: a non-matching pattern is returned UNCHANGED
+    # rather than crashing or being silently rewritten into something else.
+    assert resolved[1]["date_format"]["pattern"] == "YYYY-MM-DD"
+    assert resolved[2]["date_format"]["pattern"] is None
+
+
+# ---------------------------------------------------------------------------
+# F12 — a numeric run glued to more digits/dots on either side must not be
+# read as a date component; it is far more likely a fragment of something
+# else (a version string, a build number). Calendar validity is
+# deliberately NOT part of this: a genuinely standalone "1234-56-78" still
+# reads as YYYY-MM-DD (data-model.md §3's own "we extract a format, not a
+# valid date" posture).
+# ---------------------------------------------------------------------------
+
+
+def test_date_shape_false_positive_on_a_version_string_is_rejected():
+    assert _date_format_for_line("Version 1.2.3-4/5/2026") is None
+
+
+def test_standalone_iso_shaped_digits_still_read_as_a_format_with_no_calendar_check():
+    # Deliberately NOT a valid calendar date — extraction reads a format,
+    # never validates a value (data-model.md §3).
+    assert _date_format_for_line("1234-56-78") == {"pattern": "YYYY-MM-DD", "ambiguous": False}
 
 
 # ---------------------------------------------------------------------------
