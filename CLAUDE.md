@@ -15,5 +15,5 @@ start there. Only Claude-specific notes go below.
 <!-- SPECKIT START -->
 For additional context about technologies to be used, project structure,
 shell commands, and other important information, read the current plan:
-`specs/008-diary-adapter/plan.md`
+`specs/009-shell-adapter/plan.md`
 <!-- SPECKIT END -->
