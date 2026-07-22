@@ -289,6 +289,11 @@ def test_billing_dangling_dependency_kept_in_blast_radius_and_warned_once():
         "exactly one dangling_dependency warning is expected across the "
         "whole catalog; got %d: %r" % (len(dangling), dangling)
     )
+    assert dangling[0]["service"] == "billing", (
+        "the warning names the DEPENDER, not the missing dependency — "
+        "annotations.md makes a normative claim about this field, and "
+        "nothing else in the suite pins it; got %r" % dangling[0]["service"]
+    )
     assert "nonexistent-svc" in dangling[0]["detail"], (
         "the catalog's one dangling_dependency warning must name "
         "nonexistent-svc; got %r" % dangling[0]
@@ -367,28 +372,44 @@ def test_an_unreadable_repo_root_is_surfaced_as_a_failure():
     assert "not a readable directory" in catalog["failures"][0]["reason"]
 
 
-def test_a_duplicate_losers_own_warning_survives_resolution():
-    # data-model.md's "Warning provenance across duplicate resolution" pin,
-    # unreachable from the roster because every fixture entity declares an
-    # owner. The rule: a loser's own catalog-quality warning stays in the
-    # stream, and warning["service"] names what the offending entity
-    # DECLARED — not a key into the resolved service set.
-    winner = {
-        "kind": "Component",
-        "metadata": {"name": "dup"},
-        "spec": {"owner": "team-a"},
-    }
-    loser = {"kind": "Component", "metadata": {"name": "dup"}, "spec": {}}
-    winner_result = parse_entity(winner, "services/aaa/catalog-info.yaml")
-    loser_result = parse_entity(loser, "services/zzz/catalog-info.yaml")
-    assert [w["kind"] for w in winner_result["warnings"]] == []
-    assert [w["kind"] for w in loser_result["warnings"]] == ["missing_owner"], (
-        "the loser's own missing_owner fires at parse time, before duplicate "
-        "resolution has any say — which is why it survives into the catalog's "
-        "warning stream even though its entity is dropped"
+def test_a_duplicate_losers_own_warning_survives_resolution(tmp_path):
+    # data-model.md's "Warning provenance across duplicate resolution" pin.
+    # This MUST go through load_catalog: duplicate resolution is its job, and
+    # an earlier version of this test called parse_entity twice, which cannot
+    # observe survival through resolution at all — a mutant that dropped
+    # loser-derived warnings passed it. Unreachable from the fixture roster
+    # because every fixture entity declares an owner, hence the temp repo.
+    import json
+
+    def write(directory, name, spec):
+        service_dir = tmp_path / "services" / directory
+        service_dir.mkdir(parents=True)
+        document = {"kind": "Component", "metadata": {"name": name}, "spec": spec}
+        (service_dir / "catalog-info.yaml").write_text(
+            json.dumps(document, indent=2), encoding="utf-8"
+        )
+
+    write("aaa", "dup", {"owner": "team-a"})   # sorts first -> canonical
+    write("zzz", "dup", {})                    # loses, and has no owner
+
+    catalog = load_catalog(tmp_path)
+
+    assert catalog["sources"]["dup"] == "services/aaa/catalog-info.yaml", (
+        "the lexicographically-first source path wins the tie-break"
     )
-    assert loser_result["warnings"][0]["service"] == "dup", (
-        "the warning names the name the offending entity DECLARED; the "
-        "resolved 'dup' service comes from the other file entirely, so this "
-        "is not a key into catalog['services']"
+    assert catalog["services"]["dup"]["owner"] == "team-a", (
+        "the canonical entity's values survive, not the loser's"
+    )
+    kinds = sorted(w["kind"] for w in catalog["warnings"])
+    assert kinds == ["duplicate_name", "missing_owner"], (
+        "the loser's own missing_owner survives into the catalog's warning "
+        "stream even though its entity was dropped — the warning stream is a "
+        "record of catalog quality, and a problem in a file that lost a "
+        "tie-break is still a problem in the team's repo; got %r" % kinds
+    )
+    missing_owner = [w for w in catalog["warnings"] if w["kind"] == "missing_owner"][0]
+    assert missing_owner["service"] == "dup", (
+        "the warning names what the offending entity DECLARED; the resolved "
+        "'dup' service came from the other file entirely, so this is not a "
+        "key into catalog['services']"
     )

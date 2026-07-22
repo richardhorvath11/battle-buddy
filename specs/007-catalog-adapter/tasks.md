@@ -176,7 +176,7 @@ fixture alerts and assert the resolved service, or the miss classification, for 
       **source path** and **no** `service`; nothing at either stage → `miss`; missing/empty
       alert fields are non-matching, never an exception. `service` and every `candidates`
       element is a **service-name string**, never a nested object. `fixup_offer` returns
-      `{source_path, annotation_key, annotation_value, snippet}` with `annotation_key` always
+      `{source_path, annotation_key, annotation_value, commit_ready, snippet}` with `annotation_key` always
       `oncall-harness/alert-match`, `annotation_value` resolved by §7's pinned order
       (`fields["name"]` → `fields["service_hint"]` → first tag → `""`), and `source_path`
       either `catalog["sources"][service_name]` or, for a service absent from the catalog, the

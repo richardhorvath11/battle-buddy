@@ -261,6 +261,24 @@ def load_catalog(repo_root):
     duplicate group's dropped losers — are carried into the catalog's
     ``warnings`` list unconditionally.
     """
+    # Checked BEFORE Path() conversion: Path(None) raises, and Path("") is
+    # Path("."), which would silently walk the current working directory —
+    # the worst possible answer to "is the catalog repo reachable?". An unset
+    # config value is the most plausible way a caller gets here.
+    if not isinstance(repo_root, (str, Path)) or not str(repo_root):
+        return {
+            "services": {},
+            "linkage": {},
+            "sources": {},
+            "warnings": [],
+            "failures": [
+                {
+                    "source_path": "",
+                    "reason": "catalog repo root is unset or not a path",
+                }
+            ],
+        }
+
     repo_root = Path(repo_root)
     warnings = []
     failures = []
@@ -280,6 +298,9 @@ def load_catalog(repo_root):
             "warnings": [],
             "failures": [
                 {
+                    # The one source_path that is NOT repo-relative: there is
+                    # no root to be relative to. Documented as the explicit
+                    # exception in data-model.md's relativity rule.
                     "source_path": repo_root.as_posix(),
                     "reason": "catalog repo root is not a readable directory",
                 }
@@ -403,7 +424,7 @@ def _candidates_by_source(names, catalog):
     (directory `zz-billing`, `metadata.name` `billing`) exists specifically
     to invert those two orderings and catch a name-sorting implementation.
     """
-    sources = catalog.get("sources", {})
+    sources = _as_dict(_as_dict(catalog).get("sources"))
     return sorted(names, key=lambda name: sources.get(name, ""))
 
 
@@ -414,13 +435,13 @@ def _exact_stage_hits(match_strings, catalog):
     most once even if several of its matchers hit (``break`` on first).
 
     An empty matcher never hits, mirroring the substring stage's own
-    emptiness guard. This is not hypothetical tidiness: ``fixup_offer``'s
-    pinned final fallback emits ``annotation_value == ""`` when a sparse
-    alert offers nothing discriminating, so a responder who commits that
-    snippet verbatim gives their service ``alert_matchers: [""]``. Without
-    this guard, that service would then match *every* sparse alert exactly
-    — the tool would have talked a team into a catalog entry that swallows
-    unrelated incidents.
+    emptiness guard. This is not hypothetical tidiness: a service whose
+    ``alert_matchers`` contains the empty string — committed by hand, or by
+    a harness predating ``fixup_offer``'s ``commit_ready`` flag — would
+    otherwise match *every* sparse alert exactly, swallowing unrelated
+    incidents. ``fixup_offer`` refuses to *produce* such a matcher; this is
+    the read side of the same guard, and defense in depth means neither side
+    is trusted to be the only one.
     """
     normalized_alert_strings = set(_normalize(s) for s in match_strings)
     hits = []
@@ -676,7 +697,7 @@ def blast_radius(name, catalog):
     unwidened. Never raises for any catalog ``load_catalog`` returns — the
     ``_as_dict`` guard extends that to a malformed catalog too.
     """
-    services = _as_dict(catalog).get("services", {})
+    services = _as_dict(_as_dict(catalog).get("services"))
     service = services.get(name)
     if not isinstance(service, dict):
         return []

@@ -85,7 +85,17 @@ def test_scan_finds_the_known_catalog_docs():
 
 
 def _paragraphs(text):
-    """Whitespace-normalized paragraphs — wrap-robust, boundary-respecting."""
+    """Whitespace-normalized paragraphs — wrap-robust, boundary-respecting.
+
+    Per paragraph, deliberately, never a global ``re.sub(r"\s+", " ", text)``
+    over the whole corpus. A global collapse also erases blank lines and the
+    inter-file join, so a phrase could be satisfied by words reassembled
+    across a paragraph break — or across two different files — while neither
+    doc actually says it. A review demonstrated both. Splitting on blank lines
+    first keeps the hard-wrap robustness (the reason normalization exists at
+    all) and closes the boundary-crossing vector: a phrase must live inside
+    one paragraph of one file.
+    """
     return [
         re.sub(r"\s+", " ", block).strip()
         for block in re.split(r"\n\s*\n", text)
@@ -415,7 +425,8 @@ def test_fr007_no_code_operation_name_cited():
 
 
 def test_manifest_declares_the_three_code_op_tokens():
-    # Positive control for the fidelity backstop below: it needs real ops
+    # Standalone manifest-fidelity pin: the three code-op tokens the
+    # FR-007 gate forbids in prose are exactly the three the manifest declares: it needs real ops
     # to check against, or it would be vacuously true no matter what the
     # prose cited.
     assert set(CODE_OP_TOKENS) <= MANIFEST_CODE_OPS, (
@@ -786,6 +797,8 @@ RESOLUTION_MD_PARAGRAPHS = _paragraphs(RESOLUTION_MD_TEXT)
 RESOLUTION_CLAIMS = [
     ("is not an exact-stage input", "the service name is a substring-stage input only"),
     ("An empty matcher never matches", "an empty matcher never matches"),
+    ("is not commit-ready", "an offer with an empty value is not commit-ready"),
+    ("read-only by default", "the never-writes boundary rests on read-only credentials"),
     ("never the reverse", "the substring direction is pinned"),
     ("never a silent pick", "ambiguity surfaces candidates rather than picking"),
     ("ordered by source path", "candidate order is deterministic"),
@@ -883,4 +896,51 @@ def test_every_skill_directory_is_covered_by_a_naming_scan():
         "Add a scan for it and list it in SCANNED_SKILL_DIRS — a skill added "
         "without one is silently exempt from the mcp__ and vendor-name gates."
         % sorted(present - SCANNED_SKILL_DIRS)
+    )
+
+
+# ---------------------------------------------------------------------------
+# Converge round 1 hardened resolution.md's pre-existing body, then added new
+# normative prose to annotations.md with no gate — the same defect, freshly
+# committed. Round 2 caught it. These gate that prose against the encoding's
+# own identifiers, both ways, so the doc cannot rename or lose one silently.
+# ---------------------------------------------------------------------------
+
+WARNING_KINDS = ("missing_owner", "dangling_dependency", "ignored_entity", "duplicate_name")
+CATALOG_PARTS = ("services", "linkage", "sources", "warnings", "failures")
+
+
+@pytest.mark.parametrize("kind", WARNING_KINDS, ids=WARNING_KINDS)
+def test_annotations_doc_names_every_warning_kind_identifier(kind):
+    assert kind in ANNOTATIONS_DOC_TEXT, (
+        "annotations.md must name the warning-kind identifier %r — a "
+        "consuming slice branches on these strings, and the doc is where "
+        "they are published" % kind
+    )
+
+
+def test_annotations_doc_declares_the_warning_vocabulary_closed():
+    # The identifiers are only useful to a consumer if the set is closed;
+    # an open set means coding for kinds that may never arrive.
+    assert _states("The four warning kinds", _paragraphs(ANNOTATIONS_DOC_TEXT)), (
+        "annotations.md must state the warning vocabulary is exactly four "
+        "kinds, not an open set"
+    )
+
+
+@pytest.mark.parametrize("part", CATALOG_PARTS, ids=CATALOG_PARTS)
+def test_annotations_doc_documents_every_catalog_part(part):
+    section = _markdown_section("What a parse yields", ANNOTATIONS_DOC_TEXT)
+    assert part in section, (
+        "annotations.md's 'What a parse yields' must document the %r part of "
+        "a parse result — plan.md's own rule puts shapes a consuming slice "
+        "needs in the shipped references, not only under specs/" % part
+    )
+
+
+def test_annotations_doc_states_there_is_no_error_path():
+    section = _markdown_section("What a parse yields", ANNOTATIONS_DOC_TEXT)
+    assert "no error path" in section, (
+        "the never-errors property is the whole point of the five-part shape; "
+        "annotations.md must say it outright"
     )

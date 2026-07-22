@@ -41,7 +41,7 @@ commits, never something an agent commits on the catalog's behalf.
 
 | Reference | Covers |
 |---|---|
-| `references/annotations.md` | the annotation mapping, the internal model's fields, empty-list defaults and multi-valued parsing, entity classification, duplicate names, catalog-quality warnings, the linkage annotations (paging, repo), the runbook-reference format |
+| `references/annotations.md` | the annotation mapping, the internal model's fields, empty-list defaults and multi-valued parsing, entity classification, duplicate names, catalog-quality warnings and their identifiers, what a parse yields, the linkage annotations (paging, repo), the runbook-reference format |
 | `references/resolution.md` | alert→service match order, ambiguity and the miss/ask-once path, the fix-up offer, one-hop blast radius |
 
 ## Degradation
@@ -74,7 +74,8 @@ parses. Nothing about one broken file stops a session from opening.
 ### Catalog-quality warnings are not feature degradations
 
 Distinguish these explicitly from the table above, because conflating them is the easy
-mistake. The catalog surfaces at least these:
+mistake. The catalog surfaces exactly these four (`references/annotations.md`
+names their identifiers):
 
 - **Missing owner** — a service with no owner parses fine and is surfaced. Ownership
   disables no feature; it is a quality signal, not a degradation.

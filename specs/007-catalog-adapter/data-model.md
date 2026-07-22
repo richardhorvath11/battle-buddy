@@ -69,7 +69,7 @@ Catalog {
   linkage:   {name -> {paging_id?, repo_slug?}}
   sources:   {name -> source_path}    # the winning entity's path (see relativity rule below)
   warnings:  [Warning]                # catalog-quality, non-fatal
-  failures:  [Failure]                # per-file, non-fatal
+  failures:  [Failure]                # per-file, plus one for an unreadable root
 }
 ```
 
@@ -91,7 +91,9 @@ property expressed at field and file scope.
 `load_catalog(repo_root)` is called with the **repo root itself** — in tests,
 `fixture_path("catalog", "repo")`. Every `source_path` is relative to that root, so the
 canonical `orders` entity's path is `services/orders-eu/catalog-info.yaml`, never
-`repo/services/…` and never absolute. Lexicographic ordering (below) is applied to exactly
+`repo/services/…` and never absolute — **with one documented exception**: the
+unreadable-root `Failure` names the root as the caller gave it, because when the root
+itself is the problem there is nothing to be relative to. Lexicographic ordering (below) is applied to exactly
 this string.
 
 ### Entity classification (edge case: non-service entities)

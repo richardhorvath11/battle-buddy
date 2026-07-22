@@ -414,8 +414,10 @@ def test_fixup_offer_annotation_value_prefers_service_hint_over_tags():
 
 def test_empty_offer_is_not_commit_ready_and_carries_no_snippet():
     # The harness must never *produce* the thing _exact_stage_hits defends
-    # against on the read side: committing `alert_matchers: [""]` gives a
-    # service a matcher that swallows every sparse alert. When the alert
+    # against on the read side: a service whose alert_matchers contains the
+    # empty string swallows every sparse alert. Both sides are guarded on
+    # purpose — an empty matcher can still arrive by hand-editing, so neither
+    # side is trusted to be the only one. When the alert
     # offers nothing discriminating, the offer is marked not-commit-ready and
     # carries no paste-ready snippet at all — there is nothing to paste.
     offer = fixup_offer({"alert_id": "sparse", "tags": [], "fields": {}}, "x", CATALOG)
