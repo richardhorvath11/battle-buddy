@@ -133,10 +133,11 @@ def test_golden_model_agrees_with_parsed_catalog(name):
         "sub-object — linkage rides beside the model, not inside it, and must "
         "still be preserved intact" % name
     )
-    # Structural guard on the golden itself: T014 (US3) owns the
-    # disabled_features *assertion*, but without this a golden missing the key
-    # — or carrying a wrong type — stays green through all of Phase 2 and only
-    # surfaces as a KeyError two phases later.
+    # Structural guard on the golden itself. SC-004's primary assertion is
+    # deliberately literal (see test_catalog_degradation.py), so nothing there
+    # reads this field as an expectation — a drift check alongside it does.
+    # Without this guard a golden missing the key, or carrying a wrong type,
+    # would stay green through all of Phase 2 and surface as a KeyError later.
     assert set(golden) == {"model", "linkage", "disabled_features", "source_path"}, (
         "%r: every golden carries exactly data-model.md §10's four sibling "
         "keys — got %r" % (name, sorted(golden))

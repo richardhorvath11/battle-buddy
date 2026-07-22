@@ -538,3 +538,86 @@ def fixup_offer(alert, service_name, catalog):
         "annotation_value": annotation_value,
         "snippet": snippet,
     }
+
+
+# ---------------------------------------------------------------------------
+# disabled_features / blast_radius (skills/catalog/ degradation posture;
+# skills/catalog/references/resolution.md "Duplicate names and blast radius",
+# FR-006 one-hop widening, kept-not-filtered dangling entries)
+# ---------------------------------------------------------------------------
+
+
+DEGRADED_FEATURES_BY_FIELD = {  # Service field -> the one feature its emptiness gates
+    "dashboards": "pane_driving",
+    "alert_matchers": "alert_resolution",
+    "runbooks": "runbook_fetch",
+    "depends_on": "blast_radius_widening",
+}
+
+
+def disabled_features(service):
+    """The mechanical form of "each missing annotation degrades exactly its
+    own feature" (skills/catalog/ degradation posture): derived PURELY from
+    which of ``DEGRADED_FEATURES_BY_FIELD``'s four Service fields is empty on
+    this one ``service``, nothing else. There are no cross-effects — a
+    service missing only ``dashboards`` still briefs normally in every other
+    respect, gaining exactly one disabled feature (``pane_driving``) and no
+    more. A fully-annotated service — every field non-empty — returns an
+    empty set.
+
+    ``missing_owner`` is deliberately NOT a key in ``DEGRADED_FEATURES_BY_FIELD``,
+    and never will be: it is a catalog-quality *warning* (see
+    ``parse_entity``'s own ``missing_owner`` warning), not a disabled
+    feature, because ownership disables no feature. Do not "fix" this
+    function by adding it.
+
+    A malformed ``catalog-info.yaml`` disables nothing globally: it
+    contributes a ``Failure`` at ``load_catalog`` time and the service it
+    would have defined is simply absent from ``catalog["services"]`` —
+    every other file still parses, and every other service still briefs
+    normally. This function only ever looks at one already-parsed
+    ``service`` at a time; it has no notion of "globally" to begin with.
+
+    Defensive about shape: a ``service`` that is not a ``dict`` (or is
+    missing a field entirely) is treated as if every field on it were
+    empty — never raises. Mirrors ``_as_dict``'s contract elsewhere in this
+    module, which is why a fully-missing/``None`` service disables all four
+    features rather than raising.
+    """
+    service = _as_dict(service)
+    disabled = set()
+    for field_name, feature_name in DEGRADED_FEATURES_BY_FIELD.items():
+        if not service.get(field_name):
+            disabled.add(feature_name)
+    return disabled
+
+
+def blast_radius(name, catalog):
+    """The named service's own ``depends_on`` entries, sorted -> a widened
+    affected-service list (resolution.md "Duplicate names and blast
+    radius", FR-006).
+
+    **One hop, v1 — stated outright.** This widens by the named service's
+    OWN ``depends_on`` entries only; it never follows a dependency's own
+    dependencies in turn. Deeper, multi-hop traversal is a recorded future
+    option, not a promise this surface makes today — unbounded traversal
+    would invite cycle-handling machinery a tier-0-scale catalog doesn't
+    need.
+
+    **Dangling entries are kept, never filtered.** An entry naming a
+    service the catalog does not contain stays in the result exactly as
+    written; it was already surfaced as a ``dangling_dependency`` warning at
+    ``load_catalog`` time. On a messy catalog, a dependency on an
+    uncatalogued service is the normal case, not an error to hide — silently
+    shrinking a blast radius is worse than a wide one with a note attached.
+
+    A ``name`` absent from the catalog, or present with an empty/missing
+    ``depends_on``, yields ``[]`` — the assessment simply proceeds
+    unwidened. Never raises for any catalog ``load_catalog`` returns — the
+    ``_as_dict`` guard extends that to a malformed catalog too.
+    """
+    services = _as_dict(catalog).get("services", {})
+    service = services.get(name)
+    if not isinstance(service, dict):
+        return []
+    return sorted(_as_list(service.get("depends_on")))

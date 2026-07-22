@@ -233,21 +233,21 @@ isolation, and one-hop `dependsOn` widening (FR-004, FR-006).
 **Independent Test**: parse fixture services each missing one annotation class, plus the
 broken file, and assert the documented per-field behavior and the failure isolation.
 
-- [ ] T012 [US3] Extend `tests/helpers/catalog_reference.py` with `disabled_features(service)`
+- [x] T012 [US3] Extend `tests/helpers/catalog_reference.py` with `disabled_features(service)`
       (data-model.md §6: empty `dashboards` → `pane_driving`, empty `alert_matchers` →
       `alert_resolution`, empty `runbooks` → `runbook_fetch`, empty `depends_on` →
       `blast_radius_widening` — derived purely from emptiness, nothing else; `missing_owner`
       is a warning, not a disabled feature) and `blast_radius(name, catalog)` (data-model.md
       §9: the service's own `depends_on` entries, **one hop, no recursion**, sorted, and
       **unfiltered** — dangling entries are returned, having been surfaced at load time)
-- [ ] T013 [US3] Fill the degradation section of `skills/catalog/SKILL.md` (FR-004): the
+- [x] T013 [US3] Fill the degradation section of `skills/catalog/SKILL.md` (FR-004): the
       per-field table naming exactly which feature each absent annotation disables and
       confirming everything else keeps working (including missing `runbooks` → the absence is
       noted in the briefing), the malformed-file rule (surfaced, scoped to that file, never
       fatal, other services parse normally), the catalog-quality warnings that are *not*
       feature degradations (`missing_owner`, `dangling_dependency`), and the explicit
       statement that no partial annotation ever errors a session
-- [ ] T014 [US3] Write `tests/contract/test_catalog_degradation.py`: the four per-field
+- [x] T014 [US3] Write `tests/contract/test_catalog_degradation.py`: the four per-field
       fixtures each yield **exactly** their documented feature, asserted against **literal
       hardcoded sets** — `inventory` → `{"pane_driving"}`, `notifier` →
       `{"alert_resolution"}`, `ledger-svc` → `{"runbook_fetch"}`, `search-api` →
