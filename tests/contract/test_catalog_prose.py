@@ -49,5 +49,5 @@ MD_IDS = [p.relative_to(SKILLS_DIR).as_posix() for p in MD_FILES]
 
 
 def test_scan_finds_the_known_catalog_docs():
-    # T001: widened to the full set once T009 lands — see tasks.md
-    assert {"SKILL.md", "references/annotations.md"} <= set(MD_IDS)
+    # T009: guard is now at its full target set — no remaining widener
+    assert {"SKILL.md", "references/annotations.md", "references/resolution.md"} <= set(MD_IDS)

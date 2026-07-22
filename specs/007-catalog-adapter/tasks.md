@@ -165,7 +165,7 @@ choice on ambiguity at either stage, and the miss path's ask-once handoff plus f
 **Independent Test**: run the documented resolution rules over the fixture catalog with
 fixture alerts and assert the resolved service, or the miss classification, for every case.
 
-- [ ] T008 [US1] Extend `tests/helpers/catalog_reference.py` with `resolve(alert, catalog)`
+- [x] T008 [US1] Extend `tests/helpers/catalog_reference.py` with `resolve(alert, catalog)`
       and `fixup_offer(alert, service_name, catalog)` per data-model.md §5 and §7. `resolve`:
       stage 1 exact over **`alert_matchers` only** (matcher equals — case-insensitively,
       whitespace-trimmed — any alert tag or field **value**; the service's own `name` is
@@ -181,7 +181,7 @@ fixture alerts and assert the resolved service, or the miss classification, for 
       (`fields["name"]` → `fields["service_hint"]` → first tag → `""`), and `source_path`
       either `catalog["sources"][service_name]` or, for a service absent from the catalog, the
       pinned convention `services/<service_name>/catalog-info.yaml`
-- [ ] T009 [P] [US1] Write `skills/catalog/references/resolution.md` — the normative match
+- [x] T009 [P] [US1] Write `skills/catalog/references/resolution.md` — the normative match
       order (FR-003): exact-then-substring with exactness beating substring **globally**, the
       exact stage reading `alert_matchers` only (and the service name being a substring-stage
       input exclusively), the pinned substring direction, ambiguity at either stage surfacing
@@ -194,7 +194,7 @@ fixture alerts and assert the resolved service, or the miss classification, for 
       slice 5's execution; use the literal phrase **"your code tool's file reads"** and cite
       no code operation name. **Also widen T001's non-vanishing guard** to include
       `references/resolution.md`, completing the target set T001 recorded
-- [ ] T010 [P] [US1] Write `tests/fixtures/catalog/resolution-matrix.json` — the **nine**
+- [x] T010 [P] [US1] Write `tests/fixtures/catalog/resolution-matrix.json` — the **nine**
       cases of data-model.md §10's matrix table, each `{id, alert, expected: {outcome,
       service?, candidates?, stage}}`, using the alert payloads pinned there. **`stage` is
       mandatory on every non-`miss` case**, not optional: the `exact-name hit` payload
@@ -209,7 +209,7 @@ fixture alerts and assert the resolved service, or the miss classification, for 
       name-sorting implementation); **reverse-direction probe** (field value `ledger`, a
       strict substring of `ledger-svc`, so a reversed implementation resolves it instead of
       missing); **sparse alert** (empty tags and an empty field value)
-- [ ] T011 [US1] Write `tests/contract/test_catalog_resolution.py`: every matrix case
+- [x] T011 [US1] Write `tests/contract/test_catalog_resolution.py`: every matrix case
       classifies exactly as expected (SC-003) via parametrize, with `assert len(CASES) >= 9`
       as the non-vanishing guard; a cross-cutting assertion that **no** `ambiguous` outcome
       anywhere in the matrix carries a `service` (zero silent picks, counted); the multi-exact

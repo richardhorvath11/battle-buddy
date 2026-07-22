@@ -1,0 +1,177 @@
+{
+  "description": "T010 resolution matrix for the catalog alert-to-service resolver. Nine alert payloads paired with expected outcomes (exact / substring / ambiguous / miss), each derived by hand by walking the parsed services and their alert_matchers/name in tests/fixtures/catalog/repo/services/*/catalog-info.yaml (and golden-models.json) against the documented two-stage rule set \u2014 NOT by running or importing tests/helpers/catalog_reference.py, whose resolve() implementation these cases exist to check.",
+  "cases": [
+    {
+      "id": "exact-tag-hit",
+      "why": "Baseline exact-stage hit driven by a tag matcher with no competing substring candidate, pinning the simplest correct-path resolution.",
+      "alert": {
+        "alert_id": "checkout-5xx-tag-alert",
+        "tags": [
+          "checkout-5xx"
+        ],
+        "fields": {}
+      },
+      "expected": {
+        "outcome": "exact",
+        "service": "checkout",
+        "candidates": [],
+        "stage": "exact"
+      }
+    },
+    {
+      "id": "exact-name-hit",
+      "why": "\"inventory\" is also a substring of \"inventory-lag\", so the asserted stage is what forces the exact route rather than an accidental substring pass-through.",
+      "alert": {
+        "alert_id": "inventory-lag-name-alert",
+        "tags": [],
+        "fields": {
+          "name": "inventory-lag"
+        }
+      },
+      "expected": {
+        "outcome": "exact",
+        "service": "inventory",
+        "candidates": [],
+        "stage": "exact"
+      }
+    },
+    {
+      "id": "substring-hit",
+      "why": "Baseline substring-stage hit with no matcher equal to any tag or field value, confirming the substring fallback fires once the exact stage comes up empty.",
+      "alert": {
+        "alert_id": "search-latency-prose-alert",
+        "tags": [],
+        "fields": {
+          "name": "elevated latency on search-api requests"
+        }
+      },
+      "expected": {
+        "outcome": "substring",
+        "service": "search-api",
+        "candidates": [],
+        "stage": "substring"
+      }
+    },
+    {
+      "id": "exact-beats-substring",
+      "why": "Exact and substring candidates are different services, so an implementation that merges the stages instead of short-circuiting after an exact hit returns ambiguous and fails.",
+      "alert": {
+        "alert_id": "checkout-tag-search-api-description-alert",
+        "tags": [
+          "checkout-5xx"
+        ],
+        "fields": {
+          "description": "impacting search-api"
+        }
+      },
+      "expected": {
+        "outcome": "exact",
+        "service": "checkout",
+        "candidates": [],
+        "stage": "exact"
+      }
+    },
+    {
+      "id": "multi-exact",
+      "why": "Candidate order is source-path order (services/checkout < services/zz-billing), which inverts name order (billing < checkout), so a name-sorting implementation fails.",
+      "alert": {
+        "alert_id": "shared-tag-multi-exact-alert",
+        "tags": [
+          "shared-tag"
+        ],
+        "fields": {}
+      },
+      "expected": {
+        "outcome": "ambiguous",
+        "candidates": [
+          "checkout",
+          "billing"
+        ],
+        "stage": "exact"
+      }
+    },
+    {
+      "id": "multi-substring",
+      "why": "Two distinct service names both occur as substrings of the same field value, confirming substring-stage ambiguity is detected and its candidates are source-path ordered, mirroring the exact-stage tie-break rule.",
+      "alert": {
+        "alert_id": "ledger-search-description-alert",
+        "tags": [],
+        "fields": {
+          "description": "ledger-svc talking to search-api timed out"
+        }
+      },
+      "expected": {
+        "outcome": "ambiguous",
+        "candidates": [
+          "ledger-svc",
+          "search-api"
+        ],
+        "stage": "substring"
+      }
+    },
+    {
+      "id": "miss",
+      "why": "No matcher equals the tag or field value and no service name occurs as a substring, pinning the true-negative baseline for a realistic but unrelated alert.",
+      "alert": {
+        "alert_id": "disk-pressure-node9-alert",
+        "tags": [
+          "disk-pressure"
+        ],
+        "fields": {
+          "name": "node-9 disk pressure"
+        }
+      },
+      "expected": {
+        "outcome": "miss",
+        "candidates": []
+      }
+    },
+    {
+      "id": "sparse-alert",
+      "why": "An empty field value cannot equal any matcher and contains no substring, guarding against an implementation that treats empty-string comparisons as vacuously true.",
+      "alert": {
+        "alert_id": "empty-name-field-alert",
+        "tags": [],
+        "fields": {
+          "name": ""
+        }
+      },
+      "expected": {
+        "outcome": "miss",
+        "candidates": []
+      }
+    },
+    {
+      "id": "reverse-direction-probe",
+      "why": "\"ledger\" is a strict substring of the service name ledger-svc, so a reversed-direction implementation would resolve it instead of missing.",
+      "alert": {
+        "alert_id": "bare-ledger-name-alert",
+        "tags": [],
+        "fields": {
+          "name": "ledger"
+        }
+      },
+      "expected": {
+        "outcome": "miss",
+        "candidates": []
+      }
+    },
+    {
+      "id": "name-is-substring-stage-only",
+      "why": "The alert field value EQUALS a service name exactly. The exact stage reads alert_matchers only, so this must route through the SUBSTRING stage \u2014 an implementation that adds the service's own name as an exact-stage input returns stage 'exact' and fails here (D-22 pin 6, the pin both converge lenses flagged as most likely to surprise a later implementer). notifier is the subject deliberately: it is matcher-less, so this case simultaneously proves the substring stage still reaches a service the exact stage cannot.",
+      "alert": {
+        "alert_id": "notifier-name-alert",
+        "tags": [],
+        "fields": {
+          "name": "notifier"
+        }
+      },
+      "expected": {
+        "outcome": "substring",
+        "service": "notifier",
+        "candidates": [],
+        "stage": "substring"
+      }
+    }
+  ]
+}

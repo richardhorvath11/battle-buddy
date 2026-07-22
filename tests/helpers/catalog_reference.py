@@ -316,3 +316,225 @@ def load_catalog(repo_root):
         "warnings": warnings,
         "failures": failures,
     }
+
+
+# ---------------------------------------------------------------------------
+# resolve (skills/catalog/references/resolution.md "The match order"; PRD
+# FR-003 alert-to-service resolution)
+# ---------------------------------------------------------------------------
+
+
+def _match_strings(alert):
+    """Every string an alert offers a matcher to compare against: every tag
+    plus every field VALUE (never a field name) — flattened into one list.
+    Defensive per this slice's contract: a missing/non-list ``tags`` or a
+    missing/non-dict ``fields`` contributes nothing rather than raising, and
+    a non-string tag or field value is dropped rather than coerced (a
+    coerced ``str(123)`` accidentally equaling a matcher would be
+    surprising, undocumented behavior no prose describes).
+    """
+    alert = _as_dict(alert)
+    tags = alert.get("tags")
+    if not isinstance(tags, list):
+        tags = []
+    fields = alert.get("fields")
+    if not isinstance(fields, dict):
+        fields = {}
+
+    strings = [tag for tag in tags if isinstance(tag, str)]
+    strings.extend(value for value in fields.values() if isinstance(value, str))
+    return strings
+
+
+def _normalize(text):
+    """The exact/substring comparison's shared normalization: case-fold and
+    whitespace-trim (resolution.md's "case-insensitively, whitespace-
+    trimmed"). Centralized so both stages apply the identical rule."""
+    return text.strip().lower()
+
+
+def _candidates_by_source(names, catalog):
+    """Sort matched service names by their **source path**
+    (``catalog["sources"][name]``), never by name — resolution.md's
+    "Candidates are ordered by source path". The `zz-billing` fixture
+    (directory `zz-billing`, `metadata.name` `billing`) exists specifically
+    to invert those two orderings and catch a name-sorting implementation.
+    """
+    sources = catalog.get("sources", {})
+    return sorted(names, key=lambda name: sources.get(name, ""))
+
+
+def _exact_stage_hits(match_strings, catalog):
+    """Stage 1: for every service, for every entry in its ``alert_matchers``
+    only — never the service's own ``name`` — a hit when the matcher
+    equals, after ``_normalize``, any alert string. A service is added at
+    most once even if several of its matchers hit (``break`` on first).
+
+    An empty matcher never hits, mirroring the substring stage's own
+    emptiness guard. This is not hypothetical tidiness: ``fixup_offer``'s
+    pinned final fallback emits ``annotation_value == ""`` when a sparse
+    alert offers nothing discriminating, so a responder who commits that
+    snippet verbatim gives their service ``alert_matchers: [""]``. Without
+    this guard, that service would then match *every* sparse alert exactly
+    — the tool would have talked a team into a catalog entry that swallows
+    unrelated incidents.
+    """
+    normalized_alert_strings = set(_normalize(s) for s in match_strings)
+    hits = []
+    for name, service in catalog.get("services", {}).items():
+        for matcher in service.get("alert_matchers", []):
+            if not isinstance(matcher, str):
+                continue
+            normalized_matcher = _normalize(matcher)
+            if normalized_matcher and normalized_matcher in normalized_alert_strings:
+                hits.append(name)
+                break
+    return hits
+
+
+def _substring_stage_hits(match_strings, catalog):
+    """Stage 2 (only ever invoked when stage 1 hit nothing at all): for
+    every service, a hit when the service's own name occurs as a substring
+    of any alert string, after ``_normalize``. Direction is pinned per
+    resolution.md — name-inside-alert-field, never the reverse; the
+    ``reverse-direction-probe`` case (alert field ``"ledger"`` inside the
+    service name ``ledger-svc``) exists to catch a flipped ``in`` check."""
+    normalized_values = [_normalize(s) for s in match_strings]
+    hits = []
+    for name in catalog.get("services", {}):
+        normalized_name = _normalize(name)
+        for value in normalized_values:
+            if normalized_name and normalized_name in value:
+                hits.append(name)
+                break
+    return hits
+
+
+def _stage_resolution(hits, stage, catalog):
+    """Turn a non-empty list of same-stage hits into the ``outcome``/
+    ``service``/``candidates``/``stage`` shape: a single hit resolves
+    (``outcome`` == ``stage``, ``service`` present, ``candidates`` empty); 2+
+    hits is always ``ambiguous`` carrying every candidate — resolution.md's
+    "never a silent pick" — with ``service`` absent rather than an arbitrary
+    pick from the tie."""
+    ordered = _candidates_by_source(hits, catalog)
+    if len(ordered) == 1:
+        return {
+            "outcome": stage,
+            "service": ordered[0],
+            "candidates": [],
+            "stage": stage,
+        }
+    return {
+        "outcome": "ambiguous",
+        "candidates": ordered,
+        "stage": stage,
+    }
+
+
+def resolve(alert, catalog):
+    """One firing ``alert`` against a ``load_catalog``-shaped ``catalog`` ->
+    ``{"outcome": <exact|substring|ambiguous|miss>, "service": <str, exact/
+    substring only>, "candidates": [<str>...], "stage": <exact|substring,
+    absent on miss>}`` — resolution.md's "The match order".
+
+    The exact stage runs first and covers every service's ``alert_matchers``
+    only (never a service's own ``name`` — that is the substring stage's
+    input, and only that). The substring stage runs ONLY when the exact
+    stage produced zero hits across the whole service set — exactness beats
+    substring globally, not per-service, so a single exact hit anywhere
+    stops the substring stage from running at all, even for services whose
+    own matchers didn't produce that hit (the ``exact-beats-substring`` case
+    pins exactly this: a different service would substring-match, but the
+    exact hit elsewhere pre-empts it). Whichever stage matched, 2+ hits is
+    ``ambiguous`` with every candidate surfaced, source-path ordered; 0 hits
+    at both stages is ``miss``, with no ``service`` and no ``stage`` key at
+    all (not ``None`` — the key is genuinely absent, so a caller can branch
+    on ``"stage" in resolution``).
+    """
+    match_strings = _match_strings(alert)
+
+    exact_hits = _exact_stage_hits(match_strings, catalog)
+    if exact_hits:
+        return _stage_resolution(exact_hits, "exact", catalog)
+
+    substring_hits = _substring_stage_hits(match_strings, catalog)
+    if substring_hits:
+        return _stage_resolution(substring_hits, "substring", catalog)
+
+    return {"outcome": "miss", "candidates": []}
+
+
+# ---------------------------------------------------------------------------
+# fixup_offer (skills/catalog/references/resolution.md "The fix-up offer")
+# ---------------------------------------------------------------------------
+
+
+def _discriminating_field(alert):
+    """The alert's discriminating field, resolved by resolution.md's pinned
+    order: ``fields.name`` if non-empty, else ``fields.service_hint`` if
+    non-empty, else the first entry of ``tags``, else ``""``. Deterministic
+    by construction — this is a fixed lookup order, never a judgment call
+    about which field "looks more meaningful"."""
+    alert = _as_dict(alert)
+    fields = alert.get("fields")
+    if not isinstance(fields, dict):
+        fields = {}
+
+    name = fields.get("name")
+    if isinstance(name, str) and name:
+        return name
+
+    service_hint = fields.get("service_hint")
+    if isinstance(service_hint, str) and service_hint:
+        return service_hint
+
+    tags = alert.get("tags")
+    if isinstance(tags, list) and tags and isinstance(tags[0], str):
+        return tags[0]
+
+    return ""
+
+
+def fixup_offer(alert, service_name, catalog):
+    """The ready-to-commit annotation offer for a miss, once the responder
+    has named ``service_name`` in the ask-once exchange (that interaction
+    itself, and the agent surfacing this offer, are another slice's
+    concern — this function only computes the offer's content) ->
+    ``{"source_path", "annotation_key", "annotation_value", "snippet"}``.
+
+    **The responder commits this. No agent ever writes to the catalog** —
+    it is human-curated, PR-reviewed data, and that boundary is the whole
+    point of reading it fresh each session rather than owning a copy of it
+    (resolution.md "The fix-up offer").
+
+    ``annotation_key`` is always the literal ``"oncall-harness/alert-match"``
+    (the same key ``CANONICAL_ANNOTATIONS`` maps to ``alert_matchers``).
+    ``annotation_value`` comes from ``_discriminating_field``. ``source_path``
+    is the named service's existing source when it is already in the
+    catalog, or — the pinned convention for a brand-new entity, absent from
+    the catalog entirely — ``"services/<service_name>/catalog-info.yaml"``,
+    relative to the repo root exactly as ``load_catalog``'s ``source_path``
+    values are. ``snippet`` renders the key/value pair through stdlib
+    ``json`` in the same strict-JSON, 2-space-indent style
+    ``tests/fixtures/catalog/README.md``'s fixtures use, so a responder can
+    paste it into a target file's ``annotations`` block mechanically.
+    """
+    annotation_value = _discriminating_field(alert)
+
+    sources = catalog.get("sources", {})
+    if service_name in sources:
+        source_path = sources[service_name]
+    else:
+        source_path = "services/{}/catalog-info.yaml".format(service_name)
+
+    annotation_key = "oncall-harness/alert-match"
+    value_json = json.dumps([annotation_value], indent=2)
+    snippet = '"{}": {}'.format(annotation_key, value_json)
+
+    return {
+        "source_path": source_path,
+        "annotation_key": annotation_key,
+        "annotation_value": annotation_value,
+        "snippet": snippet,
+    }

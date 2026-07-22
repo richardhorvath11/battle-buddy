@@ -59,7 +59,7 @@ repo-relative source path sorts **first lexicographically** is canonical; every 
 entity sharing that name is dropped, and a catalog-quality warning names every source
 path involved. Lexicographic path order is what makes "first" deterministic — it never
 depends on directory-walk order, which is not itself stable across filesystems or catalog
-sources. The fix-up path (see "Runbook references" below and the resolution reference) is
+sources. The fix-up path (defined in the resolution reference, not here) is
 the correction vehicle when the wrong entity wins: a team retires or renames the losing
 path, not this rule.
 
