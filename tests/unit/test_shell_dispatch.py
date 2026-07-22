@@ -11,10 +11,12 @@ module with the documentation gates (US4).
 
 import argparse
 import json
+import re
 
 import pytest
 
 import bb_shell
+from conftest import REPO_ROOT
 
 
 # ---------------------------------------------------------------------------
@@ -245,3 +247,102 @@ def test_select_backend_never_writes(tmp_path):
     before = sorted(p.name for p in tmp_path.rglob("*"))
     bb_shell.select_backend(str(tmp_path))
     assert sorted(p.name for p in tmp_path.rglob("*")) == before
+
+
+# ---------------------------------------------------------------------------
+# FR-007 / US4 — the interface is documented, backend-independently
+# ---------------------------------------------------------------------------
+
+CONTRACT_DOC = REPO_ROOT / "bin" / "bb-shell.md"
+BACKEND_DOC = REPO_ROOT / "bin" / "bb-shell.cmux.md"
+
+VERBS = ("open-pane", "navigate-pane", "notify", "close-workspace")
+
+#: Shell products whose names must not leak out of the backend document.
+#: Same shape as slice 7's DENY_PATTERNS scan in
+#: tests/contract/test_skill_capability_naming.py — reused rather than reinvented.
+SHELL_PRODUCT_PATTERNS = {
+    "cmux": re.compile(r"\bcmux\b", re.IGNORECASE),
+    "tmux": re.compile(r"\btmux\b", re.IGNORECASE),
+    "wmux": re.compile(r"\bwmux\b", re.IGNORECASE),
+    "iterm": re.compile(r"\biterm2?\b", re.IGNORECASE),
+    "ghostty": re.compile(r"\bghostty\b", re.IGNORECASE),
+    "screen": re.compile(r"\bgnu screen\b", re.IGNORECASE),
+}
+
+
+def test_contract_document_exists_and_is_substantial():
+    assert CONTRACT_DOC.is_file(), "FR-007 requires the contract to ship"
+    assert len(CONTRACT_DOC.read_text(encoding="utf-8")) > 1000
+
+
+@pytest.mark.parametrize("verb", VERBS)
+def test_contract_document_defines_every_verb(verb):
+    text = CONTRACT_DOC.read_text(encoding="utf-8")
+    assert verb in text, "%s is undocumented" % verb
+
+
+@pytest.mark.parametrize("topic", [
+    "degraded", "exit", "usage error", "--level", "--workspace", "reattach",
+])
+def test_contract_document_covers_the_required_semantics(topic):
+    """US4 AS1: arguments, semantics, degraded behavior, failure behavior."""
+    assert topic.lower() in CONTRACT_DOC.read_text(encoding="utf-8").lower()
+
+
+def test_contract_document_names_no_shell_product():
+    """US4 AS1: a future shell reads this document; a product name in it would
+    make the contract describe one backend instead of the interface."""
+    text = CONTRACT_DOC.read_text(encoding="utf-8")
+    hits = sorted(
+        name for name, pattern in SHELL_PRODUCT_PATTERNS.items()
+        if pattern.search(text)
+    )
+    assert hits == [], "bb-shell.md names shell product(s): %s" % ", ".join(hits)
+
+
+def test_backend_document_exists_and_is_the_single_exception():
+    """The mapping has to live somewhere; concentrating it in one file is what
+    makes the scan above expressible at all."""
+    assert BACKEND_DOC.is_file()
+    assert SHELL_PRODUCT_PATTERNS["cmux"].search(
+        BACKEND_DOC.read_text(encoding="utf-8")
+    )
+
+
+def _plugin_prose_files():
+    """Command/skill/agent deliverables of every slice."""
+    paths = []
+    for subdir in ("commands", "skills", "agents"):
+        root = REPO_ROOT / subdir
+        if root.is_dir():
+            paths.extend(sorted(root.rglob("*.md")))
+    return paths
+
+
+def test_the_prose_scan_sees_actual_files():
+    """A scan over an empty file set is vacuously green."""
+    assert len(_plugin_prose_files()) > 5
+
+
+@pytest.mark.parametrize(
+    "path", _plugin_prose_files(), ids=lambda p: str(p.relative_to(REPO_ROOT))
+)
+def test_no_command_skill_or_agent_names_a_shell_product(path):
+    """US4 AS2: shell interaction appears only as `bb-shell` invocations —
+    nothing in the core knows which shell answers (FR-22)."""
+    text = path.read_text(encoding="utf-8")
+    hits = sorted(
+        name for name, pattern in SHELL_PRODUCT_PATTERNS.items()
+        if pattern.search(text)
+    )
+    assert hits == [], "%s names shell product(s): %s" % (
+        path.relative_to(REPO_ROOT), ", ".join(hits),
+    )
+
+
+def test_the_product_scan_can_actually_fail():
+    """Positive control: a scan that cannot fail proves nothing."""
+    planted = "we drive the pane with cmux's socket API"
+    hits = [n for n, p in SHELL_PRODUCT_PATTERNS.items() if p.search(planted)]
+    assert hits == ["cmux"]
