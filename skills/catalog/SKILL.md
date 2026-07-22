@@ -64,7 +64,39 @@ Every one of these paths degrades a feature and continues; none of them is an er
 path.
 
 ## Freshness and runbook references
-<!-- filled by T015 -->
+
+Catalog data is human-curated in the team's own repository — it is not harness-owned
+data, and this skill treats it that way. It is read **fresh at session start** through
+**your code tool's file reads**, and it is **never cached across sessions and never
+copied into any store.** The reason is not just the rule: a stale copy of human-curated
+data is worse than a read that fails visibly, because a stale copy looks trustworthy while
+being wrong. The team's repository is the system of record; the harness reads it fresh
+each session rather than owning a copy of it, the same boundary the fix-up path enforces
+in the other direction when it insists the responder commits, never the agent.
+
+### Runbook references are pointers, never content
+
+What reaches the session record for a runbook is a reference, not the runbook itself: a
+URL plus the commit SHA it was read at, present where the runbook is git-hosted and
+absent for one that isn't. Runbook **content** — what the runbook actually says — is
+never persisted anywhere; only the pointer is. The session record's `runbook_refs` field
+is the destination for that pointer, and `skills/session-store/` is the normative home of
+that field's schema — this document consumes the shape and does not restate it.
+
+### When the catalog repo is unreachable
+
+A **catalog repo unreachable** at session start — a network partition, a permissions
+problem, or the repository being temporarily gone — never blocks the session opening. All
+three cases land in the same place, and the session proceeds.
+
+The fingerprint resolution ladder's lower rungs carry the session when the catalog cannot
+be read; `skills/session-store/` is the normative home of that ladder, and this document
+does not restate its rungs or their order. Whatever the catalog would otherwise have
+supplied for the session —
+resolved service, owner, runbooks, dashboards, blast radius — is simply absent.
+
+The gap is surfaced in the briefing, so the responder can see that catalog context is
+missing rather than reading a briefing that looks complete while quietly omitting it.
 
 ## Non-goals
 <!-- filled by T017 -->

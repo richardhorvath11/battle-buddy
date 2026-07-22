@@ -344,6 +344,18 @@ reviewed artifact. The correction lives in R6 and is called out in the PR body i
 later slice that promotes the `code` ops into contract v1 is the natural place to amend the
 sentence.
 
+**A stale rung name found during US4 review, recorded not silently propagated**: this spec's
+catalog-unreachable edge case (spec.md's Edge Cases) names the ladder's lower rungs as
+"responder-named, alert-tag, rule-based", copied from `bb-technical-design.md` §9/D-19. Slice
+3's *shipped* ladder (`skills/session-store/references/fingerprint.md`) has rungs 2–4 =
+responder-provided name / the alert's own service-or-team tag / **nothing names a service at
+all** — there is no `rule-based` rung anywhere in the shipped tree. The design doc is stale
+relative to the slice that implemented it. This slice does not fix the design doc's §9 wording
+(out of scope, and D-22 is already amending §6.1) and does not repeat the stale name in shipped
+prose either: `skills/catalog/SKILL.md` routes to `skills/session-store/` for the ladder without
+enumerating its rungs, which is the repo's own routing convention and the reason the error would
+have propagated had the enumeration stayed. Flagged for whoever next touches §9.
+
 **Two rules the round changed outright**, both of which had narrowed the spec without saying
 so:
 

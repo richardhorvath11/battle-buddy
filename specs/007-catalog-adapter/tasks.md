@@ -279,7 +279,7 @@ broken file, and assert the documented per-field behavior and the failure isolat
 start from the capability surface, no instruction stores catalog content anywhere, and the
 runbook-reference format carries URL + commit SHA.
 
-- [ ] T015 [US4] Fill the freshness section of `skills/catalog/SKILL.md` (FR-005): catalog
+- [x] T015 [US4] Fill the freshness section of `skills/catalog/SKILL.md` (FR-005): catalog
       data is read fresh at session start through the code capability (the literal phrase
       "your code tool's file reads"), never cached across sessions and never copied into any
       store; only pointer-shaped runbook references (`{url, commit?}` — SHA present where
@@ -289,7 +289,7 @@ runbook-reference format carries URL + commit SHA.
       blocks the open). **Phrase the never-copied rule without naming any storage operation**
       — e.g. "catalog content is never written to any store" rather than naming the write op
       — because T016's SC-006 scan is unconditional (see its docstring note)
-- [ ] T016 [US4] Extend `tests/contract/test_catalog_prose.py` (created in T001) with the US4
+- [x] T016 [US4] Extend `tests/contract/test_catalog_prose.py` (created in T001) with the US4
       gates: the **SC-006** scan — zero occurrences of `append_record`, `update_record`,
       `put_file`, `append_entry` anywhere under `skills/catalog/**/*.md` — plus prose gates
       for the freshness statement, the runbook-pointer format, and the catalog-unreachable
