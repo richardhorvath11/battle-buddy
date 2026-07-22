@@ -1,0 +1,30 @@
+{
+  "description": "Five entries, identical ## section order throughout, every title date MM/DD/YYYY-shaped with both numeric components <= 12 in every entry — chosen as the sequence 09/08, 08/07, 07/06, 06/05, 05/04 so it is strictly decreasing under BOTH the MM/DD and the DD/MM reading, meaning the day/month order genuinely cannot be resolved from the set (date_ambiguous), never merely 'happens not to contradict' one reading.",
+  "entries": [
+    {
+      "link": "diary-00-checkout",
+      "content": "# 09/08/2026 — checkout: latency blip\n\n## What happened\nCheckout p95 latency spiked briefly during a routine scaling event.\n\n## Timeline\nAlert fired, on-call investigated, and latency recovered within six minutes.\n\n## Resolution\nNo action was needed; the autoscaler caught up on its own.\n\n## Follow-ups\nLower the autoscaler's warm-up threshold so the blip does not recur.\n",
+      "at": "2026-07-21T10:15:00Z"
+    },
+    {
+      "link": "diary-01-payments-api",
+      "content": "# 08/07/2026 — payments-api: brief error burst\n\n## What happened\npayments-api saw a short burst of elevated 5xx responses.\n\n## Timeline\nAlert fired, on-call investigated, and the error rate recovered within eight minutes.\n\n## Resolution\nThe burst self-resolved once a downstream dependency's brief outage cleared.\n\n## Follow-ups\nAdd a circuit breaker so a downstream blip does not surface as payments-api errors.\n",
+      "at": "2026-07-14T09:30:00Z"
+    },
+    {
+      "link": "diary-02-search-api",
+      "content": "# 07/06/2026 — search-api: reindex latency\n\n## What happened\nsearch-api query latency briefly exceeded its budget during a reindex.\n\n## Timeline\nAlert fired, on-call investigated, and latency returned to budget once the reindex finished.\n\n## Resolution\nNo action was needed beyond confirming the reindex was expected.\n\n## Follow-ups\nSchedule reindexes outside peak query hours.\n",
+      "at": "2026-07-07T15:45:00Z"
+    },
+    {
+      "link": "diary-03-inventory",
+      "content": "# 06/05/2026 — inventory: count mismatch\n\n## What happened\ninventory reported a brief count mismatch during a warehouse feed replay.\n\n## Timeline\nAlert fired, on-call investigated, and counts matched once the replay completed.\n\n## Resolution\nNo action was needed; the mismatch cleared once the replay caught up.\n\n## Follow-ups\nSuppress the mismatch alert while a known replay is in progress.\n",
+      "at": "2026-06-30T11:00:00Z"
+    },
+    {
+      "link": "diary-04-notifier",
+      "content": "# 05/04/2026 — notifier: small backlog\n\n## What happened\nnotifier queued a small backlog of low-priority notifications during a deploy.\n\n## Timeline\nAlert fired, on-call investigated, and the backlog drained within five minutes.\n\n## Resolution\nNo action was needed; the backlog drained on its own after the deploy finished.\n\n## Follow-ups\nExclude low-priority notifications from the backlog alert threshold.\n",
+      "at": "2026-06-23T08:20:00Z"
+    }
+  ]
+}

@@ -1,0 +1,30 @@
+{
+  "description": "Five entries whose title and section labels are whole-line **bold** form with no ATX heading markers anywhere — exercises the bold heading marker.",
+  "entries": [
+    {
+      "link": "diary-00-notifier",
+      "content": "**2026-07-20 — notifier: delayed pages**\n\n**What happened**\nPaging notifications lagged by up to six minutes during a burst of alerts.\n\n**Timeline**\nAt 10:02 the burst began. 10:05 triage began. 10:11 the queue worker count was increased. 10:14 lag cleared.\n\n**Resolution**\nScaled up the notifier queue workers to absorb the burst.\n\n**Follow-ups**\nAdd autoscaling to the notifier queue workers so a burst does not need a manual scale-up.\n",
+      "at": "2026-07-20T10:14:00Z"
+    },
+    {
+      "link": "diary-01-checkout",
+      "content": "**2026-07-16 — checkout: duplicate charges**\n\n**What happened**\nA retry storm in the checkout client caused a subset of requests to be charged twice.\n\n**Timeline**\nAt 15:40 duplicate-charge reports began. 15:44 triage began. 15:58 the retry storm was traced to a missing idempotency key. 16:05 the fix shipped.\n\n**Resolution**\nAdded an idempotency key to the checkout charge call so retries can no longer double-charge.\n\n**Follow-ups**\nAdd a test that replays a charge request twice and asserts only one charge lands.\n",
+      "at": "2026-07-16T16:05:00Z"
+    },
+    {
+      "link": "diary-02-search-api",
+      "content": "**2026-07-09 — search-api: timeout spike**\n\n**What happened**\nsearch-api request timeouts spiked during a period of unusually high query volume.\n\n**Timeline**\nAt 13:10 the timeout spike began. 13:13 triage began. 13:22 the query cache was warmed. 13:26 timeouts returned to baseline.\n\n**Resolution**\nWarmed the query cache manually; the automatic warmer had not kept pace with the volume increase.\n\n**Follow-ups**\nTune the query cache warmer's schedule to match observed traffic patterns.\n",
+      "at": "2026-07-09T13:26:00Z"
+    },
+    {
+      "link": "diary-03-payments-api",
+      "content": "**2026-07-02 — payments-api: webhook backlog**\n\n**What happened**\nOutbound webhook delivery from payments-api fell behind by roughly forty minutes.\n\n**Timeline**\nAt 07:15 the backlog was first noticed. 07:20 triage began. 07:35 an extra delivery worker was started. 07:55 the backlog cleared.\n\n**Resolution**\nStarted an additional webhook delivery worker to drain the backlog.\n\n**Follow-ups**\nAlert on webhook delivery lag directly instead of relying on a downstream report.\n",
+      "at": "2026-07-02T07:55:00Z"
+    },
+    {
+      "link": "diary-04-inventory",
+      "content": "**2026-06-25 — inventory: sync gap**\n\n**What happened**\ninventory counts drifted from the source system for about thirty minutes after a sync job crashed.\n\n**Timeline**\nAt 09:50 drift was detected. 09:55 triage began. 10:12 the sync job was restarted. 10:20 counts matched again.\n\n**Resolution**\nRestarted the crashed sync job; it had run out of memory on a large batch.\n\n**Follow-ups**\nCap the sync job's batch size so a single large batch cannot exhaust its memory again.\n",
+      "at": "2026-06-25T10:20:00Z"
+    }
+  ]
+}

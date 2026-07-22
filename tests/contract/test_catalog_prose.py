@@ -888,7 +888,12 @@ def test_annotations_doc_documents_the_three_spec_path_mappings():
 # truthful, not a rubber stamp. This guard fired on a trial merge of slices
 # 5-7 together, which is exactly what it exists for — a skill arriving
 # without a scan must not land quietly.
-SCANNED_SKILL_DIRS = {"session-store", "catalog", "investigation"}
+#
+# Extended for skills/diary/ in slice 8's T001, which lands this listing and
+# skills/diary/'s own naming scan (test_diary_prose.py) in the very same
+# task — unlike investigation's forward-listing above, there is no window
+# where skills/diary/ exists without a scan already covering it.
+SCANNED_SKILL_DIRS = {"session-store", "catalog", "investigation", "diary"}
 
 
 def test_every_skill_directory_is_covered_by_a_naming_scan():

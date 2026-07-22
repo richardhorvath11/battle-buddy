@@ -1,0 +1,15 @@
+{
+  "description": "Exactly two entries, otherwise shaped like entries-consistent.json (same section order, ISO dates) — exercises reading fewer than n entries.",
+  "entries": [
+    {
+      "link": "diary-00-checkout",
+      "content": "# 2026-07-19 — checkout: brief latency spike\n\n## What happened\nCheckout latency spiked briefly during a scheduled maintenance window.\n\n## Timeline\nAt 13:00 maintenance began. 13:04 latency alert fired. 13:08 maintenance completed and latency recovered.\n\n## Resolution\nNo action was needed; latency recovered once the maintenance window ended.\n\n## Follow-ups\nMove the maintenance window to a lower-traffic hour.\n",
+      "at": "2026-07-19T13:10:00Z"
+    },
+    {
+      "link": "diary-01-payments-api",
+      "content": "# 2026-07-10 — payments-api: delayed retries\n\n## What happened\npayments-api's retry queue briefly grew during a downstream slowdown.\n\n## Timeline\nAt 08:20 the queue growth was noticed. 08:25 triage began. 08:36 the downstream service recovered and the queue drained.\n\n## Resolution\nNo action was needed; the queue drained once the downstream service recovered.\n\n## Follow-ups\nAdd a queue-depth alert so growth is caught earlier next time.\n",
+      "at": "2026-07-10T08:40:00Z"
+    }
+  ]
+}
