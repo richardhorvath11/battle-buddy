@@ -1,0 +1,36 @@
+{
+  "services": [
+    {
+      "name": "checkout",
+      "owner": "team-checkout",
+      "runbooks": [
+        "https://runbooks.example.com/checkout/latency.md"
+      ],
+      "dashboards": [
+        "https://grafana.example.com/d/checkout-overview",
+        "https://grafana.example.com/d/checkout-errors"
+      ],
+      "alert_matchers": [
+        "checkout"
+      ],
+      "depends_on": [
+        "payments"
+      ]
+    },
+    {
+      "name": "payments",
+      "owner": "team-payments",
+      "runbooks": [
+        "https://runbooks.example.com/payments/oncall.md"
+      ],
+      "dashboards": [
+        "https://grafana.example.com/d/payments-overview"
+      ],
+      "alert_matchers": [
+        "payments",
+        "billing"
+      ],
+      "depends_on": []
+    }
+  ]
+}

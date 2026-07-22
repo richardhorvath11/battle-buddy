@@ -2,10 +2,29 @@
 
 *Companion to `oncall-harness-requirements.md` (PRD v0.9). The PRD says what; this document says how.*
 
-**Version:** 1.2.1
+**Version:** 1.2.3
 **Status:** Approved design, pre-implementation
-**Last updated:** 2026-07-19
+**Last updated:** 2026-07-21
 **Audience:** Implementers building the MVP.
+
+**Changes in 1.2.3:** §5.4 example ledger reconciled to the validator's anchoring rules
+(slice 6, specs/006-investigation-agents, Assumptions): the checkpoint example carried a
+single hypothesis in the invariant phase `evidence-gathering`, which the merged slice-2
+validator rejects (≥3 live hypotheses, ≥1 live `fresh`, non-`fresh` validated). Replaced
+with a validator-passing three-hypothesis example (triage-provenance validated, a fresh
+hypothesis, and an invalidated recall) so the design doc and the normative schemas
+reference (`skills/investigation/references/schemas.md`) agree.
+
+**Changes in 1.2.2:** Slice-3 spec reconciliation (specs/003-session-store, Assumptions):
+§5.1's append-mostly sentence now names the full mutable-field set the sections it
+summarizes already implied (promotion re-tag, ownership take-over, severity correction,
+triage re-invocation). §5.4's checkpoint-history wording corrected — the artifact
+operation set has no append; history accumulates session-locally (local-state protocol
+`staging/checkpoints.jsonl`) and uploads at close. §9's mid-investigation rehydrate row
+drops the remote `checkpoints.jsonl` fallback, which exists only after close;
+mid-session resume rides `latest_checkpoint` and overflow links. The cell-guard value
+is pinned at exactly 45,000 characters with at-guard fitting the cell (§5.4 and the
+D-3 decision row; formerly "~45k"), matching the slice-3 spec's cell-guard Assumption.
 
 **Changes in 1.2.1:** Diary `read_recent(n)` ordering documented in §6.2 — entries return most
 recent first (interface commitment: adapters over oldest-first stores reverse on read). Surfaced
@@ -426,7 +445,13 @@ One row per session. Template documented in `templates/session-sheet.md`.
 | `report_url` | URL | FR-4d report Drive doc |
 | `artifacts_folder_url` | URL | per-session Drive folder (§5.3) |
 
-Append-mostly: rows are appended at open, and only `status`, `latest_checkpoint`, and the close-time fields mutate afterward — comfortably inside Sheets API rate limits at team scale.
+Append-mostly: rows are appended at open; afterward only this enumerated set mutates —
+`status`, `session_type` (promotion re-tag, §3.2), `responder` (ownership take-over, §4),
+`severity` (responder correction), `triage_verdict` (triage re-invocation, FR-5a),
+`latest_checkpoint`, and the close-time field group — every other field is immutable
+after append (write-once fields the close-time update carries, notably `fingerprint`,
+are re-asserted at their open-time values, never recomputed). Comfortably inside Sheets
+API rate limits at team scale.
 
 ### 5.2 Fingerprint specification (§11 D-4)
 
@@ -467,7 +492,7 @@ The FR-4d report is **purely a rendering of the row + artifacts** — regenerabl
 
 ### 5.4 Checkpoints: verdict and ledger (FR-3a, FR-5, §11 D-3, D-6)
 
-**Representation:** the *latest* checkpoint lives in the row (`triage_verdict`, `latest_checkpoint`) for cheap resume; the *full history* appends to `checkpoints.jsonl` in Drive. If a checkpoint exceeds the cell guard (~45k chars), the cell holds `{"overflow": "<drive-url>", "seq": n}` and readers follow the link.
+**Representation:** the *latest* checkpoint lives in the row (`triage_verdict`, `latest_checkpoint`) for cheap resume; the *full history* accumulates session-locally, one entry per checkpoint (local-state protocol `staging/checkpoints.jsonl`), and uploads to Drive as `checkpoints.jsonl` at close — the artifact operation set has no append. If a checkpoint exceeds the cell guard (45,000 chars; a checkpoint exactly at the guard still fits the cell), the full document is stored in Drive at write time and the cell holds `{"overflow": "<drive-url>", "seq": n}`; readers follow the link.
 
 **Triage verdict (checkpoint zero):**
 
@@ -503,8 +528,18 @@ The FR-4d report is **purely a rendering of the row + artifacts** — regenerabl
      "status": "live",
      "validation": "VALIDATED",
      "confidence": 0.6,
-     "evidence_for": [{"url": "...", "excerpt": "..."}],
-     "evidence_against": [{"url": "...", "excerpt": "..."}]}
+     "evidence_for": [{"url": "https://code.example/commit/abc123", "excerpt": "..."}]},
+    {"id": "h2", "statement": "...",
+     "provenance": "fresh",
+     "status": "live",
+     "confidence": 0.5,
+     "evidence_for": [{"url": "https://dashboards.example/svc-b/error-rate", "excerpt": "..."}]},
+    {"id": "h3", "statement": "...",
+     "provenance": "recall",
+     "status": "live",
+     "validation": "INVALIDATED",
+     "confidence": 0.15,
+     "evidence_against": [{"url": "https://dashboards.example/svc-a/alert-history", "excerpt": "..."}]}
   ],
   "services_touched": ["svc-a", "svc-b"],
   "tool_call_count": 37,
@@ -612,7 +647,7 @@ Each capability in `manifest/capabilities.json` declares the *operations* tier 0
 
 Run outside incidents, and whenever the MCP roster changes. For each required operation: inspect connected MCPs' tool schemas, match the operation to a concrete tool (semantic match by the agent, confirmed by a benign probe call), and **write the resolved binding map** — e.g. `storage.append_record → mycorp_sheets.add_row` — into `battleBuddy.bindings`. Skills reference operations only; the binding map makes every runtime call concrete, so investigation-time behavior never depends on per-call tool guessing. The binding map is committed to the workspace repo (bindings are a function of the team's roster, not the individual); `/doctor` re-validates per responder and flags drift.
 
-Beyond linking, `/doctor` verifies: probes pass under *this responder's* credentials; `bb-shell notify` round-trips if a shell adapter is configured; config is valid (Sheet reachable with expected header row, diary writable, catalog repo parseable); and **version-seam integrity** (§2.1) — config-block and Sheet-schema versions compatible with the installed plugin, reporting the exact migration otherwise. A green run writes the responder's local **last-green-doctor stamp** (timestamp + plugin version + roster hash), which `/page`'s preflight trusts (§3.2).
+Beyond linking, `/doctor` verifies: probes pass under *this responder's* credentials; `bb-shell notify` round-trips if a shell adapter is configured; config is valid (Sheet reachable with expected header row, diary writable, catalog repo parseable — slice 4 refines "diary writable" to *readable with the append operation schema-matched*: doctor's probes are benign/read-shaped, so writability proper is exercised end-to-end by `/setup`'s smoke test, not probed); and **version-seam integrity** (§2.1) — config-block and Sheet-schema versions compatible with the installed plugin, reporting the exact migration otherwise. A green run writes the responder's local **last-green-doctor stamp** (timestamp + plugin version + roster hash), which `/page`'s preflight trusts (§3.2).
 
 Report semantics: required capability unsatisfied → **fail loudly**; optional missing → "reduced features" listing exactly what's disabled (no `code` → no deploy correlation; no `observability` → briefings cite links the agent can't read itself). Dependent features are gracefully disabled at runtime, not errored. The probe suite *is* Spike 0's conformance harness (§1), and the recommended roster in `templates/mcp.recommended.json` is simply the default binding that passes it out of the box — it carries zero architectural privilege.
 
@@ -652,7 +687,7 @@ Threat model centers on R-5 (agentjacking: prompt injection via untrusted incide
 | Required capability missing | `/doctor` and session start fail loudly with the specific gap | FR-25 |
 | No shell adapter / non-Mac | Degraded mode: links printed, notifications inline; all features work | FR-26, R-1 |
 | cmux socket dies mid-session | `bb-shell` calls fail soft → automatic fallback to degraded output; investigation unaffected | R-2 |
-| Session dies mid-investigation | Rehydrate from `latest_checkpoint` (row) or `checkpoints.jsonl` (Drive) | FR-3a |
+| Session dies mid-investigation | Rehydrate from `latest_checkpoint` (row), following its overflow link if present — one row read; the Drive `checkpoints.jsonl` exists only after close | FR-3a |
 | Triage budget exhausted, no signal | Honest "no strong signal" verdict; deep investigation proposed | FR-5, FR-5f |
 | Sheets rate limit / write failure | Append-mostly pattern keeps volume low; failed writes retried; close flow blocks on row write success | FR-16 |
 | Checkpoint exceeds cell limit | Overflow pointer to Drive (§5.4) | FR-16 |
@@ -686,7 +721,7 @@ Decisions this document pins beyond the PRD, with rationale:
 |---|---|---|
 | D-1 | Guardrail hooks in **Python 3, stdlib only** | macOS ships `python3`; no jq/Node install step; deterministic JSON-on-stdin parsing. Protects NFR-4's adoption floor |
 | D-2 | Shell adapter as a **thin CLI shim (`bb-shell`)** with config-selected backend | Core stays shell-agnostic (FR-22); the shim's interface doubles as the spec for any future shell (R-2) |
-| D-3 | **Latest checkpoint in row cell; full history in Drive JSONL**; overflow pointer past ~45k chars | Cheap resume (one row read) + complete history within Sheets cell limits (FR-3a, FR-16) |
+| D-3 | **Latest checkpoint in row cell; full history in Drive JSONL**; overflow pointer strictly above 45,000 chars (pinned by slice 3; at-guard fits) | Cheap resume (one row read) + complete history within Sheets cell limits (FR-3a, FR-16) |
 | D-4 | **Fingerprint = 16-hex SHA-256 of normalized `service\|alert_type`**, rules versioned, shipped as `bb-fingerprint` | Exact-match retrieval carries tier 0 (FR-16a); one shared implementation prevents silent recall drift; survives into tier 1 unchanged |
 | D-5 | **OQ-6: both** — raw transcript to Drive, structured timeline derived at close **from the tool trace + checkpoint history** (not prose recall) | Matches PRD lean; raw is the audit log, structured feeds FR-4d reports and future agents (FA-4, FA-6); trace-derived timelines are timestamped and complete |
 | D-6 | **Verdict and ledger as versioned JSON schemas** (`bb.verdict.v1`, `bb.ledger.v1`) defined in the skill | Subagent outputs become structured contracts, not prose conventions; enforceable, measurable (SM-4), tier-1-ready |

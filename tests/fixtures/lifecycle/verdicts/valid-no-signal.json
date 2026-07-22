@@ -1,0 +1,13 @@
+{
+  "schema": "bb.verdict.v1",
+  "session_id": "page-ALERT-777-2026-07-21",
+  "candidates": [],
+  "severity": "sev4",
+  "flap_assessment": "unclear",
+  "next_step": "monitor",
+  "no_strong_signal": true,
+  "budget_spent": {
+    "turns": 3,
+    "seconds": 18
+  }
+}
