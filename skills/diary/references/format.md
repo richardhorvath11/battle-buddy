@@ -4,7 +4,7 @@ Normative for the `diary` skill (FR-002; data-model.md §3, §3.1, §4, §5, §6
 decision that turns a close-time draft into entry content shaped like the team's own diary —
 when a configured template wins outright, when the diary's recent entries are read and matched
 instead, and what "matched" means at the level of headings, dates, and field order. Follow the
-decision in the stated order; nothing here is a menu of options to reorder.
+decision in the stated order; it is a sequence, not a menu of equal options.
 
 ## The resolution decision (normative)
 

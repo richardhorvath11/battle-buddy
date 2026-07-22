@@ -994,10 +994,18 @@ def _render_draft_entry(closed_at, causal_values, template=None, recent_entries=
         lines.append(template)
     elif recent_entries:
         # Format-matched judgment call: slice 8 owns the real format-
-        # matching logic; no established shipped format exists yet to
-        # imitate, so this line only proves the read_recent(5) path was
-        # consulted (its count) without inventing a rendering slice 8 would
-        # then have to un-invent.
+        # matching logic, and it has since landed — the rules now live in
+        # skills/diary/references/format.md, encoded for tests by
+        # tests/helpers/diary_reference.py. This line remains a stand-in
+        # rather than a real match: replacing it would change the behavior
+        # of a landed, gated helper, which slice 8 recorded as out of its
+        # scope (specs/008-diary-adapter/research.md R14). It still proves
+        # only what it always proved — that the read_recent path was
+        # consulted (its count). Note the depth here is hardcoded at 5
+        # while slice 8 pins `battleBuddy.diary.recentEntries` as the
+        # override; wiring that key through is the other half of R14's
+        # recorded deferral and belongs to this close flow, not to the
+        # diary skill.
         lines.append(
             "(format-matched to {} recent diary entries)".format(len(recent_entries))
         )

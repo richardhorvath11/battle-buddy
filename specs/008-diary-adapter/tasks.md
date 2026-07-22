@@ -444,7 +444,7 @@ anywhere in the documented flow.
 T020–T023 all append to `tests/contract/test_diary_prose.py`, so they are **not** marked `[P]`
 — apply them in ID order to keep the diff readable.
 
-- [ ] T019 Complete `skills/diary/SKILL.md`'s **non-goals** section: this slice ships prose and
+- [x] T019 Complete `skills/diary/SKILL.md`'s **non-goals** section: this slice ships prose and
       tests only — no adapter code; the close flow that invokes drafting and executes the
       dual-write is slice 5's, causal labeling of diary drafts is slice 5's FR-007, slice 6
       touches drafts only for untrusted-telemetry delimiting, and `diary_url` / `diary_pending`
@@ -452,7 +452,7 @@ T020–T023 all append to `tests/contract/test_diary_prose.py`, so they are **no
       cited, never re-implemented (FR-008, Constitution I). Also state the approval boundary
       this slice must not appear to weaken: no write of any kind happens before the responder
       approves the draft, and that gate lives in the close flow.
-- [ ] T020 Extend the naming scan in `tests/contract/test_diary_prose.py` (T001 landed its
+- [x] T020 Extend the naming scan in `tests/contract/test_diary_prose.py` (T001 landed its
       base): add a **local** pattern `re.compile(r"google\s+docs?", re.IGNORECASE)` on top of
       the shared `DENY_PATTERNS`, following `test_catalog_prose.py`'s local-extension
       precedent. This is load-bearing, not belt-and-braces: the shared list's `google docs`
@@ -460,7 +460,7 @@ T020–T023 all append to `tests/contract/test_diary_prose.py`, so they are **no
       §6.2's MVP heading uses and therefore the one most likely to be copied into the new
       skill. Add a **positive control** asserting `"Google Doc"` is rejected, and one asserting
       the shared scan rejects a string it should.
-- [ ] T021 Add the **operation-fidelity** gate to `tests/contract/test_diary_prose.py`: every
+- [x] T021 Add the **operation-fidelity** gate to `tests/contract/test_diary_prose.py`: every
       backtick-quoted single-token span in `skills/diary/**/*.md` that looks like a contract
       operation must be a real operation in `tools/bb-mock-mcp/contract.json`, with the valid
       set built dynamically from that file. **It needs an explicit mask or it fails the prose
@@ -473,7 +473,7 @@ T020–T023 all append to `tests/contract/test_diary_prose.py`, so they are **no
       and pin **both halves** with tests: `write_entry` passes, and a fabricated
       `read_entries` still fails. Record why `read_recent` needs no mask (it is a real contract
       op under both names).
-- [ ] T022 Add the **ordering-prose** gates to `tests/contract/test_diary_prose.py` (SC-005):
+- [x] T022 Add the **ordering-prose** gates to `tests/contract/test_diary_prose.py` (SC-005):
       a positive gate that `references/format.md` states the consumer-side commitment that
       consumers never re-sort; a positive gate that it also states the adapter-side half (an
       adapter over an oldest-first store reverses on read — T008 is what puts that sentence
@@ -482,7 +482,7 @@ T020–T023 all append to `tests/contract/test_diary_prose.py`, so they are **no
       `re-sort`, `resort`, `sort the entries`, `reorder`, `oldest first` — masked to permit the
       adapter-side sentence only. Require a two-halved control: the masked sentence is present,
       and masking removes every hit that sentence causes.
-- [ ] T023 Add the **prose↔encoding agreement** gates to `tests/contract/test_diary_prose.py`:
+- [x] T023 Add the **prose↔encoding agreement** gates to `tests/contract/test_diary_prose.py`:
       the notice kinds named in `references/format.md` and `NOTICE_KINDS` asserted equal **both
       ways**; the four `STRUCTURE_PARTS` likewise named in the doc and asserted both ways (it is
       exported in T005 precisely so it has a gate); the minimal-default skeleton quoted in
@@ -491,7 +491,7 @@ T020–T023 all append to `tests/contract/test_diary_prose.py`, so they are **no
       equals `MINIMAL_DEFAULT` **in full**, every part including `title` and `date_format`
       (data-model §3's pattern-language rule is what makes the skeleton's own title line
       date-bearing, so no part needs a carve-out).
-- [ ] T024 Add the **packaging ratchet and boundary** gates to
+- [x] T024 Add the **packaging ratchet and boundary** gates to
       `tests/contract/test_diary_prose.py` (FR-008): `skills/diary/` contains no `*.py` file,
       and `tests/helpers/diary_reference.py` is named by **no** glob in
       `tests/fixtures/packaging/intended-bundle.json`'s shipped bundle (a direct assertion, not
@@ -505,7 +505,7 @@ T020–T023 all append to `tests/contract/test_diary_prose.py`, so they are **no
       `skills/diary/` — the Phase-1 skeleton ships placeholder comments naming the tasks that
       fill each section, and a shipped plugin surface must not carry them once those tasks are
       done.
-- [ ] T025 Amend `bb-technical-design.md` (research R11): a §6.2 clarification recording that
+- [x] T025 Amend `bb-technical-design.md` (research R11): a §6.2 clarification recording that
       the shipped skill abstracts the concrete MVP binding to "the team's configured diary via
       the diary capability" (Constitution VII supersedes the section's concrete framing; the
       binding map makes the store a binding-time fact), that the skill layout is
@@ -527,7 +527,7 @@ T020–T023 all append to `tests/contract/test_diary_prose.py`, so they are **no
       deferrals** — `battleBuddy.diary.recentEntries` has no landed reader, the notice
       vocabulary has no landed consumer, and slice 5's `_render_draft_entry` placeholder still
       stands.
-- [ ] T026 Update `AGENTS.md`: add `skills/diary` to the landed shipped-surface list and mark
+- [x] T026 Update `AGENTS.md`: add `skills/diary` to the landed shipped-surface list and mark
       slice 8 complete in the Build order line; keep the file ≤200 lines — it routes, the
       linked documents rule. In the same task, update the slice-8 IOU comment in
       `tests/helpers/lifecycle_flows.py`'s `_render_draft_entry` to cite

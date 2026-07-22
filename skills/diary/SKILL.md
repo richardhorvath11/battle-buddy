@@ -108,7 +108,28 @@ rewords, or promotes them.
 
 ## Non-goals
 
-<!-- T019 (Phase 6) fills this: what this slice deliberately does not ship or
-     own — adapter code, the close flow, causal labeling, diary_url /
-     diary_pending, and the approval boundary this slice must not appear to
-     weaken. -->
+This slice ships skill prose and tests only — no diary-adapter code (Constitution I;
+FR-008). What it deliberately does not own:
+
+- **The close flow itself.** Invoking drafting and executing the dual-write are the
+  close flow's, landing in slice 5 — this skill documents what the close flow calls
+  into, not the flow that calls it.
+- **Causal labeling.** Labeling a diary draft's root cause, contributing factors, and
+  action items as proposals is slice 5's FR-007; this skill only guarantees the labels
+  pass through format matching verbatim, never that it produces them.
+- **Untrusted-telemetry delimiting.** Slice 6 touches diary drafts only to delimit
+  untrusted telemetry inside them — a concern orthogonal to format resolution and not
+  something this skill implements.
+- **`diary_url`, `diary_pending`, and the dual-write's ordering.** These belong to
+  `skills/session-store/` and the close flow (see Write flow, above) — declared and
+  cited here as a consumed boundary, never re-implemented.
+- **Retry policy and draft approval.** Retrying a failed write belongs to the close
+  flow (see Interface's error posture, above), and so does the responder's approval of
+  a draft before anything is written. This section names both boundaries rather than
+  restating them.
+
+**The approval boundary this slice must not appear to weaken**: no write of any kind —
+to the diary, or to the session row — happens before the responder approves the draft.
+That gate lives in the close flow. Nothing this skill documents — format resolution,
+the drafting handoff, or the write flow — fires before that approval, and nothing here
+should read as if it could.
