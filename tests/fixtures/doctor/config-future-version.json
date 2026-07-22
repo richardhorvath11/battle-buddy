@@ -1,0 +1,31 @@
+{
+  "configVersion": "bb.config.v2",
+  "pluginPin": "0.4.0",
+  "store": {
+    "url": "https://store.example/team-sessions",
+    "schemaVersion": "bb.schema.v2"
+  },
+  "diary": {
+    "url": "https://diary.example/team-diary"
+  },
+  "catalog": {
+    "repo": "mycorp/service-catalog"
+  },
+  "artifactRoot": "battle-buddy/",
+  "bindings": {
+    "storage.append_record": "mycorp_sheets.add_row",
+    "storage.read_records": "mycorp_sheets.query_rows",
+    "storage.update_record": "mycorp_sheets.update_row",
+    "artifacts.put_file": "mycorp_drive.upload_file",
+    "diary.append_entry": "mycorp_wiki.add_note",
+    "diary.read_recent": "mycorp_wiki.recent_notes",
+    "alerting.get_alert": "mycorp_pager.fetch_alert",
+    "alerting.list_alert_history": "mycorp_pager.alert_history"
+  },
+  "budgets": {
+    "triageTurnCap": 15
+  },
+  "shell": {
+    "adapter": "cmux"
+  }
+}

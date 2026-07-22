@@ -1,0 +1,40 @@
+[
+  {
+    "session_id": "page-ALERT-555-2026-07-19",
+    "session_type": "page",
+    "status": "open",
+    "fingerprint": "bfd4c47e7152073f",
+    "catalog_resolved": true,
+    "alert_signature": "al-payments-timeout",
+    "services": ["payments"],
+    "severity": "sev2",
+    "responder": "bob",
+    "started_at": "2026-07-19T08:00:00+00:00",
+    "links": [
+      {
+        "url": "https://grafana.example.com/d/payments-overview",
+        "excerpt": "payments dashboard, opened by bob's session"
+      }
+    ],
+    "artifacts_folder_url": "battle-buddy/page-ALERT-555-2026-07-19/"
+  },
+  {
+    "session_id": "page-ALERT-555-2026-07-20",
+    "session_type": "page",
+    "status": "open",
+    "fingerprint": "bfd4c47e7152073f",
+    "catalog_resolved": true,
+    "alert_signature": "al-payments-timeout",
+    "services": ["payments"],
+    "severity": "sev2",
+    "responder": "carol",
+    "started_at": "2026-07-20T08:00:00+00:00",
+    "links": [
+      {
+        "url": "https://runbooks.example.com/payments/oncall.md",
+        "excerpt": "payments oncall runbook, opened by carol's duplicate session"
+      }
+    ],
+    "artifacts_folder_url": "battle-buddy/page-ALERT-555-2026-07-20/"
+  }
+]

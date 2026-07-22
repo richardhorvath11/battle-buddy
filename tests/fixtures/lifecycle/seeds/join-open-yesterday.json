@@ -1,0 +1,36 @@
+{
+  "_doc": "Two named row variants (not a list — see tests/helpers/lifecycle_fixtures.py's join loaders, T004/T005): 'base' is a plain open row a join test writes as-is; 'overflow_variant' is the same scenario but with an overflowed latest_checkpoint cell — write it together with 'overflow_artifact' (seeded directly into the mock's artifact store, bypassing put_file, the same precondition-state convention MockMcp.load_seed uses) so read_latest_checkpoint's overflow-follow path actually resolves. Never write 'base' and 'overflow_variant' in the same test — they share a source ID and would look like a true-race duplicate rather than the single open row a join test expects.",
+  "base": {
+    "session_id": "page-ALERT-123-2026-07-20",
+    "session_type": "page",
+    "status": "open",
+    "fingerprint": "364cc9812fb6d284",
+    "catalog_resolved": true,
+    "alert_signature": "al-checkout-latency-p99",
+    "services": ["checkout"],
+    "severity": "sev3",
+    "responder": "alice",
+    "started_at": "2026-07-20T09:14:00+00:00",
+    "triage_verdict": "{\"budget_spent\":{\"seconds\":40,\"turns\":6},\"candidates\":[],\"no_strong_signal\":false,\"schema\":\"bb.verdict.v1\",\"session_id\":\"page-ALERT-123-2026-07-20\",\"severity\":\"sev3\"}",
+    "latest_checkpoint": "{\"at\":\"2026-07-20T10:00:00+00:00\",\"hypotheses\":[{\"confidence\":0.6,\"id\":\"h1\",\"provenance\":\"fresh\",\"statement\":\"cache layer regression from latest deploy\",\"status\":\"live\"}],\"phase\":\"hypothesis-generation\",\"schema\":\"bb.ledger.v1\",\"seq\":1}"
+  },
+  "overflow_variant": {
+    "session_id": "page-ALERT-123-2026-07-20",
+    "session_type": "page",
+    "status": "open",
+    "fingerprint": "364cc9812fb6d284",
+    "catalog_resolved": true,
+    "alert_signature": "al-checkout-latency-p99",
+    "services": ["checkout"],
+    "severity": "sev3",
+    "responder": "alice",
+    "started_at": "2026-07-20T09:14:00+00:00",
+    "triage_verdict": "{\"budget_spent\":{\"seconds\":40,\"turns\":6},\"candidates\":[],\"no_strong_signal\":false,\"schema\":\"bb.verdict.v1\",\"session_id\":\"page-ALERT-123-2026-07-20\",\"severity\":\"sev3\"}",
+    "latest_checkpoint": "{\"overflow\":\"art://lifecycle-fixture-join-checkpoint\",\"seq\":1}"
+  },
+  "overflow_artifact": {
+    "link": "art://lifecycle-fixture-join-checkpoint",
+    "name": "checkpoint-1.json",
+    "content": "{\"at\":\"2026-07-20T10:05:00+00:00\",\"hypotheses\":[{\"confidence\":0.6,\"id\":\"h1\",\"provenance\":\"fresh\",\"statement\":\"cache layer regression from latest deploy\",\"status\":\"live\"},{\"confidence\":0.5,\"id\":\"h2\",\"provenance\":\"recall\",\"statement\":\"connection pool exhaustion\",\"status\":\"live\",\"validation\":\"VALIDATED\"},{\"confidence\":0.1,\"id\":\"h3\",\"provenance\":\"triage\",\"statement\":\"upstream DNS flakiness\",\"status\":\"dead\",\"validation\":\"INVALIDATED\"}],\"phase\":\"evidence-gathering\",\"schema\":\"bb.ledger.v1\",\"seq\":1}"
+  }
+}
