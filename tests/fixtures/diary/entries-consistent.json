@@ -1,0 +1,30 @@
+{
+  "description": "Five entries with per-entry titles (differing dates and incident names) but the same four ## section headings in the same order and ISO dates throughout — the happy-path matched structure.",
+  "entries": [
+    {
+      "link": "diary-00-checkout",
+      "content": "# 2026-07-21 — checkout: elevated latency\n\n## What happened\nCheckout p99 latency crossed the paging threshold for about nine minutes starting at 14:12 UTC.\n\n## Timeline\nAt 14:12 the alert fired. 14:15 triage began. 14:24 a rollback was applied. 14:29 latency returned to baseline.\n\n## Resolution\nRolled back the checkout deploy that added a synchronous inventory lookup on the hot path.\n\n## Follow-ups\nAdd a load test that exercises the inventory lookup before the next checkout release.\n",
+      "at": "2026-07-21T14:35:00Z"
+    },
+    {
+      "link": "diary-01-payments-api",
+      "content": "# 2026-07-18 — payments-api: elevated error rate\n\n## What happened\npayments-api's 5xx rate rose above 2% for roughly twelve minutes after a routine redeploy.\n\n## Timeline\nAt 09:02 the alert fired. 09:06 triage began. 09:14 the new revision was rolled back. 09:18 the error rate returned to baseline.\n\n## Resolution\nReverted payments-api to the previous revision; the new revision had a missing timeout on its downstream call.\n\n## Follow-ups\nAdd a default timeout to the payments-api client library so a missing override cannot repeat this.\n",
+      "at": "2026-07-18T09:20:00Z"
+    },
+    {
+      "link": "diary-02-search-api",
+      "content": "# 2026-07-12 — search-api: index lag\n\n## What happened\nsearch-api results were stale for about twenty minutes while the indexing pipeline fell behind.\n\n## Timeline\nAt 16:30 the lag alert fired. 16:34 triage began. 16:48 the indexing worker was restarted. 16:50 lag returned to normal.\n\n## Resolution\nRestarted the stalled indexing worker; it had wedged on a malformed document.\n\n## Follow-ups\nAdd a dead-letter path for malformed documents so a single bad record cannot wedge the worker again.\n",
+      "at": "2026-07-12T16:50:00Z"
+    },
+    {
+      "link": "diary-03-inventory",
+      "content": "# 2026-07-05 — inventory: stale cache\n\n## What happened\ninventory reported stale counts for about fifteen minutes after a cache invalidation job silently failed.\n\n## Timeline\nAt 11:05 the discrepancy was reported. 11:09 triage began. 11:18 the cache was flushed manually. 11:25 counts matched again.\n\n## Resolution\nManually flushed the inventory cache; the invalidation job's retry logic had given up too early.\n\n## Follow-ups\nWiden the invalidation job's retry window and alert when it gives up.\n",
+      "at": "2026-07-05T11:25:00Z"
+    },
+    {
+      "link": "diary-04-ledger-svc",
+      "content": "# 2026-06-29 — ledger-svc: reconciliation delay\n\n## What happened\nledger-svc's nightly reconciliation run finished four hours late, delaying the morning report.\n\n## Timeline\nAt 02:00 the run was scheduled. 03:40 the run stalled on a lock. 07:50 the lock was cleared. 08:05 the run completed.\n\n## Resolution\nCleared a stale lock left behind by a previous failed run.\n\n## Follow-ups\nAdd a lock timeout to the reconciliation job so a stale lock cannot block the next run indefinitely.\n",
+      "at": "2026-06-29T08:05:00Z"
+    }
+  ]
+}

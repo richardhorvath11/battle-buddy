@@ -104,12 +104,61 @@ tokens and keeping every other character literal:
 a property of *how the component is written*, not of its value — so `07` and `21` are both
 two-digit and both take the padded token, while `4` takes the unpadded one.
 
+**`YY`'s scope is not uniform across the four shapes.** A written 2-digit year is
+recognized in the year-last numeric shape (`07/21/26`) unconditionally, and in both
+named-month shapes (`21 Jul 26`, `July 4, 26`) **only when the date sits at the start
+of the line's text** (below) — every shape whose year sits in the trailing position. In
+the **year-first** numeric shape, a leading 2-digit component is read as a **day**, not
+a year (`26-07-21` → `DD-MM-YY`), because a year-first shape has no positional way to
+tell a 2-digit year apart from a 2-digit day or month component.
+
+**Known limit: the named-month shapes' 2-digit year is start-of-line-gated.** A 2-digit
+year is genuinely ambiguous with an ordinary count in prose ("On Jul 4, 15 nodes went
+down"), and no rule about trailing punctuation can separate the two, since prose can be
+punctuated however the writer likes — position is what actually differs: a diary title
+*leads* with its date, prose does not. So the 2-digit-year alternative of the two
+named-month shapes is recognized only after stripping a leading heading marker or bold
+wrapper (`#{1,6}`, `**`, and surrounding whitespace): on a marked line the date need
+only lead the heading text (anything may follow, e.g. `# 21 Jul 26 - checkout:
+latency`); on a bare line with no marker, the date must be the line's entire content
+(`21 Jul 26` parses; `Dec 25, 10 alerts fired.` does not, even though its date leads the
+line, because text follows it). A 4-digit year is exempt from this and stays
+positionally free, same as the year-last numeric shape's own 2-digit year.
+
 Worked cases: `2026-07-21` → `YYYY-MM-DD`; `21 Jul 2026` → `DD Mon YYYY`;
 `July 4, 2026` → `Month D, YYYY`; `07/21/2026` → `MM/DD/YYYY`.
 
+**A line already written in the pattern language is date-bearing, and its pattern is itself**
+(unambiguous). A run of these tokens with literal separators — `YYYY-MM-DD` — reads as the
+pattern `YYYY-MM-DD`. This exists because a *template* renders its date slot in the pattern
+language rather than as a date, and `MINIMAL_DEFAULT_TEXT` is exactly such a template: without
+this rule its title line is not date-bearing, `title` is `null`, all eight headings fall into
+`sections`, and §6's declared structure is unreachable. A real entry containing the literal
+string `YYYY-MM-DD` is a template line by any reading, so the rule costs nothing.
+
+**Digit-glue boundaries.** A numeric run immediately glued to more digits, a `.`, or a `-`/`/`
+that is itself followed by more digits — on either side — is not read as a date component; it
+is far more likely a fragment of something else entirely (a version string, a build number).
+`1.2.3-4/5/2026` and `build 2026-07-21-3` therefore carry no recognized date at all. This is a
+match-**boundary** rule only, never a calendar-validity check: a genuinely standalone
+`1234-56-78` still reads as `YYYY-MM-DD` — this section's own "we extract a format, not a valid
+date" posture is untouched by it. A trailing period with nothing after it (a sentence-final
+date, e.g. `See 07/21/2026.`) is not glue and does not block recognition — for every shape and
+year width **except** the 2-digit-year alternative of the two named-month shapes on a bare,
+unmarked line, where the start-of-line rule above already requires the date to be the line's
+entire content: `21 Jul 26.` (bare, trailing period) is not recognized regardless, while
+`# 21 Jul 26.` (marked) is unaffected.
+
 **`field_order`** normalization: lowercase, trailing `:` stripped, internal whitespace
 collapsed. Sources, in document order: every `sections` heading's `text`, plus every
-line-initial `Label:` inline field. Duplicates keep their first occurrence. The `title` is
+line-initial `Label:` inline field, where a label must start with an ASCII letter **and its
+colon must not be preceded by a digit** (`^[A-Za-z][^:\n]{0,39}(?<!\d):`). Both halves are
+load-bearing, not tidiness: a clock time is the one thing that looks like a label while varying
+per entry, and admitting it would make an otherwise-uniform diary classify as inconsistent. The
+letter anchor alone is **not sufficient** — `At 14:12 the alert fired` starts with a letter and
+yields the label `at 14`. The digit lookbehind is what actually excludes it. (Found during
+implementation: the letter-anchor-only rule an earlier draft pinned would have broken the
+baseline fixture.) Duplicates keep their first occurrence. The `title` is
 excluded.
 
 An entry with no headings and no inline fields yields empty lists and whatever `date_format`
@@ -117,24 +166,33 @@ was found — a legal empty-shaped structure, never an exception.
 
 ### 3.1 Date ambiguity is a *pass*-level property
 
-A two-numeric-component date whose components are both ≤ 12 cannot have its day/month order
-read from that entry alone. So ambiguity resolves in two steps, and the split is explicit
-because a single-entry function cannot answer a cross-entry question:
+A two-numeric-component date has its day/month order fixed only when **exactly one** component
+is greater than 12 (a component that large can only be a day, since months run 1–12). Two other
+cases cannot have their order read from that entry alone, and both are provisionally labelled
+the same way: components both ≤ 12 (`03/04` could be either), and components both > 12 (`99/99`
+is not a real calendar date either way — `99/99/9999` is provisionally labelled `MM/DD/YYYY` and
+flagged `ambiguous`, the same as the ≤ 12 case). So ambiguity resolves in two steps, and the
+split is explicit because a single-entry function cannot answer a cross-entry question:
 
-1. **Per entry** — `extract_structure` sets `date_format.ambiguous = true` provisionally, and
-   records the pattern with the components labelled **in the order they appear**
-   (first → `MM`, second → `DD`). The labelling is provisional; the flag says so.
+1. **Per entry** — `extract_structure` sets `date_format.ambiguous = true` provisionally for
+   either case above, and records the pattern with the components labelled **in the order they
+   appear** (first → `MM`, second → `DD`). The labelling is provisional; the flag says so.
 2. **Per pass** — `resolve_date_ambiguity(structures)` scans every structure from this read.
-   If **any** carries an unambiguous numeric date (a component > 12 fixes the order), that
-   order is adopted for all of them and every `ambiguous` flag is cleared. If none does, the
-   flags stand and `date_ambiguous` is emitted so the responder confirms it.
+   If **exactly one order** is voted for by the pass's unambiguous entries (a component > 12
+   fixes the order for that entry), that order is adopted for all of them and every `ambiguous`
+   flag is cleared. If **two or more entries vote conflicting orders** — one day-first, another
+   month-first — the conflict resolves nothing: the flags stand exactly as if no entry had
+   resolved it. If **no** entry resolves it (including the conflicting-votes case), the flags
+   stand and `date_ambiguous` is emitted so the responder confirms it.
 
 The pass-level resolution runs **before** §5's comparison, so a resolved and an unresolved
 entry never disagree on `pattern` and trip a spurious `entries_inconsistent`.
 
 No silent pick: the provisional labelling is recorded so goldens are writable, and the flag
 plus the notice are what stop it from being trusted (the D-22 posture applied to a second
-surface).
+surface) — including when the pass's own unambiguous entries disagree with each other
+(`test_resolve_date_ambiguity_declines_to_pick_when_the_pass_conflicts`), not only when none
+resolves it at all.
 
 ---
 
@@ -218,12 +276,15 @@ depth-1 read, so the extra entries exist to make drift *observable*.
 `sections`, `date_format` `{pattern: "YYYY-MM-DD", ambiguous: false}`, and the seven
 corresponding `field_order` labels.
 
-**Two names, deliberately.** The text and the `Structure` are separate constants because the
-`Structure` cannot be derived from the text: the skeleton's title line contains the literal
-tokens `YYYY-MM-DD` rather than a date, so extraction would find no date-bearing line. They
-are kept in agreement mechanically instead — a gate asserts `extract_structure`'s `sections`
-and `field_order` over `MINIMAL_DEFAULT_TEXT` equal `MINIMAL_DEFAULT`'s, with `date_format`
-compared separately for that reason.
+**Two names, deliberately** — but for one reason only, and it is not the one an earlier draft
+gave. `extract_structure(MINIMAL_DEFAULT_TEXT)` *does* reproduce `MINIMAL_DEFAULT` exactly,
+including `date_format`, thanks to §3's pattern-language rule. They are still two hand-written
+constants because deriving one from the other **at import time** would make this Phase-2
+module depend on a Phase-3 function — a circular dependency. The agreement is gated instead:
+T023 asserts `extract_structure(MINIMAL_DEFAULT_TEXT)` equals `MINIMAL_DEFAULT` **in full**,
+every part including `title` and `date_format`. That is a strictly stronger gate than the
+partial comparison an earlier draft settled for, and it is available precisely because the
+skeleton is written in the pattern language.
 
 The three causal sections carry their proposal labels **in the heading text itself**, so the
 labels survive any transform that preserves heading text (Constitution V). The `Evidence`
@@ -241,9 +302,17 @@ available before any write**:
 |---|---|
 | in-session evidence links | dashboards, searches, PRs — the links gathered during the session |
 | services, severity | factual |
-| resolution | factual |
+| resolution | factual — **not yet named** among the fields `commands/close.md`'s current "Draft the diary entry" section fills (see below) |
 | labeled causal proposals | root cause, contributing factors, action items — carrying the close flow's proposal labels |
-| locally staged artifact content (pre-upload) | including the **tool trace** and **checkpoint history** |
+| locally staged artifact content (pre-upload) | including the **tool trace** and **checkpoint history** — **not yet named** among those fields either |
+
+**Where this table and `commands/close.md` currently disagree.** That section's own
+draft anatomy fills services, severity, responder, `started_at`, `closed_at`, and links
+as its factual fields, plus the three labeled causal proposals — it does not yet
+enumerate resolution or the locally staged artifact content as fields it fills. FR-005
+requires this skill to receive both regardless, so both rows stay in this table as
+inputs the skill accepts; closing the gap in `commands/close.md`'s own draft anatomy is
+slice 5's to do, not this slice's.
 
 **Not an input:** the **close-time row update**. Drafting precedes the dual-write, so the row
 state the close writes does not exist when the draft is assembled; the diary skill reads no
