@@ -1,6 +1,6 @@
 # AGENTS.md
 
-_Last Verified: 2026-07-21_
+_Last Verified: 2026-07-22_
 
 Single source of truth for any coding agent in this repo. Read this end-to-end before
 touching anything; it routes — it does not restate. Tool-specific overlays (`CLAUDE.md`)
@@ -10,11 +10,11 @@ only add narrow extras on top.
 
 **battle-buddy** — an open-source on-call agent harness: a Claude Code plugin that gives
 responders agent-led incident investigation with compounding institutional memory.
-**Status: slices 1–7 landed** (see Build order below). Shipped plugin surfaces so far:
+**Status: slices 1–8 landed** (see Build order below). Shipped plugin surfaces so far:
 `bin/` (`bb-fingerprint`, `bb-validate`), `hooks/` (guardrails), `commands/` (`/doctor`,
 `/setup`, `/page`, `/incident`, `/close`), `agents/` (triage, deep investigator, three
 specialists), `manifest/capabilities.json`, `skills/session-store`, `skills/investigation`,
-`skills/catalog`, `templates/`. Dev-only,
+`skills/catalog`, `skills/diary`, `templates/`. Dev-only,
 never shipped: `tools/bb-mock-mcp`, `tests/`, `pyproject.toml`.
 
 ## Source documents (read in this order for context)
@@ -70,7 +70,7 @@ Spike 0 (Google roster conformance) → **slice 1** test scaffold + `bb-mock-mcp
 **2** deterministic layer (hooks + `bb-fingerprint` + `bb-validate`) (✅) → **3**
 session-store conventions (✅) → **4** `/doctor` + `/setup` (✅) → **5** lifecycle
 commands (✅) → **6** agent model + investigation skill (✅) → **7** catalog adapter (✅) →
-**8** diary adapter → **9** shell adapter (`bb-shell` + cmux). Slices 7–9 parallelize
+**8** diary adapter (✅) → **9** shell adapter (`bb-shell` + cmux). Slices 7–9 parallelize
 once 1–2 exist. Each slice cites its design sections in its spec; landed slices live
 under `specs/00N-*/`.
 

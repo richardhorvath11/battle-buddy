@@ -1,0 +1,659 @@
+{
+  "description": "T010 resolution matrix for diary format resolution (resolve_format). Each case pairs a template state with a named entries-*.json fixture (loaded by the test from that file, never duplicated here) and records resolve_format's exact expected source, notice SET, and resolved structure, per data-model.md §4/§5. Derived by running tests/helpers/diary_reference.py itself and then hand-audited against data-model.md — recorded as such rather than claimed independent.",
+  "cases": [
+    {
+      "id": "template-absent-entries-consistent",
+      "why": "No template configured; entries all share the same section order/date format/field_order -> matched, no notices.",
+      "template": null,
+      "entries_fixture": "entries-consistent",
+      "expected": {
+        "source": "matched",
+        "notices": [],
+        "resolved": {
+          "title": {
+            "marker": "atx",
+            "level": 1,
+            "text": "2026-07-21 — checkout: elevated latency"
+          },
+          "sections": [
+            {
+              "marker": "atx",
+              "level": 2,
+              "text": "What happened"
+            },
+            {
+              "marker": "atx",
+              "level": 2,
+              "text": "Timeline"
+            },
+            {
+              "marker": "atx",
+              "level": 2,
+              "text": "Resolution"
+            },
+            {
+              "marker": "atx",
+              "level": 2,
+              "text": "Follow-ups"
+            }
+          ],
+          "date_format": {
+            "pattern": "YYYY-MM-DD",
+            "ambiguous": false
+          },
+          "field_order": [
+            "what happened",
+            "timeline",
+            "resolution",
+            "follow-ups"
+          ]
+        }
+      }
+    },
+    {
+      "id": "template-absent-entries-bold",
+      "why": "No template configured; bold-marker entries are internally consistent -> matched, no notices, exercises the bold heading marker in a matrix row.",
+      "template": null,
+      "entries_fixture": "entries-bold",
+      "expected": {
+        "source": "matched",
+        "notices": [],
+        "resolved": {
+          "title": {
+            "marker": "bold",
+            "level": null,
+            "text": "2026-07-20 — notifier: delayed pages"
+          },
+          "sections": [
+            {
+              "marker": "bold",
+              "level": null,
+              "text": "What happened"
+            },
+            {
+              "marker": "bold",
+              "level": null,
+              "text": "Timeline"
+            },
+            {
+              "marker": "bold",
+              "level": null,
+              "text": "Resolution"
+            },
+            {
+              "marker": "bold",
+              "level": null,
+              "text": "Follow-ups"
+            }
+          ],
+          "date_format": {
+            "pattern": "YYYY-MM-DD",
+            "ambiguous": false
+          },
+          "field_order": [
+            "what happened",
+            "timeline",
+            "resolution",
+            "follow-ups"
+          ]
+        }
+      }
+    },
+    {
+      "id": "template-absent-entries-inconsistent",
+      "why": "No template configured; the newest entry's section order/labels differ from the other four -> matched with entries_inconsistent, freshest wins.",
+      "template": null,
+      "entries_fixture": "entries-inconsistent",
+      "expected": {
+        "source": "matched",
+        "notices": [
+          "entries_inconsistent"
+        ],
+        "resolved": {
+          "title": {
+            "marker": "atx",
+            "level": 1,
+            "text": "2026-07-22 — checkout: payment retries spiking"
+          },
+          "sections": [
+            {
+              "marker": "atx",
+              "level": 2,
+              "text": "Impact"
+            },
+            {
+              "marker": "atx",
+              "level": 2,
+              "text": "Timeline"
+            },
+            {
+              "marker": "atx",
+              "level": 2,
+              "text": "Mitigation"
+            },
+            {
+              "marker": "atx",
+              "level": 2,
+              "text": "Next steps"
+            }
+          ],
+          "date_format": {
+            "pattern": "YYYY-MM-DD",
+            "ambiguous": false
+          },
+          "field_order": [
+            "impact",
+            "timeline",
+            "mitigation",
+            "next steps"
+          ]
+        }
+      }
+    },
+    {
+      "id": "template-absent-entries-ambiguous-date",
+      "why": "No template configured; every entry's date has both numeric components <=12 and no entry in the read resolves the order -> matched with date_ambiguous, provisional MM/DD labelling stands.",
+      "template": null,
+      "entries_fixture": "entries-ambiguous-date",
+      "expected": {
+        "source": "matched",
+        "notices": [
+          "date_ambiguous"
+        ],
+        "resolved": {
+          "title": {
+            "marker": "atx",
+            "level": 1,
+            "text": "09/08/2026 — checkout: latency blip"
+          },
+          "sections": [
+            {
+              "marker": "atx",
+              "level": 2,
+              "text": "What happened"
+            },
+            {
+              "marker": "atx",
+              "level": 2,
+              "text": "Timeline"
+            },
+            {
+              "marker": "atx",
+              "level": 2,
+              "text": "Resolution"
+            },
+            {
+              "marker": "atx",
+              "level": 2,
+              "text": "Follow-ups"
+            }
+          ],
+          "date_format": {
+            "pattern": "MM/DD/YYYY",
+            "ambiguous": true
+          },
+          "field_order": [
+            "what happened",
+            "timeline",
+            "resolution",
+            "follow-ups"
+          ]
+        }
+      }
+    },
+    {
+      "id": "template-absent-entries-disambiguating",
+      "why": "No template configured; the third-newest entry's 17/06/2026 fixes day-first order for the whole pass -> matched, no date_ambiguous, adopted DD/MM/YYYY order.",
+      "template": null,
+      "entries_fixture": "entries-disambiguating",
+      "expected": {
+        "source": "matched",
+        "notices": [],
+        "resolved": {
+          "title": {
+            "marker": "atx",
+            "level": 1,
+            "text": "09/08/2026 — checkout: latency blip"
+          },
+          "sections": [
+            {
+              "marker": "atx",
+              "level": 2,
+              "text": "What happened"
+            },
+            {
+              "marker": "atx",
+              "level": 2,
+              "text": "Timeline"
+            },
+            {
+              "marker": "atx",
+              "level": 2,
+              "text": "Resolution"
+            },
+            {
+              "marker": "atx",
+              "level": 2,
+              "text": "Follow-ups"
+            }
+          ],
+          "date_format": {
+            "pattern": "DD/MM/YYYY",
+            "ambiguous": false
+          },
+          "field_order": [
+            "what happened",
+            "timeline",
+            "resolution",
+            "follow-ups"
+          ]
+        }
+      }
+    },
+    {
+      "id": "template-absent-entries-short",
+      "why": "No template configured; only 2 entries available (fewer than the depth-5 default) but they agree -> matched, no notices.",
+      "template": null,
+      "entries_fixture": "entries-short",
+      "expected": {
+        "source": "matched",
+        "notices": [],
+        "resolved": {
+          "title": {
+            "marker": "atx",
+            "level": 1,
+            "text": "2026-07-19 — checkout: brief latency spike"
+          },
+          "sections": [
+            {
+              "marker": "atx",
+              "level": 2,
+              "text": "What happened"
+            },
+            {
+              "marker": "atx",
+              "level": 2,
+              "text": "Timeline"
+            },
+            {
+              "marker": "atx",
+              "level": 2,
+              "text": "Resolution"
+            },
+            {
+              "marker": "atx",
+              "level": 2,
+              "text": "Follow-ups"
+            }
+          ],
+          "date_format": {
+            "pattern": "YYYY-MM-DD",
+            "ambiguous": false
+          },
+          "field_order": [
+            "what happened",
+            "timeline",
+            "resolution",
+            "follow-ups"
+          ]
+        }
+      }
+    },
+    {
+      "id": "template-absent-entries-empty",
+      "why": "No template configured and no entries at all -> default source, MINIMAL_DEFAULT structure, template_candidate notice.",
+      "template": null,
+      "entries_fixture": "entries-empty",
+      "expected": {
+        "source": "default",
+        "notices": [
+          "template_candidate"
+        ],
+        "resolved": {
+          "title": {
+            "marker": "atx",
+            "level": 1,
+            "text": "YYYY-MM-DD — <services>: <short title>"
+          },
+          "sections": [
+            {
+              "marker": "atx",
+              "level": 2,
+              "text": "What happened"
+            },
+            {
+              "marker": "atx",
+              "level": 2,
+              "text": "Timeline"
+            },
+            {
+              "marker": "atx",
+              "level": 2,
+              "text": "Resolution"
+            },
+            {
+              "marker": "atx",
+              "level": 2,
+              "text": "Root cause (proposal)"
+            },
+            {
+              "marker": "atx",
+              "level": 2,
+              "text": "Contributing factors (proposals)"
+            },
+            {
+              "marker": "atx",
+              "level": 2,
+              "text": "Action items (proposals)"
+            },
+            {
+              "marker": "atx",
+              "level": 2,
+              "text": "Evidence"
+            }
+          ],
+          "date_format": {
+            "pattern": "YYYY-MM-DD",
+            "ambiguous": false
+          },
+          "field_order": [
+            "what happened",
+            "timeline",
+            "resolution",
+            "root cause (proposal)",
+            "contributing factors (proposals)",
+            "action items (proposals)",
+            "evidence"
+          ]
+        }
+      }
+    },
+    {
+      "id": "template-well-formed",
+      "why": "A configured, non-blank template wins outright; no recent-entry read is needed for formatting (US1 AS-1) even though entries are available.",
+      "template": "# {date} — {services}: {title}\n\n## Summary\n## Notes\n",
+      "entries_fixture": "entries-consistent",
+      "expected": {
+        "source": "template",
+        "notices": [],
+        "resolved": null
+      }
+    },
+    {
+      "id": "template-malformed-number",
+      "why": "A configured template that is a JSON number (not a string) is malformed; falls through to match-recent with template_malformed surfaced.",
+      "template": 42,
+      "entries_fixture": "entries-consistent",
+      "expected": {
+        "source": "matched",
+        "notices": [
+          "template_malformed"
+        ],
+        "resolved": {
+          "title": {
+            "marker": "atx",
+            "level": 1,
+            "text": "2026-07-21 — checkout: elevated latency"
+          },
+          "sections": [
+            {
+              "marker": "atx",
+              "level": 2,
+              "text": "What happened"
+            },
+            {
+              "marker": "atx",
+              "level": 2,
+              "text": "Timeline"
+            },
+            {
+              "marker": "atx",
+              "level": 2,
+              "text": "Resolution"
+            },
+            {
+              "marker": "atx",
+              "level": 2,
+              "text": "Follow-ups"
+            }
+          ],
+          "date_format": {
+            "pattern": "YYYY-MM-DD",
+            "ambiguous": false
+          },
+          "field_order": [
+            "what happened",
+            "timeline",
+            "resolution",
+            "follow-ups"
+          ]
+        }
+      }
+    },
+    {
+      "id": "template-malformed-object",
+      "why": "A configured template that is a JSON object (not a string) is malformed; falls through to match-recent with template_malformed surfaced.",
+      "template": {
+        "foo": "bar"
+      },
+      "entries_fixture": "entries-consistent",
+      "expected": {
+        "source": "matched",
+        "notices": [
+          "template_malformed"
+        ],
+        "resolved": {
+          "title": {
+            "marker": "atx",
+            "level": 1,
+            "text": "2026-07-21 — checkout: elevated latency"
+          },
+          "sections": [
+            {
+              "marker": "atx",
+              "level": 2,
+              "text": "What happened"
+            },
+            {
+              "marker": "atx",
+              "level": 2,
+              "text": "Timeline"
+            },
+            {
+              "marker": "atx",
+              "level": 2,
+              "text": "Resolution"
+            },
+            {
+              "marker": "atx",
+              "level": 2,
+              "text": "Follow-ups"
+            }
+          ],
+          "date_format": {
+            "pattern": "YYYY-MM-DD",
+            "ambiguous": false
+          },
+          "field_order": [
+            "what happened",
+            "timeline",
+            "resolution",
+            "follow-ups"
+          ]
+        }
+      }
+    },
+    {
+      "id": "template-malformed-empty-string",
+      "why": "A configured template that is an empty string is malformed; falls through to match-recent with template_malformed surfaced.",
+      "template": "",
+      "entries_fixture": "entries-consistent",
+      "expected": {
+        "source": "matched",
+        "notices": [
+          "template_malformed"
+        ],
+        "resolved": {
+          "title": {
+            "marker": "atx",
+            "level": 1,
+            "text": "2026-07-21 — checkout: elevated latency"
+          },
+          "sections": [
+            {
+              "marker": "atx",
+              "level": 2,
+              "text": "What happened"
+            },
+            {
+              "marker": "atx",
+              "level": 2,
+              "text": "Timeline"
+            },
+            {
+              "marker": "atx",
+              "level": 2,
+              "text": "Resolution"
+            },
+            {
+              "marker": "atx",
+              "level": 2,
+              "text": "Follow-ups"
+            }
+          ],
+          "date_format": {
+            "pattern": "YYYY-MM-DD",
+            "ambiguous": false
+          },
+          "field_order": [
+            "what happened",
+            "timeline",
+            "resolution",
+            "follow-ups"
+          ]
+        }
+      }
+    },
+    {
+      "id": "template-malformed-whitespace-only",
+      "why": "A configured template that is whitespace-only is malformed; falls through to match-recent with template_malformed surfaced.",
+      "template": "   ",
+      "entries_fixture": "entries-consistent",
+      "expected": {
+        "source": "matched",
+        "notices": [
+          "template_malformed"
+        ],
+        "resolved": {
+          "title": {
+            "marker": "atx",
+            "level": 1,
+            "text": "2026-07-21 — checkout: elevated latency"
+          },
+          "sections": [
+            {
+              "marker": "atx",
+              "level": 2,
+              "text": "What happened"
+            },
+            {
+              "marker": "atx",
+              "level": 2,
+              "text": "Timeline"
+            },
+            {
+              "marker": "atx",
+              "level": 2,
+              "text": "Resolution"
+            },
+            {
+              "marker": "atx",
+              "level": 2,
+              "text": "Follow-ups"
+            }
+          ],
+          "date_format": {
+            "pattern": "YYYY-MM-DD",
+            "ambiguous": false
+          },
+          "field_order": [
+            "what happened",
+            "timeline",
+            "resolution",
+            "follow-ups"
+          ]
+        }
+      }
+    },
+    {
+      "id": "template-malformed-empty",
+      "why": "F10 (review round) matrix gap: a configured template that is malformed AND no entries exist at all. Rule 2 (format.md) says a malformed template 'proceeds exactly as if no template were configured' -- with an EMPTY diary, that is rule 4's minimal default, not the matched path every other malformed-* row exercises. template_malformed is still surfaced (the template really was malformed) alongside template_candidate (rule 4's own notice for the empty-diary default).",
+      "template": 42,
+      "entries_fixture": "entries-empty",
+      "expected": {
+        "source": "default",
+        "notices": [
+          "template_malformed",
+          "template_candidate"
+        ],
+        "resolved": {
+          "title": {
+            "marker": "atx",
+            "level": 1,
+            "text": "YYYY-MM-DD — <services>: <short title>"
+          },
+          "sections": [
+            {
+              "marker": "atx",
+              "level": 2,
+              "text": "What happened"
+            },
+            {
+              "marker": "atx",
+              "level": 2,
+              "text": "Timeline"
+            },
+            {
+              "marker": "atx",
+              "level": 2,
+              "text": "Resolution"
+            },
+            {
+              "marker": "atx",
+              "level": 2,
+              "text": "Root cause (proposal)"
+            },
+            {
+              "marker": "atx",
+              "level": 2,
+              "text": "Contributing factors (proposals)"
+            },
+            {
+              "marker": "atx",
+              "level": 2,
+              "text": "Action items (proposals)"
+            },
+            {
+              "marker": "atx",
+              "level": 2,
+              "text": "Evidence"
+            }
+          ],
+          "date_format": {
+            "pattern": "YYYY-MM-DD",
+            "ambiguous": false
+          },
+          "field_order": [
+            "what happened",
+            "timeline",
+            "resolution",
+            "root cause (proposal)",
+            "contributing factors (proposals)",
+            "action items (proposals)",
+            "evidence"
+          ]
+        }
+      }
+    }
+  ]
+}

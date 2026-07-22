@@ -1,0 +1,1204 @@
+{
+  "entries-consistent": [
+    {
+      "title": {
+        "marker": "atx",
+        "level": 1,
+        "text": "2026-07-21 — checkout: elevated latency"
+      },
+      "sections": [
+        {
+          "marker": "atx",
+          "level": 2,
+          "text": "What happened"
+        },
+        {
+          "marker": "atx",
+          "level": 2,
+          "text": "Timeline"
+        },
+        {
+          "marker": "atx",
+          "level": 2,
+          "text": "Resolution"
+        },
+        {
+          "marker": "atx",
+          "level": 2,
+          "text": "Follow-ups"
+        }
+      ],
+      "date_format": {
+        "pattern": "YYYY-MM-DD",
+        "ambiguous": false
+      },
+      "field_order": [
+        "what happened",
+        "timeline",
+        "resolution",
+        "follow-ups"
+      ]
+    },
+    {
+      "title": {
+        "marker": "atx",
+        "level": 1,
+        "text": "2026-07-18 — payments-api: elevated error rate"
+      },
+      "sections": [
+        {
+          "marker": "atx",
+          "level": 2,
+          "text": "What happened"
+        },
+        {
+          "marker": "atx",
+          "level": 2,
+          "text": "Timeline"
+        },
+        {
+          "marker": "atx",
+          "level": 2,
+          "text": "Resolution"
+        },
+        {
+          "marker": "atx",
+          "level": 2,
+          "text": "Follow-ups"
+        }
+      ],
+      "date_format": {
+        "pattern": "YYYY-MM-DD",
+        "ambiguous": false
+      },
+      "field_order": [
+        "what happened",
+        "timeline",
+        "resolution",
+        "follow-ups"
+      ]
+    },
+    {
+      "title": {
+        "marker": "atx",
+        "level": 1,
+        "text": "2026-07-12 — search-api: index lag"
+      },
+      "sections": [
+        {
+          "marker": "atx",
+          "level": 2,
+          "text": "What happened"
+        },
+        {
+          "marker": "atx",
+          "level": 2,
+          "text": "Timeline"
+        },
+        {
+          "marker": "atx",
+          "level": 2,
+          "text": "Resolution"
+        },
+        {
+          "marker": "atx",
+          "level": 2,
+          "text": "Follow-ups"
+        }
+      ],
+      "date_format": {
+        "pattern": "YYYY-MM-DD",
+        "ambiguous": false
+      },
+      "field_order": [
+        "what happened",
+        "timeline",
+        "resolution",
+        "follow-ups"
+      ]
+    },
+    {
+      "title": {
+        "marker": "atx",
+        "level": 1,
+        "text": "2026-07-05 — inventory: stale cache"
+      },
+      "sections": [
+        {
+          "marker": "atx",
+          "level": 2,
+          "text": "What happened"
+        },
+        {
+          "marker": "atx",
+          "level": 2,
+          "text": "Timeline"
+        },
+        {
+          "marker": "atx",
+          "level": 2,
+          "text": "Resolution"
+        },
+        {
+          "marker": "atx",
+          "level": 2,
+          "text": "Follow-ups"
+        }
+      ],
+      "date_format": {
+        "pattern": "YYYY-MM-DD",
+        "ambiguous": false
+      },
+      "field_order": [
+        "what happened",
+        "timeline",
+        "resolution",
+        "follow-ups"
+      ]
+    },
+    {
+      "title": {
+        "marker": "atx",
+        "level": 1,
+        "text": "2026-06-29 — ledger-svc: reconciliation delay"
+      },
+      "sections": [
+        {
+          "marker": "atx",
+          "level": 2,
+          "text": "What happened"
+        },
+        {
+          "marker": "atx",
+          "level": 2,
+          "text": "Timeline"
+        },
+        {
+          "marker": "atx",
+          "level": 2,
+          "text": "Resolution"
+        },
+        {
+          "marker": "atx",
+          "level": 2,
+          "text": "Follow-ups"
+        }
+      ],
+      "date_format": {
+        "pattern": "YYYY-MM-DD",
+        "ambiguous": false
+      },
+      "field_order": [
+        "what happened",
+        "timeline",
+        "resolution",
+        "follow-ups"
+      ]
+    }
+  ],
+  "entries-bold": [
+    {
+      "title": {
+        "marker": "bold",
+        "level": null,
+        "text": "2026-07-20 — notifier: delayed pages"
+      },
+      "sections": [
+        {
+          "marker": "bold",
+          "level": null,
+          "text": "What happened"
+        },
+        {
+          "marker": "bold",
+          "level": null,
+          "text": "Timeline"
+        },
+        {
+          "marker": "bold",
+          "level": null,
+          "text": "Resolution"
+        },
+        {
+          "marker": "bold",
+          "level": null,
+          "text": "Follow-ups"
+        }
+      ],
+      "date_format": {
+        "pattern": "YYYY-MM-DD",
+        "ambiguous": false
+      },
+      "field_order": [
+        "what happened",
+        "timeline",
+        "resolution",
+        "follow-ups"
+      ]
+    },
+    {
+      "title": {
+        "marker": "bold",
+        "level": null,
+        "text": "2026-07-16 — checkout: duplicate charges"
+      },
+      "sections": [
+        {
+          "marker": "bold",
+          "level": null,
+          "text": "What happened"
+        },
+        {
+          "marker": "bold",
+          "level": null,
+          "text": "Timeline"
+        },
+        {
+          "marker": "bold",
+          "level": null,
+          "text": "Resolution"
+        },
+        {
+          "marker": "bold",
+          "level": null,
+          "text": "Follow-ups"
+        }
+      ],
+      "date_format": {
+        "pattern": "YYYY-MM-DD",
+        "ambiguous": false
+      },
+      "field_order": [
+        "what happened",
+        "timeline",
+        "resolution",
+        "follow-ups"
+      ]
+    },
+    {
+      "title": {
+        "marker": "bold",
+        "level": null,
+        "text": "2026-07-09 — search-api: timeout spike"
+      },
+      "sections": [
+        {
+          "marker": "bold",
+          "level": null,
+          "text": "What happened"
+        },
+        {
+          "marker": "bold",
+          "level": null,
+          "text": "Timeline"
+        },
+        {
+          "marker": "bold",
+          "level": null,
+          "text": "Resolution"
+        },
+        {
+          "marker": "bold",
+          "level": null,
+          "text": "Follow-ups"
+        }
+      ],
+      "date_format": {
+        "pattern": "YYYY-MM-DD",
+        "ambiguous": false
+      },
+      "field_order": [
+        "what happened",
+        "timeline",
+        "resolution",
+        "follow-ups"
+      ]
+    },
+    {
+      "title": {
+        "marker": "bold",
+        "level": null,
+        "text": "2026-07-02 — payments-api: webhook backlog"
+      },
+      "sections": [
+        {
+          "marker": "bold",
+          "level": null,
+          "text": "What happened"
+        },
+        {
+          "marker": "bold",
+          "level": null,
+          "text": "Timeline"
+        },
+        {
+          "marker": "bold",
+          "level": null,
+          "text": "Resolution"
+        },
+        {
+          "marker": "bold",
+          "level": null,
+          "text": "Follow-ups"
+        }
+      ],
+      "date_format": {
+        "pattern": "YYYY-MM-DD",
+        "ambiguous": false
+      },
+      "field_order": [
+        "what happened",
+        "timeline",
+        "resolution",
+        "follow-ups"
+      ]
+    },
+    {
+      "title": {
+        "marker": "bold",
+        "level": null,
+        "text": "2026-06-25 — inventory: sync gap"
+      },
+      "sections": [
+        {
+          "marker": "bold",
+          "level": null,
+          "text": "What happened"
+        },
+        {
+          "marker": "bold",
+          "level": null,
+          "text": "Timeline"
+        },
+        {
+          "marker": "bold",
+          "level": null,
+          "text": "Resolution"
+        },
+        {
+          "marker": "bold",
+          "level": null,
+          "text": "Follow-ups"
+        }
+      ],
+      "date_format": {
+        "pattern": "YYYY-MM-DD",
+        "ambiguous": false
+      },
+      "field_order": [
+        "what happened",
+        "timeline",
+        "resolution",
+        "follow-ups"
+      ]
+    }
+  ],
+  "entries-inconsistent": [
+    {
+      "title": {
+        "marker": "atx",
+        "level": 1,
+        "text": "2026-07-22 — checkout: payment retries spiking"
+      },
+      "sections": [
+        {
+          "marker": "atx",
+          "level": 2,
+          "text": "Impact"
+        },
+        {
+          "marker": "atx",
+          "level": 2,
+          "text": "Timeline"
+        },
+        {
+          "marker": "atx",
+          "level": 2,
+          "text": "Mitigation"
+        },
+        {
+          "marker": "atx",
+          "level": 2,
+          "text": "Next steps"
+        }
+      ],
+      "date_format": {
+        "pattern": "YYYY-MM-DD",
+        "ambiguous": false
+      },
+      "field_order": [
+        "impact",
+        "timeline",
+        "mitigation",
+        "next steps"
+      ]
+    },
+    {
+      "title": {
+        "marker": "atx",
+        "level": 1,
+        "text": "2026-07-18 — payments-api: elevated error rate"
+      },
+      "sections": [
+        {
+          "marker": "atx",
+          "level": 2,
+          "text": "What happened"
+        },
+        {
+          "marker": "atx",
+          "level": 2,
+          "text": "Timeline"
+        },
+        {
+          "marker": "atx",
+          "level": 2,
+          "text": "Resolution"
+        },
+        {
+          "marker": "atx",
+          "level": 2,
+          "text": "Follow-ups"
+        }
+      ],
+      "date_format": {
+        "pattern": "YYYY-MM-DD",
+        "ambiguous": false
+      },
+      "field_order": [
+        "what happened",
+        "timeline",
+        "resolution",
+        "follow-ups"
+      ]
+    },
+    {
+      "title": {
+        "marker": "atx",
+        "level": 1,
+        "text": "2026-07-12 — search-api: index lag"
+      },
+      "sections": [
+        {
+          "marker": "atx",
+          "level": 2,
+          "text": "What happened"
+        },
+        {
+          "marker": "atx",
+          "level": 2,
+          "text": "Timeline"
+        },
+        {
+          "marker": "atx",
+          "level": 2,
+          "text": "Resolution"
+        },
+        {
+          "marker": "atx",
+          "level": 2,
+          "text": "Follow-ups"
+        }
+      ],
+      "date_format": {
+        "pattern": "YYYY-MM-DD",
+        "ambiguous": false
+      },
+      "field_order": [
+        "what happened",
+        "timeline",
+        "resolution",
+        "follow-ups"
+      ]
+    },
+    {
+      "title": {
+        "marker": "atx",
+        "level": 1,
+        "text": "2026-07-05 — inventory: stale cache"
+      },
+      "sections": [
+        {
+          "marker": "atx",
+          "level": 2,
+          "text": "What happened"
+        },
+        {
+          "marker": "atx",
+          "level": 2,
+          "text": "Timeline"
+        },
+        {
+          "marker": "atx",
+          "level": 2,
+          "text": "Resolution"
+        },
+        {
+          "marker": "atx",
+          "level": 2,
+          "text": "Follow-ups"
+        }
+      ],
+      "date_format": {
+        "pattern": "YYYY-MM-DD",
+        "ambiguous": false
+      },
+      "field_order": [
+        "what happened",
+        "timeline",
+        "resolution",
+        "follow-ups"
+      ]
+    },
+    {
+      "title": {
+        "marker": "atx",
+        "level": 1,
+        "text": "2026-06-29 — ledger-svc: reconciliation delay"
+      },
+      "sections": [
+        {
+          "marker": "atx",
+          "level": 2,
+          "text": "What happened"
+        },
+        {
+          "marker": "atx",
+          "level": 2,
+          "text": "Timeline"
+        },
+        {
+          "marker": "atx",
+          "level": 2,
+          "text": "Resolution"
+        },
+        {
+          "marker": "atx",
+          "level": 2,
+          "text": "Follow-ups"
+        }
+      ],
+      "date_format": {
+        "pattern": "YYYY-MM-DD",
+        "ambiguous": false
+      },
+      "field_order": [
+        "what happened",
+        "timeline",
+        "resolution",
+        "follow-ups"
+      ]
+    }
+  ],
+  "entries-ambiguous-date": [
+    {
+      "title": {
+        "marker": "atx",
+        "level": 1,
+        "text": "09/08/2026 — checkout: latency blip"
+      },
+      "sections": [
+        {
+          "marker": "atx",
+          "level": 2,
+          "text": "What happened"
+        },
+        {
+          "marker": "atx",
+          "level": 2,
+          "text": "Timeline"
+        },
+        {
+          "marker": "atx",
+          "level": 2,
+          "text": "Resolution"
+        },
+        {
+          "marker": "atx",
+          "level": 2,
+          "text": "Follow-ups"
+        }
+      ],
+      "date_format": {
+        "pattern": "MM/DD/YYYY",
+        "ambiguous": true
+      },
+      "field_order": [
+        "what happened",
+        "timeline",
+        "resolution",
+        "follow-ups"
+      ]
+    },
+    {
+      "title": {
+        "marker": "atx",
+        "level": 1,
+        "text": "08/07/2026 — payments-api: brief error burst"
+      },
+      "sections": [
+        {
+          "marker": "atx",
+          "level": 2,
+          "text": "What happened"
+        },
+        {
+          "marker": "atx",
+          "level": 2,
+          "text": "Timeline"
+        },
+        {
+          "marker": "atx",
+          "level": 2,
+          "text": "Resolution"
+        },
+        {
+          "marker": "atx",
+          "level": 2,
+          "text": "Follow-ups"
+        }
+      ],
+      "date_format": {
+        "pattern": "MM/DD/YYYY",
+        "ambiguous": true
+      },
+      "field_order": [
+        "what happened",
+        "timeline",
+        "resolution",
+        "follow-ups"
+      ]
+    },
+    {
+      "title": {
+        "marker": "atx",
+        "level": 1,
+        "text": "07/06/2026 — search-api: reindex latency"
+      },
+      "sections": [
+        {
+          "marker": "atx",
+          "level": 2,
+          "text": "What happened"
+        },
+        {
+          "marker": "atx",
+          "level": 2,
+          "text": "Timeline"
+        },
+        {
+          "marker": "atx",
+          "level": 2,
+          "text": "Resolution"
+        },
+        {
+          "marker": "atx",
+          "level": 2,
+          "text": "Follow-ups"
+        }
+      ],
+      "date_format": {
+        "pattern": "MM/DD/YYYY",
+        "ambiguous": true
+      },
+      "field_order": [
+        "what happened",
+        "timeline",
+        "resolution",
+        "follow-ups"
+      ]
+    },
+    {
+      "title": {
+        "marker": "atx",
+        "level": 1,
+        "text": "06/05/2026 — inventory: count mismatch"
+      },
+      "sections": [
+        {
+          "marker": "atx",
+          "level": 2,
+          "text": "What happened"
+        },
+        {
+          "marker": "atx",
+          "level": 2,
+          "text": "Timeline"
+        },
+        {
+          "marker": "atx",
+          "level": 2,
+          "text": "Resolution"
+        },
+        {
+          "marker": "atx",
+          "level": 2,
+          "text": "Follow-ups"
+        }
+      ],
+      "date_format": {
+        "pattern": "MM/DD/YYYY",
+        "ambiguous": true
+      },
+      "field_order": [
+        "what happened",
+        "timeline",
+        "resolution",
+        "follow-ups"
+      ]
+    },
+    {
+      "title": {
+        "marker": "atx",
+        "level": 1,
+        "text": "05/04/2026 — notifier: small backlog"
+      },
+      "sections": [
+        {
+          "marker": "atx",
+          "level": 2,
+          "text": "What happened"
+        },
+        {
+          "marker": "atx",
+          "level": 2,
+          "text": "Timeline"
+        },
+        {
+          "marker": "atx",
+          "level": 2,
+          "text": "Resolution"
+        },
+        {
+          "marker": "atx",
+          "level": 2,
+          "text": "Follow-ups"
+        }
+      ],
+      "date_format": {
+        "pattern": "MM/DD/YYYY",
+        "ambiguous": true
+      },
+      "field_order": [
+        "what happened",
+        "timeline",
+        "resolution",
+        "follow-ups"
+      ]
+    }
+  ],
+  "entries-disambiguating": [
+    {
+      "title": {
+        "marker": "atx",
+        "level": 1,
+        "text": "09/08/2026 — checkout: latency blip"
+      },
+      "sections": [
+        {
+          "marker": "atx",
+          "level": 2,
+          "text": "What happened"
+        },
+        {
+          "marker": "atx",
+          "level": 2,
+          "text": "Timeline"
+        },
+        {
+          "marker": "atx",
+          "level": 2,
+          "text": "Resolution"
+        },
+        {
+          "marker": "atx",
+          "level": 2,
+          "text": "Follow-ups"
+        }
+      ],
+      "date_format": {
+        "pattern": "MM/DD/YYYY",
+        "ambiguous": true
+      },
+      "field_order": [
+        "what happened",
+        "timeline",
+        "resolution",
+        "follow-ups"
+      ]
+    },
+    {
+      "title": {
+        "marker": "atx",
+        "level": 1,
+        "text": "08/07/2026 — payments-api: brief error burst"
+      },
+      "sections": [
+        {
+          "marker": "atx",
+          "level": 2,
+          "text": "What happened"
+        },
+        {
+          "marker": "atx",
+          "level": 2,
+          "text": "Timeline"
+        },
+        {
+          "marker": "atx",
+          "level": 2,
+          "text": "Resolution"
+        },
+        {
+          "marker": "atx",
+          "level": 2,
+          "text": "Follow-ups"
+        }
+      ],
+      "date_format": {
+        "pattern": "MM/DD/YYYY",
+        "ambiguous": true
+      },
+      "field_order": [
+        "what happened",
+        "timeline",
+        "resolution",
+        "follow-ups"
+      ]
+    },
+    {
+      "title": {
+        "marker": "atx",
+        "level": 1,
+        "text": "17/06/2026 — search-api: reindex latency"
+      },
+      "sections": [
+        {
+          "marker": "atx",
+          "level": 2,
+          "text": "What happened"
+        },
+        {
+          "marker": "atx",
+          "level": 2,
+          "text": "Timeline"
+        },
+        {
+          "marker": "atx",
+          "level": 2,
+          "text": "Resolution"
+        },
+        {
+          "marker": "atx",
+          "level": 2,
+          "text": "Follow-ups"
+        }
+      ],
+      "date_format": {
+        "pattern": "DD/MM/YYYY",
+        "ambiguous": false
+      },
+      "field_order": [
+        "what happened",
+        "timeline",
+        "resolution",
+        "follow-ups"
+      ]
+    },
+    {
+      "title": {
+        "marker": "atx",
+        "level": 1,
+        "text": "06/05/2026 — inventory: count mismatch"
+      },
+      "sections": [
+        {
+          "marker": "atx",
+          "level": 2,
+          "text": "What happened"
+        },
+        {
+          "marker": "atx",
+          "level": 2,
+          "text": "Timeline"
+        },
+        {
+          "marker": "atx",
+          "level": 2,
+          "text": "Resolution"
+        },
+        {
+          "marker": "atx",
+          "level": 2,
+          "text": "Follow-ups"
+        }
+      ],
+      "date_format": {
+        "pattern": "MM/DD/YYYY",
+        "ambiguous": true
+      },
+      "field_order": [
+        "what happened",
+        "timeline",
+        "resolution",
+        "follow-ups"
+      ]
+    },
+    {
+      "title": {
+        "marker": "atx",
+        "level": 1,
+        "text": "05/04/2026 — notifier: small backlog"
+      },
+      "sections": [
+        {
+          "marker": "atx",
+          "level": 2,
+          "text": "What happened"
+        },
+        {
+          "marker": "atx",
+          "level": 2,
+          "text": "Timeline"
+        },
+        {
+          "marker": "atx",
+          "level": 2,
+          "text": "Resolution"
+        },
+        {
+          "marker": "atx",
+          "level": 2,
+          "text": "Follow-ups"
+        }
+      ],
+      "date_format": {
+        "pattern": "MM/DD/YYYY",
+        "ambiguous": true
+      },
+      "field_order": [
+        "what happened",
+        "timeline",
+        "resolution",
+        "follow-ups"
+      ]
+    }
+  ],
+  "entries-short": [
+    {
+      "title": {
+        "marker": "atx",
+        "level": 1,
+        "text": "2026-07-19 — checkout: brief latency spike"
+      },
+      "sections": [
+        {
+          "marker": "atx",
+          "level": 2,
+          "text": "What happened"
+        },
+        {
+          "marker": "atx",
+          "level": 2,
+          "text": "Timeline"
+        },
+        {
+          "marker": "atx",
+          "level": 2,
+          "text": "Resolution"
+        },
+        {
+          "marker": "atx",
+          "level": 2,
+          "text": "Follow-ups"
+        }
+      ],
+      "date_format": {
+        "pattern": "YYYY-MM-DD",
+        "ambiguous": false
+      },
+      "field_order": [
+        "what happened",
+        "timeline",
+        "resolution",
+        "follow-ups"
+      ]
+    },
+    {
+      "title": {
+        "marker": "atx",
+        "level": 1,
+        "text": "2026-07-10 — payments-api: delayed retries"
+      },
+      "sections": [
+        {
+          "marker": "atx",
+          "level": 2,
+          "text": "What happened"
+        },
+        {
+          "marker": "atx",
+          "level": 2,
+          "text": "Timeline"
+        },
+        {
+          "marker": "atx",
+          "level": 2,
+          "text": "Resolution"
+        },
+        {
+          "marker": "atx",
+          "level": 2,
+          "text": "Follow-ups"
+        }
+      ],
+      "date_format": {
+        "pattern": "YYYY-MM-DD",
+        "ambiguous": false
+      },
+      "field_order": [
+        "what happened",
+        "timeline",
+        "resolution",
+        "follow-ups"
+      ]
+    }
+  ],
+  "entries-labeled-causal": [
+    {
+      "title": {
+        "marker": "atx",
+        "level": 1,
+        "text": "2026-07-21 — payments-api: partial outage"
+      },
+      "sections": [
+        {
+          "marker": "atx",
+          "level": 2,
+          "text": "What happened"
+        },
+        {
+          "marker": "atx",
+          "level": 2,
+          "text": "Root cause (proposal)"
+        },
+        {
+          "marker": "atx",
+          "level": 2,
+          "text": "Contributing factors (proposals)"
+        },
+        {
+          "marker": "atx",
+          "level": 2,
+          "text": "Action items (proposals)"
+        }
+      ],
+      "date_format": {
+        "pattern": "YYYY-MM-DD",
+        "ambiguous": false
+      },
+      "field_order": [
+        "what happened",
+        "root cause (proposal)",
+        "contributing factors (proposals)",
+        "action items (proposals)"
+      ]
+    },
+    {
+      "title": {
+        "marker": "atx",
+        "level": 1,
+        "text": "2026-07-09 — checkout: brief overload"
+      },
+      "sections": [
+        {
+          "marker": "atx",
+          "level": 2,
+          "text": "What happened"
+        },
+        {
+          "marker": "atx",
+          "level": 2,
+          "text": "Root cause (proposal)"
+        },
+        {
+          "marker": "atx",
+          "level": 2,
+          "text": "Contributing factors (proposals)"
+        },
+        {
+          "marker": "atx",
+          "level": 2,
+          "text": "Action items (proposals)"
+        }
+      ],
+      "date_format": {
+        "pattern": "YYYY-MM-DD",
+        "ambiguous": false
+      },
+      "field_order": [
+        "what happened",
+        "root cause (proposal)",
+        "contributing factors (proposals)",
+        "action items (proposals)"
+      ]
+    }
+  ],
+  "MINIMAL_DEFAULT": {
+    "title": {
+      "marker": "atx",
+      "level": 1,
+      "text": "YYYY-MM-DD — <services>: <short title>"
+    },
+    "sections": [
+      {
+        "marker": "atx",
+        "level": 2,
+        "text": "What happened"
+      },
+      {
+        "marker": "atx",
+        "level": 2,
+        "text": "Timeline"
+      },
+      {
+        "marker": "atx",
+        "level": 2,
+        "text": "Resolution"
+      },
+      {
+        "marker": "atx",
+        "level": 2,
+        "text": "Root cause (proposal)"
+      },
+      {
+        "marker": "atx",
+        "level": 2,
+        "text": "Contributing factors (proposals)"
+      },
+      {
+        "marker": "atx",
+        "level": 2,
+        "text": "Action items (proposals)"
+      },
+      {
+        "marker": "atx",
+        "level": 2,
+        "text": "Evidence"
+      }
+    ],
+    "date_format": {
+      "pattern": "YYYY-MM-DD",
+      "ambiguous": false
+    },
+    "field_order": [
+      "what happened",
+      "timeline",
+      "resolution",
+      "root cause (proposal)",
+      "contributing factors (proposals)",
+      "action items (proposals)",
+      "evidence"
+    ]
+  }
+}
