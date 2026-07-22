@@ -1,0 +1,22 @@
+{
+  "apiVersion": "backstage.io/v1alpha1",
+  "kind": "Component",
+  "metadata": {
+    "name": "ledger-svc",
+    "annotations": {
+      "oncall-harness/alert-match": [
+        "ledger-write-fail"
+      ],
+      "grafana/dashboard-selector": [
+        "https://dashboards.example/ledger-svc"
+      ]
+    }
+  },
+  "spec": {
+    "type": "service",
+    "owner": "team-ledger",
+    "dependsOn": [
+      "payments-api"
+    ]
+  }
+}

@@ -4,8 +4,8 @@
   "metadata": {
     "name": "example-service",
     "annotations": {
-      "battle-buddy/alert-match": "example-service",
-      "battle-buddy/dashboard": "https://dashboards.example/example-service"
+      "oncall-harness/alert-match": "example-service",
+      "grafana/dashboard-selector": "https://dashboards.example/example-service"
     }
   },
   "spec": {

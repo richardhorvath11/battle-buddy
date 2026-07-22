@@ -1,0 +1,22 @@
+{
+  "apiVersion": "backstage.io/v1alpha1",
+  "kind": "Component",
+  "metadata": {
+    "name": "inventory",
+    "annotations": {
+      "oncall-harness/alert-match": [
+        "inventory-lag"
+      ],
+      "oncall-harness/runbooks": [
+        "https://runbooks.example/inventory.md"
+      ]
+    }
+  },
+  "spec": {
+    "type": "service",
+    "owner": "team-inventory",
+    "dependsOn": [
+      "ledger-svc"
+    ]
+  }
+}

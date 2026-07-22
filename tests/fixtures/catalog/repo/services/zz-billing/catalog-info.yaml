@@ -1,0 +1,26 @@
+{
+  "apiVersion": "backstage.io/v1alpha1",
+  "kind": "Component",
+  "metadata": {
+    "name": "billing",
+    "annotations": {
+      "oncall-harness/alert-match": [
+        "billing-lag",
+        "shared-tag"
+      ],
+      "oncall-harness/runbooks": [
+        "https://runbooks.example/billing.md"
+      ],
+      "grafana/dashboard-selector": [
+        "https://dashboards.example/billing"
+      ]
+    }
+  },
+  "spec": {
+    "type": "service",
+    "owner": "team-billing",
+    "dependsOn": [
+      "nonexistent-svc"
+    ]
+  }
+}
