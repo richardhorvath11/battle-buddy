@@ -38,6 +38,10 @@ ALLOWED_STDLIB = {
     "pathlib",
     "re",
     "shutil",
+    # slice 9: the cmux backend's transport (bb_shell). Deliberate, reviewed
+    # addition per that slice's SC-005 — the shell adapter speaks a Unix-socket
+    # protocol, and stdlib `socket` is what keeps that dependency-free.
+    "socket",
     "sys",
     "tempfile",
     "time",
@@ -46,7 +50,7 @@ ALLOWED_STDLIB = {
 }
 
 # Local sibling modules (shipped in the same bundle directory) are fine.
-LOCAL_MODULES = {"_config", "_state", "bb_fingerprint", "bb_validate"}
+LOCAL_MODULES = {"_config", "_state", "bb_fingerprint", "bb_shell", "bb_validate"}
 
 
 def shipped_python_sources():
