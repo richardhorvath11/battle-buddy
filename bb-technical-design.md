@@ -608,10 +608,13 @@ Interface, exposed as the `bb-shell` CLI shim (§11 D-2):
 ```
 bb-shell open-pane <url|command> [--workspace <session-id>]
 bb-shell navigate-pane <pane> <url>
-bb-shell notify <message> --level <info|warn|approval>
+bb-shell notify <message> [--level <info|warn|approval>]
+bb-shell close-workspace <session-id>
 ```
 
 Adapter selection via config (`battleBuddy.shell: cmux | none`). Commands and skills invoke only `bb-shell`; nothing in the core knows which shell is behind it (FR-22).
+
+**Fourth verb and the optional level (D-2 addendum, slice 9).** This block originally listed three verbs, which could not express §4's close step 33 ("close workspace, state restorable") — a gap slice 5 consumed as `close_workspace(session_id)` before the shim existed. `close-workspace <session-id>` is now part of the interface. `--level` is **optional, defaulting to `info`**: §7.2's doctor round-trip calls `notify` with a message alone, so a mandatory flag would have broken a landed slice. An *unrecognized* level remains a usage error, mirroring the config value's own absent-vs-unrecognized split. The backend-independent contract ships as `bin/bb-shell.md`; the cmux mapping as `bin/bb-shell.cmux.md`.
 
 **cmux implementation:** speaks cmux's socket API. Session start creates a session-named workspace with the agent terminal pane plus browser panes for the service's dashboards; `navigate-pane` drives evidence deep-linking (FR-9); `notify` fires on attention/approval needs; workspaces survive restarts (FR-3 session restore). Third-party tools render with the responder's own SSO sessions — the harness never touches those credentials (FR-24).
 
@@ -723,6 +726,7 @@ Decisions this document pins beyond the PRD, with rationale:
 |---|---|---|
 | D-1 | Guardrail hooks in **Python 3, stdlib only** | macOS ships `python3`; no jq/Node install step; deterministic JSON-on-stdin parsing. Protects NFR-4's adoption floor |
 | D-2 | Shell adapter as a **thin CLI shim (`bb-shell`)** with config-selected backend | Core stays shell-agnostic (FR-22); the shim's interface doubles as the spec for any future shell (R-2) |
+| D-2a | **Four verbs, not three** (`close-workspace` added); **`--level` optional, defaulting to `info`**; **notification level encoded in the backend's title field**; **socket-path discovery limited to `CMUX_SOCKET_PATH` + the documented default**, never the undocumented tagged-socket search | Slice-9 addendum amending §6.3's interface block. The three-verb list could not express §4's close step 33, which slice 5 had already consumed as `close_workspace(session_id)` — the design's own gap, closed in the slice that implements it. A mandatory `--level` would have broken §7.2's landed doctor round-trip, which calls `notify` with a message alone; making it optional keeps the loud path for *unrecognized* values, where a caller bug actually exists. cmux's notification API carries no level field at all, so the level rides in `title` — the field the backend renders prominently and always returns, which is what makes "the level reached the backend" verifiable rather than assumed. Reimplementing undocumented socket discovery would couple shipped code to a detail that can change silently; the supported override plus degraded fallback is the honest bound |
 | D-3 | **Latest checkpoint in row cell; full history in Drive JSONL**; overflow pointer strictly above 45,000 chars (pinned by slice 3; at-guard fits) | Cheap resume (one row read) + complete history within Sheets cell limits (FR-3a, FR-16) |
 | D-4 | **Fingerprint = 16-hex SHA-256 of normalized `service\|alert_type`**, rules versioned, shipped as `bb-fingerprint` | Exact-match retrieval carries tier 0 (FR-16a); one shared implementation prevents silent recall drift; survives into tier 1 unchanged |
 | D-5 | **OQ-6: both** — raw transcript to Drive, structured timeline derived at close **from the tool trace + checkpoint history** (not prose recall) | Matches PRD lean; raw is the audit log, structured feeds FR-4d reports and future agents (FA-4, FA-6); trace-derived timelines are timestamped and complete |
