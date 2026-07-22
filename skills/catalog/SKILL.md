@@ -1,6 +1,6 @@
 ---
 name: catalog
-description: Use when reading or resolving the team's service catalog — alert→service resolution, the internal service model, the annotation mapping that populates it, per-field degradation, or catalog freshness. Documents the catalog conventions that stand in for shipped catalog-adapter code.
+description: Use when reading or resolving the team's service catalog — alert→service resolution, the internal service model, the annotation mapping that populates it, per-field degradation, or catalog freshness. Documents the catalog conventions (annotation mapping, service model, resolution match order, degradation, freshness) that stand in for shipped catalog-adapter code.
 ---
 
 # Catalog
@@ -14,7 +14,35 @@ in a file-based repository external to this harness; nothing here stores or
 duplicates its content.
 
 ## Overview
-<!-- filled by T017 -->
+
+Every value that reaches a consumer arrives shaped as one `Service`:
+
+```
+Service {name, owner, runbooks[], dashboards[], alert_matchers[], depends_on[]}
+```
+
+Six fields, no more. This is the **only** shape any consumer sees — raw catalog file
+structure (entity `kind`, `metadata`, `spec`, annotation blocks) never crosses this
+boundary, and a consumer holding a `Service` never inspects where a field came from.
+`references/annotations.md` owns the full mapping from raw catalog structure onto these
+six fields.
+
+This slice ships prose and tests only — no parsing library, no catalog-adapter code, and
+no shipped integration code (Constitution I; FR-009). At runtime the "parser" is an agent
+reading the team's `catalog-info.yaml` files through **your code tool's file reads**,
+guided by this document and its references, rather than any bespoke parser this
+repository ships alongside them.
+
+The catalog is the team's own human-curated data. The harness reads it and never writes
+to it: the fix-up offer described in `references/resolution.md` is content a responder
+commits, never something an agent commits on the catalog's behalf.
+
+## References
+
+| Reference | Covers |
+|---|---|
+| `references/annotations.md` | the annotation mapping, the internal model's fields, empty-list defaults and multi-valued parsing, entity classification, duplicate names, catalog-quality warnings, the linkage annotations (paging, repo), the runbook-reference format |
+| `references/resolution.md` | alert→service match order, ambiguity and the miss/ask-once path, the fix-up offer, one-hop blast radius |
 
 ## Degradation
 
@@ -82,6 +110,8 @@ absent for one that isn't. Runbook **content** — what the runbook actually say
 never persisted anywhere; only the pointer is. The session record's `runbook_refs` field
 is the destination for that pointer, and `skills/session-store/` is the normative home of
 that field's schema — this document consumes the shape and does not restate it.
+`references/annotations.md` carries the fuller statement of this same runbook-reference
+rule.
 
 ### When the catalog repo is unreachable
 
@@ -92,11 +122,21 @@ three cases land in the same place, and the session proceeds.
 The fingerprint resolution ladder's lower rungs carry the session when the catalog cannot
 be read; `skills/session-store/` is the normative home of that ladder, and this document
 does not restate its rungs or their order. Whatever the catalog would otherwise have
-supplied for the session —
-resolved service, owner, runbooks, dashboards, blast radius — is simply absent.
+supplied for the session — resolved service, owner, runbooks, dashboards, blast radius —
+is simply absent.
 
 The gap is surfaced in the briefing, so the responder can see that catalog context is
 missing rather than reading a briefing that looks complete while quietly omitting it.
 
 ## Non-goals
-<!-- filled by T017 -->
+
+- **File-mode Backstage is v1's only catalog source.** API-mode Backstage is deferred —
+  see `references/annotations.md`'s Sourcing section.
+- **The harness never writes to the catalog.** The fix-up offer (`references/resolution.md`)
+  is content a responder commits; no agent commits it on the catalog's behalf.
+- **Consuming flows belong to other slices, not this one.** The ask-once interaction is
+  slice 5's lifecycle command; triage's use of catalog context is slice 6's; the
+  catalog-parseable health check is slice 4's `/doctor`. This surface defines the rules and
+  the shapes those slices consume — it does not execute them.
+- **Blast-radius traversal is one hop in v1.** Deeper, multi-hop traversal is a recorded
+  future option, not a promise this surface makes today — see `references/resolution.md`.

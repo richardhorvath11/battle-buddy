@@ -309,7 +309,7 @@ runbook-reference format carries URL + commit SHA.
 **Purpose**: the naming/discipline gates that span the whole prose surface, the two cross-slice
 reconciliations, and the final traceability pass.
 
-- [ ] T017 Complete `skills/catalog/SKILL.md`: finalize the frontmatter description, write the
+- [x] T017 Complete `skills/catalog/SKILL.md`: finalize the frontmatter description, write the
       overview stating the six-field model is the only shape consumers see and that this slice
       ships prose and tests only — no parsing library, no shipped integration code (FR-001,
       FR-009) — add a routing table to `references/annotations.md` / `references/resolution.md`,
@@ -317,7 +317,7 @@ reconciliations, and the final traceability pass.
       deferred; the harness never writes to the catalog; consuming flows belong to slices
       4/5/6). Use the literal phrase "your code tool's file reads" where the read path is
       described
-- [ ] T018 Extend `tests/contract/test_catalog_prose.py` with the **SC-005** naming scan and
+- [x] T018 Extend `tests/contract/test_catalog_prose.py` with the **SC-005** naming scan and
       the **FR-007** gates.
       SC-005: the `mcp__` hard fail on raw text; the deny-list scan importing `DENY_PATTERNS`
       from `tests/contract/test_skill_capability_naming.py`, **extended locally with a
@@ -338,12 +338,12 @@ reconciliations, and the final traceability pass.
       `manifest/capabilities.json`'s `optional.code.ops`. Record in the docstring that slice 4
       *did* pin those shapes in the manifest while contract v1 still has no `code` half
       (research R6)
-- [ ] T019 Extend `tests/contract/test_catalog_prose.py` with the prose↔encoding agreement
+- [x] T019 Extend `tests/contract/test_catalog_prose.py` with the prose↔encoding agreement
       test: parse the annotation mapping table out of `skills/catalog/references/annotations.md`
       and assert set-equality both ways against `catalog_reference.CANONICAL_ANNOTATIONS` and
       `LINKAGE_ANNOTATIONS` — the slice-3 `fingerprint.md`↔`bb-fingerprint` relationship
       applied here, so a doc whose table silently diverges from the encoding fails
-- [ ] T020 Reconcile slice 4's fixture (research R4): retag
+- [x] T020 Reconcile slice 4's fixture (research R4): retag
       `tests/fixtures/doctor/catalog-valid.json`'s `battle-buddy/alert-match` →
       `oncall-harness/alert-match` and `battle-buddy/dashboard` →
       `grafana/dashboard-selector`, confirm `tests/contract/test_doctor_checks.py` and
@@ -354,7 +354,7 @@ reconciliations, and the final traceability pass.
       `oncall-harness/alert-match` and `grafana/dashboard-selector` (a bare subset assertion
       passes on the empty set, which is exactly how a wrong key-path extractor would silently
       neuter the ratchet — converge finding)
-- [ ] T021 [P] Amend `bb-technical-design.md` (research R9): a §6.1 clarification noting the
+- [x] T021 [P] Amend `bb-technical-design.md` (research R9): a §6.1 clarification noting the
       `paging linkage` / `repo` mapping-table rows are metadata exposed beside the six-field
       model rather than fields of it, and a new decision-log row **D-22** recording this
       slice's **six** pins — (1) linkage metadata is not a consumer-model field, (2) explicit
@@ -367,7 +367,7 @@ reconciliations, and the final traceability pass.
       dropped claim that consumers never receive linkage values, nor its §4 citation — the
       design's §4 arrow targets the code capability's MCP participant, not the catalog adapter
       surface (converge finding)
-- [ ] T022 Final pass: run `make verify`; confirm every FR maps to ≥1 passing test against
+- [x] T022 Final pass: run `make verify`; confirm every FR maps to ≥1 passing test against
       `quickstart.md`'s scenario table (SC-001) — **including FR-009**, whose gate is an
       assertion in `test_catalog_prose.py` that `skills/catalog/` contains no `*.py` file and
       that `tests/helpers/catalog_reference.py` is named by no glob in
