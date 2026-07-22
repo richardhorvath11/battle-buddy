@@ -1,0 +1,20 @@
+#!/usr/bin/env python3
+"""CLI shim for bb_shell (design §6.3, §11 D-2): the shell-adapter surface.
+
+Commands and skills invoke only this shim; nothing in the core knows which
+shell — if any — is behind it. Backend selection comes from workspace config
+(``battleBuddy.shell``); absence selects degraded mode, which is a first-class
+path, not an error state.
+
+Exit codes: 0 ok (backend call OR degraded fallback — indistinguishable by
+design, FR-005) / 2 usage error."""
+
+import os
+import sys
+
+sys.path.insert(0, os.path.dirname(os.path.realpath(__file__)))
+
+from bb_shell import main
+
+if __name__ == "__main__":
+    sys.exit(main())
