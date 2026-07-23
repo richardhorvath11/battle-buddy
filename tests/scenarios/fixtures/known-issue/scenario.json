@@ -1,0 +1,10 @@
+{
+  "name": "known-issue",
+  "doc": "The canonical Tier 2 scenario (design §10 'fixture incidents'): a synthetic checkout-latency alert whose fingerprint exactly matches a seeded prior resolved session, so stage-1 retrieval hits and triage must VALIDATE/INVALIDATE the recall. Drive it with /page ALERT-123 (through /setup and /doctor first), /close, then run assert_run.py. service+alert_type below are the fingerprint inputs assert_run recomputes through bin/bb-fingerprint — they must stay in lockstep with the fingerprint hardcoded in seed.json (bb.fp.v1: 1e53817cc27fbd48).",
+  "source_id": "ALERT-123",
+  "session_type": "page",
+  "service": "checkout",
+  "alert_type": "HighLatency p99",
+  "seeded_session_ids": ["page-ALERT-777-2026-06-20"],
+  "optional_checks": ["ledger-anchored"]
+}

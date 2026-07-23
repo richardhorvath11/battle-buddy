@@ -1,0 +1,51 @@
+{
+  "records": [
+    {
+      "session_id": "page-ALERT-777-2026-06-20",
+      "session_type": "page",
+      "status": "closed",
+      "fingerprint": "1e53817cc27fbd48",
+      "catalog_resolved": true,
+      "alert_signature": "acme-pager HighLatency p99 checkout-latency-rule",
+      "services": ["checkout"],
+      "severity": "sev3",
+      "responder": "alice",
+      "started_at": "2026-06-20T04:12:00+00:00",
+      "closed_at": "2026-06-20T05:03:00+00:00",
+      "root_cause": "connection-pool exhaustion after the 06-20 checkout deploy (human-curated: accepted)",
+      "resolution": "rolled back deploy 2026-06-20; pool max raised in follow-up PR",
+      "links": "[{\"url\": \"https://dashboards.example/checkout/latency?from=1750392000&to=1750395600\", \"excerpt\": \"p99 4.1s during the window\"}]",
+      "diary_url": "diary://seeded-1"
+    }
+  ],
+  "diary": [
+    "## 2026-06-20 — checkout p99 latency (ALERT-777)\n\n**What happened**: p99 latency on checkout rose above 4s after the morning deploy.\n\n**Root cause (proposal, human-accepted)**: connection-pool exhaustion.\n\n**Resolution**: rollback, pool max raised.\n\n**Action items**: alert on pool saturation."
+  ],
+  "alerts": {
+    "alerts": [
+      {
+        "alert_id": "ALERT-123",
+        "service_hint": "checkout",
+        "description": "HighLatency p99: checkout p99 latency above 3s for 10m",
+        "fired_at": "2026-07-23T03:04:00+00:00",
+        "alert_type": "HighLatency p99",
+        "rule": "checkout-latency-rule",
+        "source": "acme-pager"
+      }
+    ],
+    "history": [
+      {
+        "alert_id": "ALERT-777",
+        "service_hint": "checkout",
+        "description": "HighLatency p99: checkout p99 latency above 3s for 10m",
+        "fired_at": "2026-06-20T04:10:00+00:00"
+      },
+      {
+        "alert_id": "ALERT-123",
+        "service_hint": "checkout",
+        "description": "HighLatency p99: checkout p99 latency above 3s for 10m",
+        "fired_at": "2026-07-23T03:04:00+00:00"
+      }
+    ]
+  }
+}

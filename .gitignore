@@ -14,3 +14,6 @@ __pycache__/
 .bb-session/
 .bb-doctor-stamp.json
 *.local.jsonl
+
+# Scenario-harness run artifacts (tests/scenarios/README.md)
+tests/scenarios/state/
