@@ -1,0 +1,11 @@
+{
+  "name": "battle-buddy",
+  "version": "0.9.0",
+  "description": "On-call agent harness — agent-led incident investigation with compounding institutional memory. Ships commands (/page, /incident, /close, /doctor, /setup), triage + deep-investigator agents, session-store/investigation/catalog/diary skills, and a deterministic guardrail/trace/session-guard hook layer.",
+  "author": {
+    "name": "Richard Horvath",
+    "url": "https://github.com/richardhorvath11/battle-buddy"
+  },
+  "homepage": "https://github.com/richardhorvath11/battle-buddy",
+  "repository": "https://github.com/richardhorvath11/battle-buddy.git"
+}

@@ -1,5 +1,5 @@
 ---
-description: Runs the same open flow as /page with incident weight — session_type: incident, deep investigation proposed after triage — and promotes an already-open page session in place instead of duplicating it.
+description: "Runs the same open flow as /page with incident weight — session_type: incident, deep investigation proposed after triage — and promotes an already-open page session in place instead of duplicating it."
 ---
 
 # /incident
