@@ -1,0 +1,12 @@
+{
+  "_comment": "Default alien tool-name map for the bb-mock-mcp stdio server (test-plan B-3). Tool names are deliberately unlike the operation names so /doctor must resolve capabilities by schema shape, not keyword — the executable test of Constitution VII. Copy this file, rename the tools to something even less suggestive, and pass it with --names to raise the bar. Keys are tool names; values are 'capability.operation'.",
+  "acme_sheet_add_row": "storage.append_record",
+  "acme_sheet_query": "storage.read_records",
+  "acme_sheet_patch": "storage.update_record",
+  "acme_blob_put": "artifacts.put_file",
+  "acme_blob_fetch": "artifacts.get_file",
+  "acme_journal_write": "diary.append_entry",
+  "acme_journal_tail": "diary.read_recent",
+  "acme_pager_get": "alerting.get_alert",
+  "acme_pager_history": "alerting.list_alert_history"
+}
