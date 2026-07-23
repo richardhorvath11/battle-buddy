@@ -1,0 +1,13 @@
+{
+  "name": "marker-cleared-by-deletion",
+  "description": "confirmed close deleted the marker (deletion IS the cleared state - no resting closed state exists on disk); the guard stays silent (spec US5 AS-3)",
+  "marker": {
+    "protocol": "bb.local.v1",
+    "session_id": "page-ALERT-789-2026-07-20",
+    "source_id": "ALERT-789",
+    "opened_at": "2026-07-20T11:00:00+00:00",
+    "open_write_confirmed": true
+  },
+  "delete_before_end": true,
+  "expected_warning": false
+}

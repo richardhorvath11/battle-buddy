@@ -1,0 +1,6 @@
+{
+  "name": "auth-http-401",
+  "description": "HTTP 401 status in the result text",
+  "tool_response": "Error: HTTP 401 Unauthorized from https://api.example.com/v1/query",
+  "expected": "error:auth"
+}

@@ -1,0 +1,5 @@
+{
+  "name": "ok-missing-response",
+  "description": "absent tool_response carries no error signal",
+  "expected": "ok"
+}

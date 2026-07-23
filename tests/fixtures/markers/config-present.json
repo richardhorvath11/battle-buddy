@@ -1,0 +1,6 @@
+{
+  "name": "config-present",
+  "description": "workspace battleBuddy block exists - no FR-015 warning at SessionStart",
+  "config_present": true,
+  "expected_warning": false
+}

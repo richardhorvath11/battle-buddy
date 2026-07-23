@@ -1,0 +1,9 @@
+{
+  "name": "flag-is-error",
+  "description": "tool-level is_error flag with generic failure text",
+  "tool_response": {
+    "is_error": true,
+    "content": "upstream returned an unexpected shape"
+  },
+  "expected": "error:other"
+}
