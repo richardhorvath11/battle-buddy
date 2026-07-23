@@ -1,0 +1,11 @@
+{
+  "_comment": "Reference binding map for the known-issue scenario: capability.operation -> the mock stdio server's default alien tool names (tools/bb-mock-mcp/names.default.json). Paste into the test workspace's .claude/settings.json under battleBuddy.bindings to pre-bind, or leave it out and let /doctor resolve these very entries by shape — resolving them is itself test case D-02.",
+  "storage.append_record": "acme_sheet_add_row",
+  "storage.read_records": "acme_sheet_query",
+  "storage.update_record": "acme_sheet_patch",
+  "artifacts.put_file": "acme_blob_put",
+  "diary.append_entry": "acme_journal_write",
+  "diary.read_recent": "acme_journal_tail",
+  "alerting.get_alert": "acme_pager_get",
+  "alerting.list_alert_history": "acme_pager_history"
+}
