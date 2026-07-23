@@ -1,6 +1,7 @@
 {
-  "description": "The intended shipped-plugin bundle (FR-010). Until slice 4+ creates the real plugin manifest, this fixture stands in for it; the packaging test's input then switches from fixture to real manifest with no logic change (research R7).",
+  "description": "The intended shipped-plugin bundle (FR-010). The plugin manifest now exists at .claude-plugin/plugin.json (with marketplace.json alongside for distribution); both are the bundle's load-bearing surface and ship first. The packaging test enforces only that no dev-only path (tests/, tools/, fixtures/) is listed (research R7).",
   "bundle": [
+    ".claude-plugin/**",
     "commands/**",
     "agents/**",
     "skills/**",

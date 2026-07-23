@@ -1,6 +1,6 @@
 ---
 name: investigation
-description: Use when conducting any incident investigation — triage, deep investigation, or specialist dispatch. Documents the investigation methodology: validation discipline, the phase-scoped anchoring guard, evidence rules, untrusted-telemetry handling, launch conditions for deep investigation, and spawn-time role registration.
+description: "Use when conducting any incident investigation — triage, deep investigation, or specialist dispatch. Documents the investigation methodology: validation discipline, the phase-scoped anchoring guard, evidence rules, untrusted-telemetry handling, launch conditions for deep investigation, and spawn-time role registration."
 ---
 
 # Investigation
