@@ -1,0 +1,7 @@
+{
+  "name": "transcript-present",
+  "description": "runtime transcript exists - copied to staging/transcript.md (FR-012)",
+  "transcript": "present",
+  "expect_staged": true,
+  "expect_notice": false
+}

@@ -26,6 +26,7 @@ import hashlib
 import json
 import os
 import shutil
+import stat
 import sys
 from datetime import datetime, timezone
 
@@ -60,6 +61,14 @@ FIXED_OUTCOMES = (
 
 _TAIL_READ_BYTES = 65536  # bounded tail read: O(1) in trace size (SC-002)
 
+# Input fields whose string values are commands. Shared by every hook so the
+# summary on a trace line is derived identically everywhere — concurrent
+# PreToolUse hooks denying the same call produce denied lines with the same
+# tool-call identity (agent, tool, summary), which is what the protocol's
+# double-deny dedup keys on.
+COMMAND_FIELDS = ("command", "cmd", "script", "code", "sql", "query", "statement")
+SUMMARY_LIMIT = 120
+
 
 def state_dir(root):
     return os.path.join(str(root), STATE_DIR_NAME)
@@ -67,6 +76,82 @@ def state_dir(root):
 
 def now_iso():
     return datetime.now(timezone.utc).isoformat(timespec="seconds")
+
+
+def command_texts(tool_input):
+    """Command-shaped string values, recursively; data fields never scanned."""
+    texts = []
+
+    def walk(node, key=None):
+        if isinstance(node, dict):
+            for child_key, value in node.items():
+                walk(value, child_key)
+        elif isinstance(node, list):
+            for value in node:
+                walk(value, key)
+        elif isinstance(node, str) and key in COMMAND_FIELDS:
+            texts.append(node)
+
+    walk(tool_input)
+    return texts
+
+
+def summarize_tool_input(tool_input):
+    """The trace line's ``summary`` field, derived one way for every hook.
+
+    Command-shaped input summarizes to its first command text; anything else
+    to compact sorted JSON — deterministic, so two hooks denying the same call
+    emit the same summary (the protocol's dedup identity).
+    """
+    if isinstance(tool_input, dict):
+        texts = command_texts(tool_input)
+        if texts:
+            return texts[0][:SUMMARY_LIMIT]
+        try:
+            return json.dumps(
+                tool_input, separators=(",", ":"), sort_keys=True, default=str
+            )[:SUMMARY_LIMIT]
+        except (TypeError, ValueError):
+            return ""
+    return ""
+
+
+def count_calls(lines):
+    """Count tool calls in parsed trace lines, per the protocol's rules.
+
+    Event lines (``event`` present) are not calls and do not break the
+    adjacency of the call lines around them. Two ``denied:*`` lines for one
+    call (the protocol's bounded double-deny case) count once, keyed exactly
+    on ``call_id`` (the runtime's tool_use_id) when both lines carry one;
+    the ``call_id``-less fallback — identical ``agent``+``tool``+``summary``
+    on adjacent denied call lines — is best-effort and documented as such in
+    the protocol (an interleaved parallel append can double-count, an
+    identical immediate retry can under-count).
+    """
+    count = 0
+    seen_denied_call_ids = set()
+    previous_denied_identity = None
+    for line in lines:
+        if not isinstance(line, dict) or "event" in line:
+            continue
+        outcome = line.get("outcome")
+        if not (isinstance(outcome, str) and outcome.startswith("denied:")):
+            previous_denied_identity = None
+            count += 1
+            continue
+        call_id = line.get("call_id")
+        if isinstance(call_id, str) and call_id:
+            previous_denied_identity = None
+            if call_id in seen_denied_call_ids:
+                continue
+            seen_denied_call_ids.add(call_id)
+        else:
+            identity = (line.get("agent"), line.get("tool"), line.get("summary"))
+            if identity == previous_denied_identity:
+                continue
+            previous_denied_identity = identity
+        count += 1
+    return count
 
 
 def actor_key(transcript_path):
@@ -134,18 +219,19 @@ def _read_counters_fd(fd):
 
 
 def _max_trace_seq(root):
-    """Highest seq anywhere in the bounded trace tail (0 if none). Used only on
-    the cold counters-recovery path — never on the hot append path. Scans the
-    whole window (not just the last line) and takes the max, so a torn trailing
-    line — the natural co-symptom of the crash that corrupted the counter —
-    cannot under-recover seq to 0 and reintroduce duplicates."""
+    """Highest seq anywhere in the bounded trace tail (0 if none), plus the
+    tail's trustworthiness. Used only on the cold counters-recovery path —
+    never on the hot append path. Scans the whole window (not just the last
+    line) and takes the max, so a torn trailing line — the natural co-symptom
+    of the crash that corrupted the counter — cannot under-recover seq to 0
+    and reintroduce duplicates."""
     highest = 0
-    lines, _ = tail_trace_status(root, n=None)
+    lines, trustworthy = tail_trace_status(root, n=None)
     for line in lines:
         seq = line.get("seq")
         if isinstance(seq, int) and not isinstance(seq, bool) and seq > highest:
             highest = seq
-    return highest
+    return highest, trustworthy
 
 
 def _write_counters_fd(fd, data):
@@ -173,12 +259,19 @@ def _write_counters_fd(fd, data):
 def _recover_seq(root, counters):
     """Re-seed a corrupt counter's seq from the trace tail so the next append
     never duplicates an existing seq. Returns a diagnostic notice."""
-    recovered = max(counters["seq"], _max_trace_seq(root))
+    tail_max, tail_trustworthy = _max_trace_seq(root)
+    recovered = max(counters["seq"], tail_max)
     counters["seq"] = recovered
-    return (
+    notice = (
         "counters.json was corrupt; recovered seq from trace tail (>=%d). "
         "Surviving per-actor turn counts (if any) were preserved." % recovered
     )
+    if not tail_trustworthy:
+        notice += (
+            " The recovery tail itself contained unparseable lines; the"
+            " recovered seq is a best-effort lower bound."
+        )
+    return notice
 
 
 def append_trace(root, fields):
@@ -262,12 +355,23 @@ def get_turns(root, actor):
         return 0
     try:
         fd = os.open(path, os.O_RDONLY)
-    except OSError:
+    except OSError as exc:
+        # Present-but-unreadable is a diagnosable failure that lifts the cap
+        # for this call — the silent sibling of the loud corrupt-parse branch
+        # below would hide it (FR-004 visibility).
+        sys.stderr.write(
+            "bb-state: counters.json unreadable at turn-cap read (%s); "
+            "returning 0 turns for this check\n" % exc
+        )
         return 0
     try:
         fcntl.flock(fd, fcntl.LOCK_SH)
         counters, corrupt = _read_counters_fd(fd)
-    except OSError:
+    except OSError as exc:
+        sys.stderr.write(
+            "bb-state: counters.json read failed at turn-cap read (%s); "
+            "returning 0 turns for this check\n" % exc
+        )
         return 0
     finally:
         try:
@@ -303,16 +407,62 @@ def increment_turn(root, actor):
         return counters["turns"][actor]
 
 
+def notice_once(root, key):
+    """True the first time ``key`` is recorded this session; False after.
+
+    Session-scoped once-only diagnostics dedup (e.g. the tripwire's
+    one-disabled-notice-per-session). Rides the counters sidecar — the
+    protocol's home for "everything that must not require scanning the trace"
+    — as the additive ``notices`` object: no consumer-parse change, wrong-typed
+    ``notices`` resets rather than flagging corruption (protocol doc).
+    """
+    with _locked_counters(root) as fd:
+        counters, corrupt = _read_counters_fd(fd)
+        if corrupt:
+            sys.stderr.write("bb-state: " + _recover_seq(root, counters) + "\n")
+        notices = counters.get("notices")
+        if not isinstance(notices, dict):
+            notices = {}
+        first = not notices.get(key)
+        if first:
+            notices[key] = True
+        counters["notices"] = notices
+        # Persist on a first notice — and also whenever recovery ran, so the
+        # "recovered" diagnostic never claims a repair the file doesn't have
+        # (an unwritten recovery would re-announce itself on every read).
+        if first or corrupt:
+            _write_counters_fd(fd, counters)
+        return first
+
+
 def read_roles(root):
-    """agents.json role map ``{actor_key: role}``; {} when absent/malformed."""
+    """agents.json role map ``{actor_key: role}``; {} when absent or broken.
+
+    Absent is the normal pre-registration state and stays silent. A file
+    that exists but cannot be read/parsed is a distinct, enforcement-relevant
+    failure — it silently lifts every turn cap — so it is loud (FR-004): the
+    fallback is still {} (fail open, R10), but never without a diagnostic.
+    """
     path = os.path.join(state_dir(root), AGENTS_NAME)
     try:
         with open(path, encoding="utf-8") as f:
             data = json.load(f)
-    except (OSError, ValueError):
+    except FileNotFoundError:
+        return {}
+    except (OSError, ValueError) as exc:
+        sys.stderr.write(
+            "bb-state: agents.json unreadable or malformed (%s); all actors "
+            "treated as unregistered — no turn cap applies\n" % exc
+        )
         return {}
     roles = data.get("roles") if isinstance(data, dict) else None
-    return roles if isinstance(roles, dict) else {}
+    if not isinstance(roles, dict):
+        sys.stderr.write(
+            "bb-state: agents.json has no usable roles map; all actors "
+            "treated as unregistered — no turn cap applies\n"
+        )
+        return {}
+    return roles
 
 
 def role_for(root, actor):
@@ -324,8 +474,24 @@ def role_for(root, actor):
 
 def marker_present(root):
     """The session-guard trigger: marker file present ⇒ not cleared (deletion
-    *is* the cleared state; no resting "closed" state exists on disk)."""
-    return os.path.exists(os.path.join(state_dir(root), MARKER_NAME))
+    *is* the cleared state; no resting "closed" state exists on disk).
+
+    Only a definite absence clears the trigger. An unstattable marker path
+    (permissions drift, state dir replaced by a file) cannot rule out an
+    uncleared marker, and a backstop must not fail silent in the no-warning
+    direction — treat it as present, loudly (Constitution II)."""
+    path = os.path.join(state_dir(root), MARKER_NAME)
+    try:
+        os.stat(path)
+    except FileNotFoundError:
+        return False
+    except OSError as exc:
+        sys.stderr.write(
+            "bb-state: marker state unreadable (%s); treating the marker as "
+            "present — cannot rule out an unpersisted session record\n" % exc
+        )
+        return True
+    return True
 
 
 def read_marker(root):
@@ -342,13 +508,48 @@ def read_marker(root):
 
 def stage_transcript(root, transcript_path):
     """Copy the runtime's transcript into staging/. Returns the staged path,
-    or None when the source is missing/unreadable (caller logs a notice —
-    never a session-ending failure)."""
+    or None on failure (caller logs a notice — never a session-ending
+    failure). Distinct failure modes stay distinguishable (FR-004): a missing
+    source is silent here (the caller's message covers it); an unreadable
+    source or a staging-side write failure emits the underlying error, so the
+    diagnostic points at the actual cause, not a guessed one."""
     staging = os.path.join(state_dir(root), STAGING_DIR_NAME)
     destination = os.path.join(staging, STAGED_TRANSCRIPT_NAME)
+    source = str(transcript_path)
+    # Non-blocking readability probe before creating anything: a source we
+    # cannot read must not conjure .bb-session/ into a workspace that never
+    # had one ("created lazily by the first writer"), and the probe must
+    # never hang — O_NONBLOCK means a FIFO (or similar special file) opens
+    # immediately instead of blocking the hook until the runtime kills it,
+    # which would also swallow every warning computed before this point.
     try:
-        os.makedirs(staging, exist_ok=True)
-        shutil.copyfile(str(transcript_path), destination)
-    except OSError:
+        fd = os.open(source, os.O_RDONLY | os.O_NONBLOCK)
+    except FileNotFoundError:
         return None
+    except OSError as exc:
+        sys.stderr.write("bb-state: transcript source unreadable (%s)\n" % exc)
+        return None
+    try:
+        if not stat.S_ISREG(os.fstat(fd).st_mode):
+            sys.stderr.write(
+                "bb-state: transcript source is not a regular file (%s); "
+                "not staged\n" % source
+            )
+            return None
+        # Copy from the probed fd itself — no re-open, no TOCTOU window
+        # between probe and copy.
+        with os.fdopen(fd, "rb") as src:
+            fd = -1  # ownership transferred to the file object
+            os.makedirs(staging, exist_ok=True)
+            with open(destination, "wb") as dst:
+                shutil.copyfileobj(src, dst)
+    except OSError as exc:
+        sys.stderr.write("bb-state: transcript staging failed (%s)\n" % exc)
+        return None
+    finally:
+        if fd != -1:
+            try:
+                os.close(fd)
+            except OSError:
+                pass
     return destination

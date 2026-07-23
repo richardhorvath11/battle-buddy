@@ -1,0 +1,6 @@
+{
+  "name": "timeout-timed-out",
+  "description": "human timeout phrasing",
+  "tool_response": "query timed out after 30s",
+  "expected": "error:timeout"
+}

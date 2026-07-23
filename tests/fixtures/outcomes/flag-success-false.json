@@ -1,0 +1,9 @@
+{
+  "name": "flag-success-false",
+  "description": "success:false flag with generic failure text",
+  "tool_response": {
+    "success": false,
+    "content": "no rows were written"
+  },
+  "expected": "error:other"
+}

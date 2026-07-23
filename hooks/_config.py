@@ -23,14 +23,19 @@ class ConfigView(object):
     - ``bindings``: dict ``capability.operation -> tool name``, or None when the
       map is absent/malformed (tripwire disabled, ``capability`` omitted)
     - ``config_present``: the ``battleBuddy`` block exists (FR-015 feed)
+    - ``settings_error``: the settings file exists but could not be read —
+      distinct from a missing block, so a user-facing warning can name the
+      real cause instead of prescribing the wrong remedy
     - ``notices``: diagnostics accumulated while reading (fail-open visibility)
     """
 
-    def __init__(self, turn_cap, bindings, config_present, notices):
+    def __init__(self, turn_cap, bindings, config_present, notices,
+                 settings_error=False):
         self.turn_cap = turn_cap
         self.bindings = bindings
         self.config_present = config_present
         self.notices = list(notices)
+        self.settings_error = settings_error
 
     def capabilities_for(self, tool):
         """Reverse lookup: capabilities whose bound tool equals ``tool``.
@@ -52,7 +57,7 @@ class ConfigView(object):
 def load_config(root):
     """Build a ConfigView from ``<root>/.claude/settings.json``. Never raises."""
     notices = []
-    raw = _read_settings(root, notices)
+    raw, settings_error = _read_settings(root, notices)
     block = raw.get("battleBuddy") if isinstance(raw, dict) else None
     config_present = isinstance(block, dict)
     if block is not None and not config_present:
@@ -63,19 +68,21 @@ def load_config(root):
 
     turn_cap = _read_turn_cap(block, notices)
     bindings = _read_bindings(block, notices)
-    return ConfigView(turn_cap, bindings, config_present, notices)
+    return ConfigView(turn_cap, bindings, config_present, notices,
+                      settings_error)
 
 
 def _read_settings(root, notices):
+    """Return (parsed settings, settings_error)."""
     path = os.path.join(str(root), SETTINGS_RELPATH)
     try:
         with open(path, encoding="utf-8") as f:
-            return json.load(f)
+            return json.load(f), False
     except FileNotFoundError:
-        return {}
+        return {}, False
     except (OSError, ValueError) as exc:
         notices.append("workspace config unreadable (%s); treated as absent" % exc)
-        return {}
+        return {}, True
 
 
 def _read_turn_cap(block, notices):

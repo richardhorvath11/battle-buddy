@@ -1,0 +1,6 @@
+{
+  "name": "ok-plain-text",
+  "description": "plain success text",
+  "tool_response": "appended 1 row to session-index",
+  "expected": "ok"
+}

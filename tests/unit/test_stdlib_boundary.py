@@ -42,6 +42,9 @@ ALLOWED_STDLIB = {
     # addition per that slice's SC-005 — the shell adapter speaks a Unix-socket
     # protocol, and stdlib `socket` is what keeps that dependency-free.
     "socket",
+    # slice 2 US5: _state uses stat.S_ISREG to confirm the transcript source
+    # is a regular file before staging it (fail-open otherwise).
+    "stat",
     "sys",
     "tempfile",
     "time",

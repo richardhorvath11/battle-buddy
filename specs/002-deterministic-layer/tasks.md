@@ -62,26 +62,26 @@
 **Goal**: Complete capture with outcomes, turn cap, tripwire
 **Independent Test**: scripted 100-call session + cap + tripwire fixtures (spec US4)
 
-- [ ] T016 [US4] Implement `hooks/tool_trace.py` PostToolUse path: trace-line append per protocol (seq, agent, tool, capability from bindings, at, summary, outcome via R4 classifier); register in `hooks.json`
-- [ ] T017 [US4] Implement PreToolUse path: per-actor turn count from `counters.json` (never trace scans), actor role from `agents.json` (R10 — unregistered ⇒ uncapped, fail open), cap from ConfigView, past-cap denial with emit-your-verdict message + `denied:turn_cap` line; no separate marker (verdict fields carry FR-5f(a) semantics per spec FR-009)
-- [ ] T018 [US4] Implement the tripwire: R5 regex families over untrusted-capability results (bindings-classified; set v1 = alerting, observability), one advisory + one tripwire trace event per trip; no-binding-map ⇒ disabled with one notice per session
-- [ ] T019 [P] [US4] Author fixtures: `tests/fixtures/outcomes/*.json` (R4 classifier pairs), `tests/fixtures/tripwire/*.json` (trip/no-trip per family + no-binding-map case), and `tests/fixtures/sessions/hundred-call.json` (the scripted multi-agent session, SC-005)
-- [ ] T020 [US4] Write `tests/unit/test_tool_trace.py`: SC-005 (100 lines, ordered, no dupes; N+1 denied), outcome classification, tripwire incl. degraded mode, fault corpus (fail-open)
+- [X] T016 [US4] Implement `hooks/tool_trace.py` PostToolUse path: trace-line append per protocol (seq, agent, tool, capability from bindings, at, summary, outcome via R4 classifier); register in `hooks.json`
+- [X] T017 [US4] Implement PreToolUse path: per-actor turn count from `counters.json` (never trace scans), actor role from `agents.json` (R10 — unregistered ⇒ uncapped, fail open), cap from ConfigView, past-cap denial with emit-your-verdict message + `denied:turn_cap` line; no separate marker (verdict fields carry FR-5f(a) semantics per spec FR-009)
+- [X] T018 [US4] Implement the tripwire: R5 regex families over untrusted-capability results (bindings-classified; set v1 = alerting, observability), one advisory + one tripwire trace event per trip; no-binding-map ⇒ disabled with one notice per session
+- [X] T019 [P] [US4] Author fixtures: `tests/fixtures/outcomes/*.json` (R4 classifier pairs), `tests/fixtures/tripwire/*.json` (trip/no-trip per family + no-binding-map case), and `tests/fixtures/sessions/hundred-call.json` (the scripted multi-agent session, SC-005)
+- [X] T020 [US4] Write `tests/unit/test_tool_trace.py`: SC-005 (100 lines, ordered, no dupes; N+1 denied), outcome classification, tripwire incl. degraded mode, fault corpus (fail-open)
 
 ## Phase 7: User Story 5 — Session guard (P2)
 
 **Goal**: Unpersisted-record detection, transcript staging, config warning
 **Independent Test**: four marker states + transcript + config fixtures (spec US5)
 
-- [ ] T021 [US5] Implement `hooks/session_guard.py`: **SessionEnd** marker check (present ⇒ warn with remedial instruction; deletion = cleared per protocol — SessionEnd not Stop, so a legitimately-open session isn't nagged every turn, per protocol doc's event-binding note), transcript copy to `staging/` with degrade-to-notice, SessionStart config-presence warning (FR-015, non-blocking); register both events in `hooks.json`
-- [ ] T022 [P] [US5] Author `tests/fixtures/markers/*.json`: absent / open-unconfirmed / open-confirmed-never-closed / cleared, plus transcript-present/missing/unreadable and config-present/absent payloads
-- [ ] T023 [US5] Write `tests/unit/test_session_guard.py`: warnings on exactly the two present states (US5 Independent Test), staging behavior, FR-015 warning, fault corpus (fail-open)
+- [X] T021 [US5] Implement `hooks/session_guard.py`: **SessionEnd** marker check (present ⇒ warn with remedial instruction; deletion = cleared per protocol — SessionEnd not Stop, so a legitimately-open session isn't nagged every turn, per protocol doc's event-binding note), transcript copy to `staging/` with degrade-to-notice, SessionStart config-presence warning (FR-015, non-blocking); register both events in `hooks.json`
+- [X] T022 [P] [US5] Author `tests/fixtures/markers/*.json`: absent / open-unconfirmed / open-confirmed-never-closed / cleared, plus transcript-present/missing/unreadable and config-present/absent payloads
+- [X] T023 [US5] Write `tests/unit/test_session_guard.py`: warnings on exactly the two present states (US5 Independent Test), staging behavior, FR-015 warning, fault corpus (fail-open)
 
 ## Phase 8: Polish & Cross-Cutting
 
-- [ ] T024 [P] Write `tests/unit/test_hook_latency.py`: R8 timing tripwire — p95 < 100ms over 100 invocations per hook entry (SC-002)
-- [ ] T025 [P] Confirm `tests/fixtures/packaging/intended-bundle.json` (merged in slice 1) already lists `hooks/**` + `bin/**` (it does); the real work is a shipped-side exclusion case proving `tests/`, `tools/`, and `.bb-session/` never appear in the bundle — extend `tests/unit/test_packaging.py` accordingly (SC-006 from the shipped side)
-- [ ] T026 Full quickstart walkthrough (all 10 scenarios); append validation run to `specs/002-deterministic-layer/checklists/requirements.md`
+- [X] T024 [P] Write `tests/unit/test_hook_latency.py`: R8 timing tripwire — p95 < 100ms over 100 invocations per hook entry (SC-002)
+- [X] T025 [P] Confirm `tests/fixtures/packaging/intended-bundle.json` (merged in slice 1) already lists `hooks/**` + `bin/**` (it does); the real work is a shipped-side exclusion case proving `tests/`, `tools/`, and `.bb-session/` never appear in the bundle — extend `tests/unit/test_packaging.py` accordingly (SC-006 from the shipped side)
+- [X] T026 Full quickstart walkthrough (all 10 scenarios); append validation run to `specs/002-deterministic-layer/checklists/requirements.md`
 
 ## Dependencies
 

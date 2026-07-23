@@ -13,10 +13,16 @@ import pytest
 
 from conftest import load_fixture
 
-# Dev-only roots that must never appear in a shipped bundle (Constitution I,
-# Platform Constraints: the mock and all test tooling are dev-only artifacts).
-FORBIDDEN_ROOTS = ("tests/", "tools/")
+# Roots that must never appear in a shipped bundle: dev-only artifacts
+# (Constitution I, Platform Constraints: the mock and all test tooling) and
+# the session-local state directory (runtime-created, never shipped — slice-2
+# T025's shipped-side exclusion).
+FORBIDDEN_ROOTS = ("tests/", "tools/", ".bb-session/")
 FORBIDDEN_SEGMENTS = ("fixtures/",)
+
+# The slice-2 shipped components: the bundle must enumerate these roots or
+# the plugin ships without its deterministic layer.
+REQUIRED_ROOTS = ("hooks/**", "bin/**")
 
 
 def check_bundle(manifest):
@@ -46,8 +52,24 @@ def test_mis_packaged_bundle_fails_naming_every_offender():
 
 @pytest.mark.parametrize(
     "glob",
-    ["tests/unit/**", "tools/**", "skills/fixtures/x.json"],
-    ids=["tests-root", "tools-root", "fixtures-segment"],
+    ["tests/unit/**", "tools/**", "skills/fixtures/x.json", ".bb-session/**"],
+    ids=["tests-root", "tools-root", "fixtures-segment", "bb-session-root"],
 )
 def test_forbidden_paths_are_flagged(glob):
     assert check_bundle({"bundle": [glob]}) == [glob]
+
+
+# --- slice-2 shipped side (T025, SC-006): hooks/ and bin/ ship; the state
+# --- dir and every dev-only root provably never do.
+
+
+def test_intended_bundle_ships_the_deterministic_layer():
+    manifest = load_fixture("packaging", "intended-bundle.json")
+    for required in REQUIRED_ROOTS:
+        assert required in manifest["bundle"], required
+
+
+def test_intended_bundle_excludes_state_and_dev_roots():
+    manifest = load_fixture("packaging", "intended-bundle.json")
+    for glob in manifest["bundle"]:
+        assert not glob.startswith(FORBIDDEN_ROOTS), glob

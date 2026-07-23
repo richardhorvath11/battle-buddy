@@ -1,0 +1,6 @@
+{
+  "name": "timeout-negative-clean",
+  "description": "clean result with no timeout language",
+  "tool_response": "dashboard snapshot captured; 4 panels rendered",
+  "expected": "ok"
+}

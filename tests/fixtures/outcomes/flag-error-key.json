@@ -1,0 +1,8 @@
+{
+  "name": "flag-error-key",
+  "description": "truthy error key alone (no auth/timeout text) - the third R4 rule",
+  "tool_response": {
+    "error": "upstream returned an unexpected shape"
+  },
+  "expected": "error:other"
+}

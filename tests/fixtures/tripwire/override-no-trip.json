@@ -1,0 +1,12 @@
+{
+  "name": "override-no-trip",
+  "description": "benign alert text, no instruction shape",
+  "bindings": {
+    "alerting.get_alert": "mcp__pager__get_alert",
+    "observability.run_query": "mcp__grafana__run_query",
+    "storage.append_record": "mcp__sheets__append_row"
+  },
+  "tool_name": "mcp__pager__get_alert",
+  "tool_response": "ALERT db-primary: disk 91% used on /var/lib/postgresql; growth 2%/h.",
+  "expected": "none"
+}

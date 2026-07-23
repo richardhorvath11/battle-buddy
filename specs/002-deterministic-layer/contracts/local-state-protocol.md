@@ -56,7 +56,18 @@ append property on the normal path. Three line types share one monotonic `seq`:
   with no cross-visibility, so a call that is *both* guardrail-dangerous *and* past-cap
   can produce two `denied:*` lines (one per denying hook) — an accepted, bounded case;
   call-counting deduplicates denied lines sharing the same tool-call identity within one
-  PreToolUse batch.
+  PreToolUse batch. **Tool-call identity** (pinned by this slice's implementation;
+  `call_id` is an additive optional field on denied lines only — no version bump, no
+  consumer-parse change, same precedent as corruption recovery below): denied lines
+  carry the runtime's tool-call id as an optional `call_id` field whenever
+  the hook payload provides one (`tool_use_id`); two `denied:*` lines with the same
+  `call_id` are one call — exact, order-independent. When `call_id` is unavailable the
+  fallback is identical `agent` + `tool` + `summary` on **adjacent** denied *call* lines
+  (event lines between them do not break adjacency; both denying hooks derive `summary`
+  through the same shared helper, so the identity is well-defined). The fallback is
+  best-effort, not exact: a parallel subagent's append can land between the two denied
+  appends (double-count) and an identical immediately-retried denied call merges
+  (under-count) — bounded miscounts, accepted only for `call_id`-less runtimes.
 - **Call lines** have no `event` field; **tripwire event lines** carry
   `event: "tripwire"` and consume their own seq. Consumers counting *calls* filter on
   the absence of `event` (SC-005's 100 calls ⇒ exactly 100 call lines).
@@ -104,6 +115,15 @@ corrupt counter grants the triage actor a fresh turn window, an accepted degrada
 partial-write-safe, and `fsync`-ed so the increment is durable before the dependent trace
 append.
 
+**Once-only notices** (additive field, this slice; no version bump — no consumer-parse
+change, same precedent as corruption recovery above): the sidecar may carry a `notices`
+object of `{key: true}` entries recording session-scoped diagnostics already emitted
+once — e.g. `tripwire_disabled:<session id>`, backing the tripwire's
+one-disabled-notice-per-session rule (the key embeds the runtime session id so a
+`.bb-session/` surviving a skipped close still yields one notice in each later
+session). Consumers never parse it; a wrong-typed `notices` resets to `{}` and is
+**not** treated as corruption (it feeds no seq/turn guarantee).
+
 ## agents.json — actor identity and roles
 
 Hook payloads carry no agent name; identity is **derived**: the actor key is a stable
@@ -125,7 +145,14 @@ registration. **Fallback when an actor is unregistered: no turn cap applies (fai
 `transcript_path` at SessionEnd; slice 5's close flow uploads it, and uploads
 `trace.jsonl` under the design's artifact name **`tool-trace.jsonl`** (design §5.3 — the
 local and uploaded names differ; this mapping is part of the protocol). Missing
-transcript ⇒ logged notice, no failure.
+transcript ⇒ logged notice, no failure. **Known v1 limitation** (recorded, not silent):
+staging is unconditional at every SessionEnd and the staged name is single, so the copy
+reflects the *most recent* session to end in the workspace — under the design's
+one-session-per-workspace model that is the incident session, but an unrelated session
+ending in the same directory while a marker is open will overwrite the staged copy. The
+runtime's own transcript at `transcript_path` remains the authoritative source; slice
+5's close flow should treat the staged copy as a convenience snapshot, not the only
+copy.
 
 `staging/checkpoints.jsonl` — one JSON line appended per checkpoint at
 checkpoint-write time by the session-store skill's checkpoint conventions (slice 3);
@@ -144,7 +171,7 @@ second local-state root.
 |---|---|---|---|
 | PreToolUse | evaluate deny classes; on block: append `denied:guardrail:*` line | turn-cap check via counters; on deny: append `denied:turn_cap` line | — |
 | PostToolUse | — | append call line (outcome classified); tripwire evaluation | — |
-| SessionStart | — | — | config-presence warning (FR-015) |
+| SessionStart | — | — | config-presence warning (FR-015; a settings file that exists but cannot be parsed gets a fix-the-file variant instead of the run-from-workspace-repo remedy); stale-marker warning on a **fresh `startup` only** — `resume`, `clear`, `compact`, and unknown sources are exempt (all fire mid-session with the marker legitimately open; compaction has no preceding SessionEnd) |
 | SessionEnd | — | — | marker check (warn if present); transcript staging |
 
 Session-guard note: v1 registers the marker check on **SessionEnd only** — it fires once
@@ -152,6 +179,18 @@ at session termination and cannot block, satisfying FR-011 as a loud warning; a 
 registration would re-fire after every conversational turn of a live session (constant
 false nags for a legitimately-open marker). A blocking variant is deferred until the
 runtime offers a clean end-of-session blocking point (recorded as a research decision).
+"Loud" is delivered on the runtime's user-visible channel: the FR-011 and FR-015
+warnings are emitted as a `systemMessage` JSON object on stdout (exit 0) *in addition
+to* stderr — an exit-0 hook's stderr alone is debug-log-only and would reach nobody.
+Fail-open/degraded diagnostics remain stderr-only (R13); only the spec-required
+warnings use the user-visible surface. Because `systemMessage` rendering *during
+session teardown* (SessionEnd) is not explicitly documented by the runtime, the marker
+check is mirrored at **SessionStart** on a fresh `startup` only (see the event table:
+`resume`/`clear`/`compact` and unknown sources fire mid-session over a legitimately
+open marker — warning there would be the same false-nag failure that keeps this check
+off the Stop event): a marker already present at a fresh startup is the same
+skipped-`/close` state, warned at a point where rendering is unambiguous. The two
+checks together make D-11's detection robust to either surface failing.
 
 ## Config keys read by this layer (workspace `.claude/settings.json` → `battleBuddy`)
 

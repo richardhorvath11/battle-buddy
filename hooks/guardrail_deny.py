@@ -43,11 +43,9 @@ import sys
 import _config
 import _state
 
-SUMMARY_LIMIT = 120
-
-# Input fields whose values are commands to evaluate. Anything else
-# (descriptions, messages, excerpts, row values) is data, never scanned.
-COMMAND_FIELDS = ("command", "cmd", "script", "code", "sql", "query", "statement")
+# Command-field extraction and the trace line's summary derivation live in
+# _state (shared with tool_trace so denied lines from concurrent PreToolUse
+# hooks carry the same tool-call identity — the protocol's dedup key).
 
 # Scrubbing masks *data positions* — text the shell does not execute — so a
 # dangerous pattern that appears only as data (US1 AS-2) doesn't match, while
@@ -163,24 +161,6 @@ BLOCK_MESSAGE = (
 )
 
 
-def _command_texts(tool_input):
-    """Command-shaped string values, recursively; data fields never scanned."""
-    texts = []
-
-    def walk(node, key=None):
-        if isinstance(node, dict):
-            for child_key, value in node.items():
-                walk(value, child_key)
-        elif isinstance(node, list):
-            for value in node:
-                walk(value, key)
-        elif isinstance(node, str) and key in COMMAND_FIELDS:
-            texts.append(node)
-
-    walk(tool_input)
-    return texts
-
-
 def _mask_inert(match, placeholder, group="val"):
     """Replace a data span with a placeholder — unless it carries command
     substitution, which executes wherever it appears and so stays raw."""
@@ -220,7 +200,7 @@ def _evaluate(payload):
     tool_input = payload.get("tool_input")
     if not isinstance(tool_input, dict):
         return None
-    texts = _command_texts(tool_input)
+    texts = _state.command_texts(tool_input)
     if not texts:
         return None
 
@@ -253,7 +233,7 @@ def _evaluate(payload):
     return None
 
 
-def _append_denied_line(payload, class_name, texts):
+def _append_denied_line(payload, class_name):
     """Append the block's own trace line. Returns config notices (if any) so
     the caller can surface them in diagnostics (fail-open visibility)."""
     root = payload.get("cwd")
@@ -263,9 +243,14 @@ def _append_denied_line(payload, class_name, texts):
     line = {
         "agent": _state.actor_key(payload.get("transcript_path", "")),
         "tool": tool,
-        "summary": (texts[0] if texts else "")[:SUMMARY_LIMIT],
+        "summary": _state.summarize_tool_input(payload.get("tool_input")),
         "outcome": _state.OUTCOME_DENIED_GUARDRAIL_PREFIX + class_name,
     }
+    # The runtime's tool-call id, when provided, is the protocol's exact
+    # double-deny dedup key (both denying hooks stamp the same id).
+    call_id = payload.get("tool_use_id")
+    if isinstance(call_id, str) and call_id:
+        line["call_id"] = call_id
     # capability rides the line from the binding map when present (protocol
     # doc; multi-capability tools serialize as a sorted comma-joined value).
     # The audit line must not be hostage to config health, so a config blow-up
@@ -293,7 +278,9 @@ def run(stdin_text):
         payload = json.loads(stdin_text)
         if not isinstance(payload, dict):
             raise ValueError("hook payload is not a JSON object")
-    except ValueError as exc:
+    except (ValueError, RecursionError) as exc:
+        # RecursionError: a pathologically nested payload must fail open like
+        # any other unreadable one, not escape run() as a traceback.
         return 0, "", "guardrail_deny fail-open: unreadable payload (%s)\n" % exc
 
     try:
@@ -307,9 +294,7 @@ def run(stdin_text):
     class_name, message = verdict
     diagnostics = ""
     try:
-        tool_input = payload.get("tool_input")
-        texts = _command_texts(tool_input) if isinstance(tool_input, dict) else []
-        notices = _append_denied_line(payload, class_name, texts)
+        notices = _append_denied_line(payload, class_name)
         for notice in notices:
             diagnostics += "guardrail_deny config notice: %s\n" % notice
     except Exception as exc:
@@ -325,10 +310,15 @@ def main():
         sys.stderr.write("guardrail_deny fail-open: stdin unreadable (%s)\n" % exc)
         sys.exit(0)
     exit_code, stdout, stderr = run(stdin_text)
-    if stdout:
-        sys.stdout.write(stdout)
-    if stderr:
-        sys.stderr.write(stderr)
+    try:
+        if stdout:
+            sys.stdout.write(stdout)
+        if stderr:
+            sys.stderr.write(stderr)
+        sys.stdout.flush()
+        sys.stderr.flush()
+    except OSError:
+        pass  # broken pipe on a dying runtime — keep the intended exit code
     sys.exit(exit_code)
 
 

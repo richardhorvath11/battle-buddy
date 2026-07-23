@@ -1,0 +1,6 @@
+{
+  "name": "auth-negative-authorized",
+  "description": "'authorized' must not match 'unauthorized' (word boundary)",
+  "tool_response": "user authorized successfully; 200 OK; 3 rows returned",
+  "expected": "ok"
+}

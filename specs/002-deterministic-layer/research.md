@@ -203,3 +203,14 @@ Code hook diagnostic channel, captured in debug/verbose logs and the transcript.
 degraded-mode notices in this slice write to stderr accordingly. **Alternative deferred**:
 a responder-visible diagnostics surface — reconsidered only if operational experience
 shows stderr-in-debug-logs is insufficient for post-incident review.
+
+**Scope clarification (slice-2 review)**: R13 covers FR-004 *diagnostics* only. The
+spec-required *product warnings* — FR-011's "warn loudly" (the SessionEnd marker check
+and its fresh-`startup` SessionStart mirror, protocol doc) and FR-015's config warning
+at SessionStart (including its broken-settings variant, which names the unreadable file
+instead of prescribing the wrong remedy) — are addressed to the responder, and an
+exit-0 hook's stderr never reaches the responder in normal operation; the product
+warnings (and only they) additionally ride the runtime's documented user-visible
+channel, a `systemMessage` JSON object on stdout. This is not a reversal of the
+deferred alternative above: diagnostics stay stderr-only; the spec's own warnings were
+never diagnostics.
