@@ -23,12 +23,20 @@
 #
 # GCP prerequisites (once per person or team):
 #   1. A Google Cloud project with an OAuth consent screen configured.
-#   2. An OAuth client:
-#      - "Desktop app" type is simplest for local CLI use — it accepts
-#        loopback redirects on any port, so no --callback-port needed.
-#      - "Web application" type requires the exact redirect URI to be
-#        registered; pass --callback-port <port> here and register
-#        http://localhost:<port>/callback in the GCP console.
+#   2. An OAuth client with the CLI's redirect URI registered. Claude Code's
+#      OAuth callback is exactly (verified from CLI v2.1.220):
+#          http://localhost:<port>/callback
+#      This script fixes the port (default 8976) so the URI is deterministic:
+#      register  http://localhost:8976/callback  under "Authorized redirect
+#      URIs" on your OAuth client. Notes:
+#      - https://claude.ai/api/mcp/auth_callback is the callback for
+#        Claude.ai / Claude Desktop *connectors* — registering only that one
+#        yields "Error 400: redirect_uri_mismatch" for the local CLI. The
+#        same Web-application client can carry both URIs; keep claude.ai's
+#        if you also use the connector UI, and add the localhost one.
+#      - A "Desktop app" type client accepts loopback redirects on any port,
+#        so it works without registering the URI; the fixed port is harmless
+#        there too.
 #   3. The corresponding Google APIs enabled for the project.
 #   During the browser consent, review the scopes requested. The constitution
 #   wants agent credentials read-only by default; storage/artifacts/diary are
@@ -90,10 +98,13 @@ DEFAULT_PRODUCTS="sheets drive docs"   # battle-buddy: storage, artifacts, diary
 SCOPE="local"
 DRY_RUN=0
 REMOVE=0
-CALLBACK_PORT=""
+# Fixed by default so the redirect URI is deterministic and registrable:
+# http://localhost:8976/callback (see GCP prerequisites above). Override with
+# --callback-port; a fixed port only binds during the OAuth exchange.
+CALLBACK_PORT="8976"
 PRODUCTS=""
 
-usage() { sed -n '2,45p' "$0" | sed 's/^# \{0,1\}//'; }
+usage() { sed -n '2,54p' "$0" | sed 's/^# \{0,1\}//'; }
 
 while [ $# -gt 0 ]; do
   case "$1" in
@@ -179,10 +190,14 @@ cat <<DONE
 added:$added (scope: $SCOPE)
 
 next steps:
-  1. restart your Claude Code session (new servers load at startup)
-  2. run /mcp and complete the browser OAuth for each server
-  3. battle-buddy roster check: sheets/drive/docs cover storage, artifacts and
+  1. confirm your OAuth client's "Authorized redirect URIs" includes
+       http://localhost:${CALLBACK_PORT}/callback
+     (https://claude.ai/api/mcp/auth_callback alone is the *connector*
+     callback and yields Error 400: redirect_uri_mismatch for the CLI)
+  2. restart your Claude Code session (new servers load at startup)
+  3. run /mcp and complete the browser OAuth for each server
+  4. battle-buddy roster check: sheets/drive/docs cover storage, artifacts and
      diary — the alerting capability still needs its own server (e.g. the
      PagerDuty MCP from templates/mcp.recommended.json)
-  4. run /doctor to re-resolve bindings against the new roster
+  5. run /doctor to re-resolve bindings against the new roster
 DONE
