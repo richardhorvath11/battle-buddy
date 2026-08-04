@@ -152,6 +152,18 @@ since a service account would contradict the constraint.
    `observability` disables metric reads, evidence deep-links. Both must degrade, not
    error — test case **D-07**.
 
+**First-party alternative (recommended for Tier 3):** Google hosts official remote MCP
+endpoints for Workspace products (`https://sheetsmcp.googleapis.com/mcp/v1`,
+`drivemcp…`, `docsmcp…`) — per-user OAuth against your own GCP OAuth client, no local
+server process. That retires risk 1 above (no archived npm packages) and the
+`GOOGLE_APPLICATION_CREDENTIALS` service-account tension for the three Google-backed
+capabilities; only `alerting` (PagerDuty) still runs as a local process.
+`tools/setup-google-mcp.sh` registers them with Claude Code — secret goes to the OS
+keychain via `MCP_CLIENT_SECRET`, never into a file (FR-007-safe, verified). Run it, then
+`/mcp` to complete OAuth, then `/doctor`. Capability names are roster-identical
+(`storage-google-sheets`, …), so Constitution VII holds: same capabilities, different
+binding, zero battle-buddy changes.
+
 ---
 
 ## 4. The four test tiers
